@@ -1,0 +1,16 @@
+/* theme.css */
+
+@font-face {
+
+    ...
+
+}
+
+:root {
+    --color-background: #F3F0E8;
+    --color-text: #111111;
+    --color-accent-coral: #FF6655;
+    --color-accent-blue: #244EFF;
+    --font-primary: "Instrument Sans", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+}
