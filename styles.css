@@ -1,0 +1,32 @@
+/* styles.css */
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-background);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    overflow-x: hidden;
+    color: var(--color-text);
+    font-family: var(--font-primary);
+}
+
+a {
+    color: var(--color-text);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--color-accent-blue);
+}
+
+::selection {
+    background: var(--color-accent-blue);
+    color: var(--color-background);
+}
