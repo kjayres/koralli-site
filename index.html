@@ -14,18 +14,13 @@
   <link rel="stylesheet" href="css/styles.css">
   
   <script src="js/claude-runtime.js"></script>
+  <script src="js/animations.js"></script>
  </head>
  
  <body>
   <x-dc>
    <helmet>
      <style>
-     html,body{margin:0;padding:0;background:#F3F0E8;}
-     html{scroll-behavior:smooth;}
-     body{overflow-x:hidden;}
-     a{color:#111111;text-decoration:none;}
-     a:hover{color:#244EFF;}
-     ::selection{background:#244EFF;color:#F3F0E8;}
      @keyframes kpulse{0%{box-shadow:0 0 0 0 rgba(255,102,85,0.45);}70%{box-shadow:0 0 0 13px rgba(255,102,85,0);}100%{box-shadow:0 0 0 0 rgba(255,102,85,0);}}
     </style>
    </helmet>
@@ -1049,7 +1044,38 @@
     </footer>
    </div>
   </x-dc>
-  <script data-dc-script="" data-props='{"showGrid": {"editor": "boolean", "default": true, "tsType": "boolean", "section": "Hero"}, "density": {"editor": "range", "default": 80, "min": 30, "max": 140, "step": 10, "unit": "pts", "tsType": "number", "section": "Hero"}, "motion": {"editor": "enum", "options": ["calm", "lively"], "default": "calm", "tsType": "\"calm\" | \"lively\"", "section": "Hero"}, "fish": {"editor": "boolean", "default": true, "tsType": "boolean", "section": "Reef"}}' type="text/x-dc">
+  <script data-dc-script="" data-props='{
+    "showGrid": {
+      "editor": "boolean", 
+      "default": true, 
+      "tsType": "boolean", 
+      "section": "Hero"
+    }, 
+    "density": {
+      "editor": "range", 
+      "default": 80, 
+      "min": 30, 
+      "max": 140, 
+      "step": 10, 
+      "unit": "pts", 
+      "tsType": "number", 
+      "section": "Hero"
+    }, 
+    "motion": {
+      "editor": "enum", 
+      "options": ["calm", "lively"], 
+      "default": "calm", 
+      "tsType": "\"calm\" | \"lively\"", 
+      "section": "Hero"
+    }, 
+    "fish": {
+      "editor": "boolean", 
+      "default": true, 
+      "tsType": "boolean", 
+      "section": "Reef"
+    }
+  }' type="text/x-dc">
+
    class Component extends DCLogic {
   state = { challenge: 0, brief: 0 };
 
@@ -1346,49 +1372,21 @@
   }
 
   setDescCanvas = (el) => {
-    if (!el) { this.killCanvas(this.dsc); this.dsc = null; this._descEl = null; return; }
+    if (!el) {
+        if (this.dsc) {
+            this.dsc.destroy();
+            this.dsc = null;
+        }
+        this._descEl = null;
+        return;
+    }
     if (this._descEl === el) return;
     this._descEl = el;
-    if (this.reduced === undefined) this.reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.killCanvas(this.dsc);
-    this.dsc = this.makeCanvas(el, (st) => this.seedDesc(st), (st) => this.stepDesc(st));
+    if (this.dsc) {
+        this.dsc.destroy();
+    }
+    this.dsc = KoralliAnimations.attachDescent(el);
   };
-
-  seedDesc(s) {
-    if (!s.w) return;
-    s.snow = [];
-    for (let i = 0; i < 46; i++) s.snow.push({
-      x: Math.random() * s.w, y: Math.random() * s.h,
-      sp: 0.12 + Math.random() * 0.25, ph: Math.random() * 6.28
-    });
-  }
-
-  stepDesc(s) {
-    for (const p of s.snow) {
-      p.y += p.sp;
-      p.x += Math.sin(s.t * 0.008 + p.ph) * 0.15;
-      if (p.y > s.h + 6) { p.y = -6; p.x = Math.random() * s.w; }
-    }
-    this.drawDesc(s);
-  }
-
-  drawDesc(s) {
-    const { ctx } = s;
-    ctx.clearRect(0, 0, s.w, s.h);
-    for (const p of s.snow) {
-      const t = p.y / s.h;
-      ctx.fillStyle = t < 0.5 ? 'rgba(17,23,38,' + (0.12 + 0.18 * (0.5 - t)).toFixed(3) + ')' : 'rgba(243,240,232,' + (0.1 + 0.3 * (t - 0.5)).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(p.x, p.y, 1.4, 0, 6.3); ctx.fill();
-    }
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 8]);
-    for (const ly of [0.3, 0.44, 0.58, 0.72, 0.86]) {
-      const y = ly * s.h;
-      ctx.strokeStyle = ly < 0.5 ? 'rgba(17,23,38,0.16)' : 'rgba(243,240,232,0.16)';
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s.w, y); ctx.stroke();
-    }
-    ctx.setLineDash([]);
-  }
 
   drawCoral(ctx, c, t, stroke, leafCol, dotCol) {
     const sway = (n) => Math.sin(t * 0.008 + n.ph) * (n.depth * 0.5);
