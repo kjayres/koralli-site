@@ -1,0 +1,14 @@
+{
+  "name": "koralli-site",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/build.mjs --check",
+    "dev": "node scripts/dev.mjs",
+    "artwork:building": "node scripts/export-building.mjs"
+  }
+}

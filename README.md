@@ -1,17 +1,24 @@
-# Koralli — homepage
+# Koralli website
 
-Single-file animated site: `index.html` (all fonts, scripts and animations inlined — works offline and on any static host).
+The current design is shared at https://kjayres.github.io/koralli-site/.
 
-## Host it free with GitHub Pages
+The previous published site is preserved in the `archive/pre-redesign-2026-09-15` branch. This is a design review: draft copy labels and search-engine exclusion remain in place.
 
-1. Create a new repository at github.com/new (e.g. `koralli-site`, Public).
-2. On the empty repo page click "uploading an existing file", drag in `index.html` and `README.md`, commit.
-3. Repo Settings → Pages → Source: "Deploy from a branch" → Branch: `main`, folder `/ (root)` → Save.
-4. After ~1 minute your site is live at `https://<your-username>.github.io/koralli-site/` — share that link.
+## Working on the site
 
-## Editing
+- `src/`: editable HTML, CSS, content, SVG assets and animation modules.
+- `scripts/build.mjs`: expands the native page components into `dist/`.
+- `dist/`: complete static website, served by GitHub Pages.
+- `index.html`: takes the existing shareable address to `dist/`.
 
-- Quick text edits: open `index.html` on GitHub, click the pencil, edit the readable page markup (search for the copy you want to change), commit — Pages redeploys automatically in ~1 min.
-- Bigger changes (layout, animations): edit in the design workspace and re-export a fresh `index.html`, then upload it over the old one.
+Use Node.js 20 or newer. No dependency installation is needed.
 
-Fastest no-GitHub alternative: drag `index.html` onto https://app.netlify.com/drop — instant public link.
+```sh
+npm run dev
+npm run build
+npm run check
+```
+
+The development server opens at http://127.0.0.1:4173. Build before committing changes to `src` so `dist` stays in sync. Relative asset URLs make the same build work on localhost and GitHub Pages. `npm run artwork:building` refreshes the downloadable building SVGs after changes to the building geometry.
+
+On Kieran's Mac, double-click `Open Koralli.app` beside the `new_site` folder to start the server and open a browser. The launcher and internal notes remain local.

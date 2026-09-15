@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+.preview/
+docs/
+figure-provenance.json
+reef-geometry-provenance.json
+scripts/open.mjs
+scripts/open.applescript
