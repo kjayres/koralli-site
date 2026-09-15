@@ -21,4 +21,6 @@ npm run check
 
 The development server opens at http://127.0.0.1:4173. Build before committing changes to `src` so `dist` stays in sync. Relative asset URLs make the same build work on localhost and GitHub Pages. `npm run artwork:building` refreshes the downloadable building SVGs after changes to the building geometry.
 
-On Kieran's Mac, double-click `Open Koralli.app` beside the `new_site` folder to start the server and open a browser. The launcher and internal notes remain local.
+On Kieran's Mac, double-click `Open Koralli.app` inside the `new_site` folder to start the server and open a browser. The launcher and internal notes remain local.
+
+Local supporting material is in `docs/` and `artwork-source/`, both excluded from GitHub. `Open Koralli.webloc` opens the published design directly. The parent `Internal` folder contains only `old_site` and `new_site`.
