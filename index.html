@@ -1231,145 +1231,29 @@
   }
 
   setCanvas = (el) => {
-    if (!el) { this.killCanvas(this.cv); this.cv = null; this._el = null; return; }
+    if (!el) {
+        if (this.cv) {
+            this.cv.destroy();
+            this.cv = null;
+        }
+
+        this._el = null;
+        return;
+    }
+
     if (this._el === el) return;
+
     this._el = el;
-    if (this.reduced === undefined) this.reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.killCanvas(this.cv);
-    this.cv = this.makeCanvas(el, (st) => this.seedHero(st), (st) => this.stepHero(st));
-  };
 
-  traceProblems = [{ n: 'AI GOVERNANCE', r: 0.66 }, { n: 'DATA INFRASTRUCTURE', r: 0.42 }, { n: 'ENTERING A NEW MARKET', r: 0.5 }, { n: 'AI IN OPERATIONS', r: 0.33 }, { n: 'MODEL RISK & ASSURANCE', r: 0.7 }];
-  glyphPts = [[0,1],[0.02,0.72],[0,0.45],[0.05,0.18],[-0.28,0.6],[-0.46,0.4],[0.3,0.58],[0.5,0.42],[-0.2,0.3],[-0.34,0.1],[0.22,0.27],[0.4,0.08]];
-  glyphEdges = [[0,1],[1,2],[2,3],[1,4],[4,5],[1,6],[6,7],[2,8],[8,9],[2,10],[10,11]];
-
-  seedHero(s) {
-    if (!s.w) return;
-    s.grid = [];
-    const step = Math.max(70, 150 - (this.props.density ?? 80) * 0.7);
-    for (let gy = step * 0.7; gy < s.h - 40; gy += step) {
-      for (let gx = 40; gx < s.w - 40; gx += step) {
-        if (Math.random() < 0.22) continue;
-        s.grid.push({ x: gx + (Math.random() - 0.5) * step * 0.5, y: gy + (Math.random() - 0.5) * step * 0.5, ph: Math.random() * 6.28 });
-      }
+    if (this.cv) {
+        this.cv.destroy();
     }
-    s.trace = null; s.cool = 30; s.pIdx = 0;
-  }
 
-  newTrace(s) {
-    if (s.grid.length < 20) return;
-    const sc = Math.min(s.w, s.h) * (0.26 + Math.random() * 0.1);
-    const rot = (Math.random() - 0.5) * 1.1;
-    const cx = s.w * (0.44 + Math.random() * 0.36), cy = s.h * (0.3 + Math.random() * 0.24);
-    const cos = Math.cos(rot), sin = Math.sin(rot);
-    const used = new Set();
-    const nodes = this.glyphPts.map(p => {
-      const gx = p[0] * sc, gy = (p[1] - 0.55) * sc;
-      const tx = cx + gx * cos - gy * sin, ty = cy + gx * sin + gy * cos;
-      let best = -1, bd = Infinity;
-      s.grid.forEach((g, i) => {
-        if (used.has(i)) return;
-        const d = (g.x - tx) * (g.x - tx) + (g.y - ty) * (g.y - ty);
-        if (d < bd) { bd = d; best = i; }
-      });
-      used.add(best);
-      return best;
+    this.cv = KoralliAnimations.attachHero(el, {
+        density: this.props.density ?? 80,
+        motion: this.props.motion ?? 'calm'
     });
-    const firstEdge = this.glyphPts.map(() => 99);
-    this.glyphEdges.forEach((e, k) => {
-      firstEdge[e[0]] = Math.min(firstEdge[e[0]], k);
-      firstEdge[e[1]] = Math.min(firstEdge[e[1]], k);
-    });
-    const pr = this.traceProblems[(s.pIdx = (s.pIdx || 0) + 1) % this.traceProblems.length];
-    const nR = Math.round(this.glyphPts.length * pr.r);
-    const order = this.glyphPts.map((_, i) => i).sort(() => Math.random() - 0.5);
-    const cols = [];
-    order.forEach((oi, rank) => { cols[oi] = rank < nR ? '36,78,255' : '255,102,85'; });
-    s.trace = { nodes, firstEdge, cols, name: pr.n, comp: nR + ' RESEARCHERS · ' + (this.glyphPts.length - nR) + ' OPERATORS', prog: 0, hold: 300, fade: 1, phase: 'draw' };
-  }
-
-  stepHero(s) {
-    const mv = (this.props.motion ?? 'calm') === 'lively' ? 1.7 : 1;
-    if (!s.trace) {
-      if (--s.cool <= 0) this.newTrace(s);
-    } else {
-      const t = s.trace;
-      if (this.reduced && t.prog < 1) t.prog = 1;
-      if (t.phase === 'draw') {
-        t.prog += 0.011 * mv;
-        if (t.prog >= 1) { t.prog = 1; t.phase = 'hold'; }
-      } else if (t.phase === 'hold') {
-        if (--t.hold <= 0) t.phase = 'fade';
-      } else {
-        t.fade -= 0.02;
-        if (t.fade <= 0) { s.trace = null; s.cool = 46; }
-      }
-    }
-    this.drawHero(s);
-  }
-
-  heroPos(s, i) {
-    const g = s.grid[i];
-    return { x: g.x + Math.sin(s.t * 0.006 + g.ph) * 1.6, y: g.y + Math.cos(s.t * 0.005 + g.ph) * 1.6 };
-  }
-
-  drawHero(s) {
-    const { ctx } = s;
-    ctx.clearRect(0, 0, s.w, s.h);
-    ctx.fillStyle = 'rgba(17,17,17,0.22)';
-    for (const g of s.grid) {
-      const x = g.x + Math.sin(s.t * 0.006 + g.ph) * 1.6, y = g.y + Math.cos(s.t * 0.005 + g.ph) * 1.6;
-      ctx.beginPath(); ctx.arc(x, y, 1.5, 0, 6.3); ctx.fill();
-    }
-    const t = s.trace;
-    if (t && !this.reduced && t.phase === 'draw') {
-      for (let j = 0; j < 6; j++) {
-        const i = (Math.floor(s.t * 0.7) + j * 37) % s.grid.length;
-        const p = this.heroPos(s, i);
-        ctx.fillStyle = j % 2 ? 'rgba(36,78,255,0.2)' : 'rgba(255,102,85,0.2)';
-        ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, 6.3); ctx.fill();
-      }
-    }
-    if (!t) return;
-    const E = this.glyphEdges;
-    const total = t.prog * E.length;
-    const fl = Math.floor(total), part = total - fl;
-    ctx.lineWidth = 1.2;
-    ctx.strokeStyle = 'rgba(17,17,17,' + (0.62 * t.fade).toFixed(3) + ')';
-    ctx.beginPath();
-    for (let k = 0; k < Math.min(fl, E.length); k++) {
-      const A = this.heroPos(s, t.nodes[E[k][0]]), B = this.heroPos(s, t.nodes[E[k][1]]);
-      ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y);
-    }
-    if (fl < E.length && part > 0) {
-      const A = this.heroPos(s, t.nodes[E[fl][0]]), B = this.heroPos(s, t.nodes[E[fl][1]]);
-      ctx.moveTo(A.x, A.y); ctx.lineTo(A.x + (B.x - A.x) * part, A.y + (B.y - A.y) * part);
-    }
-    ctx.stroke();
-    for (let i = 0; i < t.nodes.length; i++) {
-      if (t.firstEdge[i] > fl - (t.firstEdge[i] === 0 ? 0 : 1) && t.firstEdge[i] >= fl) continue;
-      const p = this.heroPos(s, t.nodes[i]);
-      const col = t.cols[i];
-      ctx.fillStyle = 'rgba(' + col + ',' + (0.95 * t.fade).toFixed(3) + ')';
-      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, 6.3); ctx.fill();
-      ctx.strokeStyle = 'rgba(' + col + ',' + (0.32 * t.fade).toFixed(3) + ')';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 6.5 + Math.sin(s.t * 0.04 + i) * 1.2, 0, 6.3); ctx.stroke();
-      ctx.lineWidth = 1.2;
-    }
-    if (fl >= 1) {
-      const base = this.heroPos(s, t.nodes[0]);
-      try { ctx.letterSpacing = '2px'; } catch (e) {}
-      ctx.font = '500 10px "IBM Plex Mono", monospace';
-      ctx.fillStyle = 'rgba(17,17,17,' + (0.8 * t.fade).toFixed(3) + ')';
-      ctx.textAlign = 'center';
-      ctx.fillText(t.name, base.x, base.y + 22);
-      ctx.font = '400 8.5px "IBM Plex Mono", monospace';
-      ctx.fillStyle = 'rgba(17,17,17,' + (0.5 * t.fade).toFixed(3) + ')';
-      ctx.fillText(t.comp, base.x, base.y + 37);
-      try { ctx.letterSpacing = '0px'; } catch (e) {}
-    }
-  }
+};
 
   setDescCanvas = (el) => {
     if (!el) {
