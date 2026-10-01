@@ -1,6 +1,7 @@
 import { ORGANIC_CORALS } from './reef-organic.mjs';
 import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs';
 import { reefCurrent, reefPlankton } from './reef-current.mjs';
+import { movingTurtle } from './reef-turtle.mjs';
 import { paintReefSurface, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs';
 
 const TAU = Math.PI * 2;
@@ -256,7 +257,7 @@ function style(material, faceNormal, depth, distance) {
 }
 
 export class Reef {
-  props = { fish: true };
+  props = { fish: true, turtles: true };
 
   seedReef(s) {
     if (!(s.w > 0 && s.h > 0)) return;
@@ -286,6 +287,7 @@ export class Reef {
     if (this.props.fish ?? true) {
       for (let i = 0; i < 4; i += 1) objects.push(movingFish(time, i, s.reefCompact));
     }
+    if (this.props.turtles !== false) objects.push(movingTurtle(time, s.reefCompact));
 
     for (const object of objects) {
       const points = object.vertices.map(p => cam.project(p));
@@ -335,7 +337,8 @@ export class Reef {
       visibleNodes += 1;
     }
     ctx.restore();
-    s.reefFrameStats = { triangles: triangles.length, visibleNodes, fish: this.props.fish === false ? 0 : 4 };
+    s.reefFrameStats = { triangles: triangles.length, visibleNodes, fish: this.props.fish === false ? 0 : 4,
+      turtles: this.props.turtles === false ? 0 : 1 };
   }
 
   drawCachedReef(s) {
@@ -348,7 +351,7 @@ export class Reef {
       const paint=canvas.getContext('2d');
       paint.setTransform(dpr,0,0,dpr,0,0);
       const state={...s,ctx:paint,reefSkipCache:true},still=new Reef();
-      still.props={fish:false,motion:false};still.drawReef(state);
+      still.props={fish:false,turtles:false,motion:false};still.drawReef(state);
       cache=s.reefCache={w:s.w,h:s.h,dpr,scene:s.reefScene,canvas,
         surface:state.reefSurfaceStats,stats:state.reefFrameStats};
     }
@@ -358,6 +361,7 @@ export class Reef {
     const moving=this.props.motion===false?[]:s.reefScene.filter(object=>object.motion)
       .map(object=>movingCoral(coralSection(object,true),time));
     if(this.props.fish!==false)for(let i=0;i<4;i++)moving.push(movingFish(time,i,s.reefCompact));
+    if(this.props.turtles!==false)moving.push(movingTurtle(time,s.reefCompact));
     for(const object of moving) {
       const points=object.vertices.map(p=>cam.project(p));
       object.faces.forEach((face,j)=>{
@@ -384,6 +388,7 @@ export class Reef {
     }
     ctx.restore();
     s.reefFrameStats={triangles:cache.stats.triangles+faces.length,visibleNodes:cache.stats.visibleNodes+visibleNodes,
-      fish:this.props.fish===false?0:4,movingCorals:moving.filter(object=>object.motion).length,cached:true};
+      fish:this.props.fish===false?0:4,turtles:this.props.turtles===false?0:1,
+      movingCorals:moving.filter(object=>object.motion).length,cached:true};
   }
 }

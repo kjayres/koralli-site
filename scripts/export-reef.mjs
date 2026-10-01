@@ -67,7 +67,7 @@ function recorder() {
     ctx,
     svg(width, height) {
       const css = [...classes].map(([rule, name]) => `.${name}{${escape(rule)}}`).join('');
-      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-labelledby="title desc" stroke-linecap="round" stroke-linejoin="round"><title id="title">Koralli reef</title><desc id="desc">A low view across varied coral colonies, ribbon seaweed and fish. Native wireframe geometry with hidden edges removed.</desc><defs><style>${css}</style></defs>${elements.join('')}</svg>\n`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-labelledby="title desc" stroke-linecap="round" stroke-linejoin="round"><title id="title">Koralli reef</title><desc id="desc">A low view across varied coral colonies, ribbon seaweed, fish and a sea turtle. Native wireframe geometry with hidden edges removed.</desc><defs><style>${css}</style></defs>${elements.join('')}</svg>\n`;
     },
   };
 }
