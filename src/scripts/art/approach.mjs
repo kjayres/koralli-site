@@ -169,15 +169,19 @@ function drawLens(ctx, scene) {
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius, 0, TAU); ctx.fill();
   ctx.save();
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius - rim, 0, TAU); ctx.clip();
-  const magnification = 1.55;
+  const aperture = radius - rim;
   for (const p of scene.field.particles) {
     const point = project(scene, p);
-    const dx = (point.x - lens.x) * magnification, dy = (point.y - lens.y) * magnification;
-    if (Math.hypot(dx, dy) > radius) continue;
+    const dx = point.x - lens.x, dy = point.y - lens.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance > aperture) continue;
+    // A convex field: strongest at the centre, smoothly meeting the unmagnified rim.
+    // Its radial mapping stays increasing, so grains never cross through one another.
+    const magnification = 1 + 1.65 * (1 - distance / aperture) ** 2;
     // The field stays magnified throughout. Only the inspected grain becomes an object.
     const alpha = scene.opacity * (p.id === lens.current.id ? 1 - lens.reveal : 1);
     ctx.fillStyle = `rgba(36,78,255,${alpha})`;
-    dot(ctx, lens.x + dx, lens.y + dy, p.radius * scene.field.bounds.grainSize * magnification);
+    dot(ctx, lens.x + dx * magnification, lens.y + dy * magnification, p.radius * scene.field.bounds.grainSize * magnification);
   }
   if (lens.reveal > 0) {
     ctx.globalAlpha = opacity * lens.reveal;

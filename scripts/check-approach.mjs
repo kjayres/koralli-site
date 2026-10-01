@@ -155,14 +155,21 @@ function recorder() {
 function checkMagnification(ctx, lens, reference, selected, revealed) {
   const grains = ctx.fills.filter(fill => fill.clip && fill.path.length === 1 && fill.path[0].arc && /^rgba\(36,78,255,/.test(fill.style));
   assert.ok(grains.length > 5, 'The lens must continue to show the surrounding grain field');
-  const magnification = 1.55;
-  const expected = reference.field.particles.map(p => ({
-    id: p.id,
-    x: lens.x + (200 + p.x * reference.field.bounds.scale - lens.x) * magnification,
-    y: lens.y + (200 + p.y * reference.field.bounds.scale - lens.y) * magnification,
-    radius: p.radius * reference.field.bounds.grainSize * magnification,
-  })).filter(p => distance(p, lens) <= lens.radius + 1e-9);
+  const aperture = grains[0].clip[0].arc.radius;
+  const expected = reference.field.particles.map(p => {
+    const dx = 200 + p.x * reference.field.bounds.scale - lens.x;
+    const dy = 200 + p.y * reference.field.bounds.scale - lens.y;
+    const inputRadius = Math.hypot(dx, dy);
+    const magnification = 1 + 1.65 * (1 - Math.min(1, inputRadius / aperture)) ** 2;
+    const baseRadius = p.radius * reference.field.bounds.grainSize;
+    return {
+      id: p.id, inputRadius, baseRadius,
+      x: lens.x + dx * magnification, y: lens.y + dy * magnification,
+      radius: baseRadius * magnification,
+    };
+  }).filter(p => p.inputRadius <= aperture + 1e-9);
   assert.equal(grains.length, expected.length, 'The object reveal must preserve every surrounding magnified grain');
+  const probes = [];
   for (const grain of grains) {
     const point = grain.path[0].arc;
     const source = expected.find(p => distance(p, point) < 1e-8);
@@ -171,11 +178,19 @@ function checkMagnification(ctx, lens, reference, selected, revealed) {
     const opacity = Number(grain.style.match(/^rgba\(36,78,255,([^)]*)\)$/)[1]) * grain.alpha;
     const expectedOpacity = source.id === selected && revealed ? 0 : reference.opacity;
     assert.ok(Math.abs(opacity - expectedOpacity) < 1e-9, 'Only the selected central grain may fade during the object reveal');
+    probes.push({ input: source.inputRadius / aperture, output: distance(point, lens) / aperture, scale: point.radius / source.baseRadius });
   }
   if (revealed) assert.ok(expected.some(p => p.id === selected && distance(p, lens) < 1e-8), 'The dimensional object must replace the selected central grain');
+  probes.sort((a, b) => a.input - b.input);
+  for (let i = 1; i < probes.length; i++) {
+    assert.ok(probes[i].output >= probes[i - 1].output - 1e-10, 'Radial magnification must not reverse the order of grains');
+    assert.ok(probes[i].scale <= probes[i - 1].scale + 1e-10, 'Magnification must decrease continuously towards the rim');
+  }
+  assert.ok(probes.every(p => p.output <= 1 + 1e-10), 'Magnification must keep grains inside the aperture');
+  return probes;
 }
 
-const lensCtx = recorder(), lensSamples = [], iconSamples = [];
+const lensCtx = recorder(), lensSamples = [], iconSamples = [], radialSamples = [];
 const referenceField = createApproachScene(400, 400);
 const dwellFrames = [168, 294, 408], objectFrames = [192, 432, 672, 912, 1152], travelFrames = [120, 153];
 for (let frame = 0; frame <= 1152; frame++) {
@@ -194,9 +209,9 @@ for (let frame = 0; frame <= 1152; frame++) {
       }));
       iconSamples.push({ label: lensCtx.labels.at(-1), paths: JSON.stringify(paths) });
       const selected = referenceField.inspections[objectFrames.indexOf(frame)].id;
-      checkMagnification(lensCtx, lens, referenceField, selected, true);
+      radialSamples.push(...checkMagnification(lensCtx, lens, referenceField, selected, true));
     }
-    if (travelFrames.includes(frame)) checkMagnification(lensCtx, lens, referenceField, referenceField.inspections[0].id, false);
+    if (travelFrames.includes(frame)) radialSamples.push(...checkMagnification(lensCtx, lens, referenceField, referenceField.inspections[0].id, false));
   }
 }
 assert.ok(distance(lensSamples[0], lensSamples[1]) < 1e-9, 'The lens must pause on one dot for at least two seconds');
@@ -204,6 +219,13 @@ assert.notEqual(lensSamples[0].label, lensSamples[2].label, 'The lens must move 
 assert.ok(distance(lensSamples[1], lensSamples[2]) > 20);
 assert.deepEqual(iconSamples.map(sample => sample.label), ['People', 'Processes', 'Decisions', 'Records', 'Relationships']);
 assert.equal(new Set(iconSamples.map(sample => sample.paths)).size, 5, 'Every lens inspection must reveal distinct icon geometry');
+const centre = radialSamples.filter(p => p.input < .2);
+const middle = radialSamples.filter(p => p.input > .4 && p.input < .6);
+const edge = radialSamples.filter(p => p.input > .97);
+assert.ok(centre.length && middle.length && edge.length, 'The recorded field must exercise centre, middle and edge behaviour');
+assert.ok(Math.min(...centre.map(p => p.scale)) > Math.max(...middle.map(p => p.scale)), 'The centre must enlarge grains more than the middle');
+assert.ok(Math.min(...middle.map(p => p.scale)) > Math.max(...edge.map(p => p.scale)), 'The middle must enlarge grains more than the rim');
+assert.ok(edge.every(p => p.scale < 1.002 && p.output - p.input < .002), 'Position and size must approach the unchanged field smoothly at the rim');
 
 const coralCtx = recorder(), coralScene = createApproachScene(400, 400);
 drawApproach(coralCtx, 400, 400, 0, { phase: 2, reducedMotion: true });
@@ -220,7 +242,7 @@ coralCtx.strokes.forEach((path, i) => {
 const nodeArcs = coralCtx.arcs.slice(-ids.length);
 nodeArcs.forEach((arc, i) => assert.ok(distance(arc, project(ids[i])) < 1e-9));
 
-console.log('Canvas sequence checked: magnified grain field during travel and all five object reveals, central grain replacement, distinct dimensional objects, lens dwell and coral anchors.');
+console.log('Canvas sequence checked: radial magnification during travel and all five object reveals, stronger centre, smooth unchanged rim, no radial folds, central grain replacement, distinct dimensional objects, lens dwell and coral anchors.');
 if (costs.length) {
   costs.sort((a, b) => a - b);
   const percentile = p => costs[Math.floor((costs.length - 1) * p)].toFixed(2);
