@@ -1,4 +1,5 @@
 import { journalCurrent } from './journal-water.mjs';
+import { journalCoralContours } from './journal-coral-contours.mjs';
 
 // Font-space coordinates keep the roots inside the original letter strokes.
 const colonies = {
@@ -10,13 +11,31 @@ const colonies = {
   f: { x: 253, y: -711, blades: [
     { length: 650, width: 15, lean: -.18, seed: 4 },
     { length: 470, width: 12, lean: .34, seed: 6.5 }
-  ] },
-  r: { x: 145, y: -688, blades: [
-    { length: 590, width: 18, lean: -.21, seed: 2.7 },
-    { length: 410, width: 13, lean: .32, seed: 6 }
   ] }
 };
 const point = ([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`;
+const coralPlacements = {
+  r: { x: 145, y: -708, rootX: 128, rootY: 342, scaleX: 1.7, scaleY: 1.85, phase: .6 },
+  f: { x: 253, y: -715, rootX: 118, rootY: 310, scaleX: -1.5, scaleY: 1.7, phase: 1.8 }
+};
+
+/** Rounded native coral contours bend above a fixed root buried in the glyph. */
+export function journalCoralPath(kind, time = 0) {
+  const pose = coralPlacements[kind];
+  if (!pose) return '';
+  const seconds = Number.isFinite(time) ? Math.max(0, time) : 0;
+  const current = journalCurrent(seconds);
+  return journalCoralContours[kind].map(([command, ...points]) => {
+    const coordinates = [];
+    for (let i = 0; i < points.length; i += 2) {
+      const height = Math.max(0, Math.min(1, (pose.rootY - points[i + 1] - 24) / (pose.rootY - 24)));
+      const bend = Math.pow(height, 1.6) * (current * 46 + 38 * Math.sin(seconds * .58 - height * 2 + pose.phase));
+      coordinates.push((pose.x + (points[i] - pose.rootX) * pose.scaleX + bend).toFixed(2));
+      coordinates.push((pose.y + (points[i + 1] - pose.rootY) * pose.scaleY).toFixed(2));
+    }
+    return command + coordinates.join(' ');
+  }).join(' ');
+}
 
 /** Tapered ribbons bend along their length; their roots never rotate or slide. */
 export function journalFrondPath(kind, time = 0) {
@@ -47,11 +66,13 @@ export function journalFrondPath(kind, time = 0) {
 /** Use the marine canvas clock, including its offscreen and reduced-motion states. */
 export function initJournalLettering(root = document) {
   const fronds = [...root.querySelectorAll('[data-journal-frond]')];
+  const corals = [...root.querySelectorAll('[data-journal-coral]')];
   let previous;
   return (time = 0, { reducedMotion = false } = {}) => {
     const seconds = reducedMotion ? 0 : time;
     if (seconds === previous) return;
     previous = seconds;
     for (const frond of fronds) frond.setAttribute('d', journalFrondPath(frond.dataset.journalFrond, seconds));
+    for (const coral of corals) coral.setAttribute('d', journalCoralPath(coral.dataset.journalCoral, seconds));
   };
 }
