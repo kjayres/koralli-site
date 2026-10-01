@@ -1,9 +1,44 @@
 [
-  {"name":"Antony Turner","field":"OPERATIONS & TRANSFORMATION","kind":"operator","bio":"Antony brings around 30 years of experience in financial services. His work spans organisational transformation, technology infrastructure, security and delivery, combining operating experience with a focus on how organisations adapt."},
-  {"name":"Kieran Ayres","field":"STATISTICS","kind":"researcher","bio":"Kieran is completing a DPhil in Statistics at Oxford, developing Bayesian inference methods for epidemiology and computational biology. He previously studied health data analytics and machine learning at Imperial and worked in data science at Accenture."},
-  {"name":"Sophie Fischer","field":"COMPUTER SCIENCE","kind":"researcher","bio":"Sophie is completing a DPhil in Computer Science at Oxford. Her work includes computer science research and collaboration with the Oxford Law Faculty on AI in trademark law. She also co-founded the carbon capture startup Cequestre."},
-  {"name":"Bella Raja","field":"AI & SOCIETY","kind":"researcher","bio":"Bella is completing a DPhil at the Oxford Internet Institute, examining the social and environmental implications of AI hardware and infrastructure. Her background spans science, technology and society at Stanford and the social science of the internet at Oxford."},
-  {"name":"Orla Hogan","field":"HISTORY & INSTITUTIONS","kind":"researcher","bio":"Orla is completing a DPhil in History at Oxford, following a BA and MPhil at Cambridge. She brings experience in strategic communications, crisis management and research into corporate practices in financial services."},
-  {"name":"Emilie Ouwerx","field":"TECHNOLOGY & GOVERNANCE","kind":"researcher","bio":"Emilie studied the Social Science of the Internet at Oxford, covering AI regulation, algorithmic bias and digital sovereignty. Her experience includes work on decentralised cloud infrastructure and sustainable risk pool design."},
-  {"name":"Oakem Kyne","field":"BIOLOGY & COMPUTATION","kind":"researcher","bio":"Oakem is completing a DPhil in Biology at Oxford, studying how bacterial pathogens evolve and adapt to antibiotics. His work draws on genetic epidemiology, phylogenetics and machine learning."}
+  {
+    "name": "Antony Turner",
+    "field": "OPERATIONS & TRANSFORMATION",
+    "kind": "operator",
+    "bio": "Antony has spent 30 years working with major financial institutions, including Morgan Grenfell, UBS, Barclays Wealth, Credit Suisse, ABN Amro, BNP Paribas, HSBC and Bank of America. He has worked independently since 2006 and co-founded an AI start-up focused on market design.\n\nHis work spans mergers and acquisitions integration, IT infrastructure and security, organisational transformation, insourcing, and building and deploying platforms. He has also held senior roles in risk management and digital banking."
+  },
+  {
+    "name": "Kieran Ayres",
+    "field": "STATISTICS",
+    "kind": "researcher",
+    "bio": "Kieran is completing a DPhil in Statistics at Oxford, developing Bayesian inference methods for epidemiology and computational biology. He holds an MSc in Health Data Analytics and Machine Learning from Imperial and previously worked as a Data Science Analyst at Accenture on database design and business analytics.\n\nHis expertise is in statistical modelling, machine learning and applied analysis of noisy, complex and high-dimensional data."
+  },
+  {
+    "name": "Sophie Fischer",
+    "field": "COMPUTER SCIENCE",
+    "kind": "researcher",
+    "bio": "Sophie is completing a DPhil in Computer Science at Oxford, where she also completed her master’s degree. She has presented at CVPR and ICCV and has collaborated with the Oxford Law Faculty on AI in trade mark law.\n\nShe co-founded the carbon capture start-up Cequestre, which won StEP Ignite."
+  },
+  {
+    "name": "Bella Raja",
+    "field": "AI & SOCIETY",
+    "kind": "researcher",
+    "bio": "Bella is completing a DPhil at the Oxford Internet Institute, examining the social and environmental implications of AI hardware and infrastructure. She studied Science, Technology and Society at Stanford and holds an MSc in Social Science of the Internet from Oxford.\n\nHer experience includes a Tech Ethics and Policy Fellowship at Stanford HAI and go-to-market work for a Y Combinator-backed start-up."
+  },
+  {
+    "name": "Orla Hogan",
+    "field": "HISTORY & INSTITUTIONS",
+    "kind": "researcher",
+    "bio": "Orla is completing a DPhil in History at Oxford, following a BA and MPhil in History at Cambridge. She has worked in strategic communications and crisis management in financial services.\n\nAs a researcher at CCLA Investment Management, she examined FTSE 100 and FTSE 250 companies’ compliance with the Modern Slavery Act 2015. She is currently Editor-in-Chief of the Oxford Review of Books."
+  },
+  {
+    "name": "Emilie Ouwerx",
+    "field": "TECHNOLOGY & GOVERNANCE",
+    "kind": "researcher",
+    "bio": "Emilie holds an MSc in Social Science of the Internet from the Oxford Internet Institute, where she studied AI regulation, algorithmic bias, digital sovereignty and the political economy of digital markets. She also holds a BASc in Arts and Sciences from UCL.\n\nShe supported the launch of ThreeFold’s decentralised cloud infrastructure in Tanzania and worked on sustainable risk pool design at Allianz Reinsurance."
+  },
+  {
+    "name": "Oakem Kyne",
+    "field": "BIOLOGY & COMPUTATION",
+    "kind": "researcher",
+    "bio": "Oakem is completing a DPhil in Biology at Oxford, studying how bacterial pathogens evolve and adapt to antibiotics. His work draws on genetic epidemiology, phylogenetics and machine learning."
+  }
 ]

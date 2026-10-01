@@ -29,9 +29,10 @@ function replaceGroup(markup, attribute, index, state) {
   return markup.slice(0, opening.index) + tag.slice(0, -1) + ' ' + attributes + '>' + state.innerHTML + '</g>' + markup.slice(end);
 }
 
-export function buildingSnapshot({buildingMarkup, updateBuilding}, progress, reducedMotion = false, id = 'koralli-building') {
-  const covers = Array.from({length: 5}, (_, i) => element({cover: String(i)}));
-  const floors = Array.from({length: 5}, (_, i) => element({floor: String(i)}));
+export function buildingSnapshot({buildingMarkup, updateBuilding, buildingPhases}, progress, reducedMotion = false, id = 'koralli-building') {
+  const count = buildingPhases.length;
+  const covers = Array.from({length: count}, (_, i) => element({cover: String(i)}));
+  const floors = Array.from({length: count}, (_, i) => element({floor: String(i)}));
   const world = element();
   const svg = {
     dataset: {figurePrefix: String(id).replace(/[^a-zA-Z0-9_-]/g, '') || 'koralli-company-building'},
@@ -39,11 +40,11 @@ export function buildingSnapshot({buildingMarkup, updateBuilding}, progress, red
     querySelector() { return world; }
   };
   updateBuilding(svg, progress, reducedMotion);
-  const labels = ['Strategy and executives', 'Operating model and teams', 'Process and product', 'Systems and models', 'Technical and research detail'];
+  const labels = buildingPhases.map(phase => phase.title);
   floors.forEach((floor, i) => { floor.setAttribute('id', `interior-${i+1}`); floor.setAttribute('data-name', labels[i]); });
   covers.forEach((cover, i) => { cover.setAttribute('id', `cover-${i+1}`); cover.setAttribute('data-name', `Section ${i+1} removable exterior`); });
   let markup = buildingMarkup(id);
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < count; i++) {
     markup = replaceGroup(markup, 'data-cover', i, covers[i]);
     markup = replaceGroup(markup, 'data-floor', i, floors[i]);
   }
@@ -55,10 +56,10 @@ export async function exportBuildingVariants({modulePath = 'src/scripts/art/buil
   const building = await import(pathToFileURL(resolve(modulePath)).href);
   const variants = [
     ['building', 0, false],
-    ['building-lift', .07, false],
-    ['building-mid', .136, false],
-    ['building-operating-mid', .336, false],
-    ...['strategy','operating-model','process-product','systems-models','research'].map((name,i) => [`building-0${i+1}-${name}`, (i+.6)/5, true])
+    ['building-lift', .0875, false],
+    ['building-mid', .17, false],
+    ['building-operating-mid', .42, false],
+    ...['organisation','people-work','systems-tools','data-foundations'].map((name,i) => [`building-0${i+1}-${name}`, (i+.6)/4, true])
   ];
   mkdirSync(outputDir, {recursive: true});
   const paths = [];

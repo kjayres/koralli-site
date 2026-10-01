@@ -8,7 +8,12 @@ import { workbenchMarkup, escapeHTML } from '../src/scripts/workflow-view.mjs';
 export const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const sourceDir = resolve(projectDir, 'src');
 export const outputDir = resolve(projectDir, 'dist');
-const pages = ['index.html', 'our-work.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html', 'artwork.html'];
+const pages = [
+  'index.html', 'our-work.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html', 'artwork.html',
+  'a-coherent-picture-comes-from-more-judgement-not-more-data.html',
+  'who-owns-the-human-machine-boundary.html',
+  'the-transformation-ceiling-is-organisational-not-technical.html'
+];
 
 function expand(name, stack = []) {
   const path = resolve(sourceDir, name);
@@ -47,7 +52,7 @@ export function renderSite(basePath = './') {
   checkedBasePath(basePath);
   const files = new Map();
   const people = JSON.parse(readFileSync(resolve(sourceDir, 'content/people.json'), 'utf8'));
-  const profiles = people.map((person, i) => `<article class="person"><div class="person-index mono"><span>${String(i+1).padStart(2,'0')}</span><i class="${escapeHTML(person.kind)}"></i></div><div><p class="eyebrow">${escapeHTML(person.field)}</p><h3>${escapeHTML(person.name)}</h3></div><p class="person-bio">${escapeHTML(person.bio)}</p></article>`).join('\n');
+  const profiles = people.map((person, i) => `<article class="person"><div class="person-index mono"><span>${String(i+1).padStart(2,'0')}</span><i class="${escapeHTML(person.kind)}"></i></div><div><p class="eyebrow">${escapeHTML(person.field)}</p><h3>${escapeHTML(person.name)}</h3></div><div class="person-bio">${person.bio.split(/\n\n/).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join('')}</div></article>`).join('\n');
   for (const name of pages) files.set(name, Buffer.from(expand(name)
     .replace('<!-- content: articles -->', articlesMarkup())
     .replace('<!-- content: workbench -->', workbenchMarkup())

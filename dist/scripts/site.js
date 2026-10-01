@@ -1,5 +1,6 @@
 import { drawWave } from './art/wave.mjs';
-import { drawCoralTrace } from './art/coral.mjs';
+import { drawCoralTrace, coralTraceState, CORAL_TRACE_CYCLE_SECONDS } from './art/coral.mjs';
+import { drawResearch } from './art/research.mjs';
 import { updateBuilding } from './art/building.mjs';
 import { initTeam } from './team.mjs';
 import { initWorkflows } from './workflow-view.mjs';
@@ -7,6 +8,7 @@ import { initWorkflows } from './workflow-view.mjs';
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const clamp = n => Math.min(1, Math.max(0, n));
 const canvasStates = [];
+const coralName = document.querySelector('[data-coral-name]');
 let frame = 0;
 let lastTime = 0;
 let reefModule;
@@ -33,7 +35,12 @@ function paint(state, dt = 0) {
   }
   const options = { reducedMotion: motion.matches, pointer: state.pointer, variant: state.variant };
   if (kind === 'wave') drawWave(ctx, w, h, state.time, options);
-  if (kind === 'coral') drawCoralTrace(ctx, w, h, state.time + 2, options);
+  if (kind === 'research') drawResearch(ctx, w, h, state.time, options);
+  if (kind === 'coral') {
+    drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
+    const study = coralTraceState(state.time, options);
+    if (coralName && coralName.textContent !== study.name) coralName.textContent = study.name;
+  }
   if (kind === 'reef' && state.reef) {
     if (motion.matches || state.paused) state.reef.drawReef(state);
     else {
@@ -106,12 +113,13 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   resize();
 }
 
-document.querySelector('[data-reef-pause]')?.addEventListener('click', event => {
-  const button = event.currentTarget;
-  const paused = button.getAttribute('aria-pressed') !== 'true';
-  button.setAttribute('aria-pressed', String(paused));
-  button.textContent = paused ? 'Play animation' : 'Pause animation';
-  canvasStates.filter(state => state.kind === 'reef').forEach(state => { state.paused = paused; });
+document.querySelector('[data-coral-next]')?.addEventListener('click', () => {
+  const state = canvasStates.find(item => item.kind === 'coral');
+  if (!state) return;
+  const { index } = coralTraceState(state.time, { variant: state.variant, reducedMotion: motion.matches });
+  state.variant = motion.matches ? (index + 1) % 5 : undefined;
+  state.time = (index + 1) * CORAL_TRACE_CYCLE_SECONDS + (state.paused ? 2.5 : 0);
+  paint(state);
   lastTime = 0;
   schedule();
 });
@@ -152,36 +160,38 @@ function colourDepth(progress) {
 
 function renderBuilding() {
   if (!building || !svg) return;
-  svg.setAttribute('viewBox', innerWidth < 760 ? '80 -160 540 860' : '0 -160 700 860');
   const rect = building.getBoundingClientRect();
   if (!motion.matches && (rect.top > innerHeight || rect.bottom < 0)) return;
-  const progress = motion.matches ? (staticDepth + .6) / 5 : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
+  const progress = motion.matches ? (staticDepth + .6) / panels.length : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
+  const focus = clamp((progress - .25) / .75);
+  svg.setAttribute('viewBox', innerWidth < 760 ? `130 ${-160 + 320 * focus} 440 ${800 - 440 * focus}` : '0 -160 700 860');
   buildingProgress = progress;
   colourDepth(progress);
-  const { phase, textOpacity } = updateBuilding(svg, progress, motion.matches);
+  const { phase } = updateBuilding(svg, progress, motion.matches);
+  const layer = phase;
   panels.forEach((panel, i) => {
-    const active = i === phase;
-    const opacity = progress < .014 ? 1 : textOpacity;
+    const active = i === layer;
+    const opacity = 1;
     panel.style.opacity = active ? String(opacity) : '0';
     panel.style.visibility = active ? 'visible' : 'hidden';
     panel.style.transform = `translateY(${active ? (1 - opacity) * 8 : 8}px)`;
     panel.setAttribute('aria-hidden', String(!active));
   });
   depths.forEach((button, i) => {
-    if (i === phase) button.setAttribute('aria-current', 'step');
+    if (i === layer) button.setAttribute('aria-current', 'step');
     else button.removeAttribute('aria-current');
-    button.classList.toggle('visited', i < phase);
+    button.classList.toggle('visited', i < layer);
   });
 }
 
 depths.forEach((button, i) => button.addEventListener('click', () => {
   if (motion.matches) {
-    staticDepth = i;
+    staticDepth = Number(button.dataset.depth);
     renderBuilding();
     return;
   }
   const rect = building.getBoundingClientRect();
-  const top = scrollY + rect.top + (rect.height - innerHeight) * (i + .80) / 5;
+  const top = scrollY + rect.top + (rect.height - innerHeight) * (Number(button.dataset.depth) + .96) / panels.length;
   scrollTo({ top, behavior: 'smooth' });
 }));
 
@@ -192,12 +202,12 @@ function onScroll() {
     scrollFrame = 0;
     renderBuilding();
     if (!gauge) return;
+    const rect = building?.getBoundingClientRect();
+    gauge.hidden = !rect || rect.top > 0;
     const p = clamp(scrollY / Math.max(1, document.documentElement.scrollHeight - innerHeight));
     gauge.querySelector('b').style.top = `${p * 104}px`;
     gauge.querySelector('[data-depth-value]').textContent = `−${String(Math.round(p * 120)).padStart(3, '0')} M`;
-    const reef = document.querySelector('#reef');
-    const inDeepBuilding = building && building.getBoundingClientRect().top < 0 && buildingProgress > .43;
-    gauge.style.color = inDeepBuilding || (reef && reef.getBoundingClientRect().top < innerHeight / 2) ? '#F3F0E8' : '#111111';
+    gauge.style.color = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
   });
 }
 addEventListener('scroll', onScroll, { passive: true });
@@ -206,6 +216,10 @@ motion.addEventListener('change', () => {
   cancelAnimationFrame(frame);
   frame = 0;
   lastTime = 0;
+  if (!motion.matches) canvasStates.filter(state => state.kind === 'coral' && Number.isInteger(state.variant)).forEach(state => {
+    state.time = state.variant * CORAL_TRACE_CYCLE_SECONDS + 2.5;
+    state.variant = undefined;
+  });
   canvasStates.forEach(state => paint(state));
   renderBuilding();
   schedule();
@@ -217,9 +231,6 @@ document.addEventListener('visibilitychange', () => {
 document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
-initWorkflows(variant => {
-  const coral = canvasStates.find(state => state.kind === 'coral');
-  if (coral) { coral.variant = variant; coral.time = 0; paint(coral); }
-});
+initWorkflows();
 initTeam();
 onScroll();

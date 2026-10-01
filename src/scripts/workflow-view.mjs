@@ -11,9 +11,9 @@ function layout(project, compact) {
   const positions = project.stages.map((_, i) => {
     const row = Math.floor(i / 2);
     const column = row % 2 ? 1 - i % 2 : i % 2;
-    return [column ? 302 : 98, 95 + row * 168];
+    return [column ? 302 : 98, 84 + row * 146];
   });
-  return { positions, width: 400, height: Math.ceil(project.stages.length / 2) * 168 + 50, stoneWidth: 194 };
+  return { positions, width: 400, height: Math.ceil(project.stages.length / 2) * 146 + 24, stoneWidth: 184 };
 }
 
 // Phone connections use the original Figma leaves on continuous curved stems.
@@ -23,11 +23,11 @@ function connector(a, b, index) {
   const normal=[-dy/length,dx/length];
   const c=[a,[a[0]+dx*.25+normal[0]*12,a[1]+dy*.25+normal[1]*12],
     [b[0]-dx*.25-normal[0]*8,b[1]-dy*.25-normal[1]*8],b];
-  const leaves=[.43,.62].map((t,i)=>{
+  const leaves=[.53].map(t=>{
     const u=1-t;
     const at=axis=>u*u*u*c[0][axis]+3*u*u*t*c[1][axis]+3*u*t*t*c[2][axis]+t*t*t*c[3][axis];
     const tangent=axis=>3*u*u*(c[1][axis]-c[0][axis])+6*u*t*(c[2][axis]-c[1][axis])+3*t*t*(c[3][axis]-c[2][axis]);
-    return {x:at(0),y:at(1),angle:Math.atan2(tangent(1),tangent(0))*180/Math.PI,length:i?16:20,side:i?-1:1,variant:index+i};
+    return {x:at(0),y:at(1),angle:Math.atan2(tangent(1),tangent(0))*180/Math.PI,length:18,side:index%2?-1:1,variant:index};
   });
   return botanicalConnectorMarkup(`M${point(c[0])} C${point(c[1])} ${point(c[2])} ${point(c[3])}`,leaves);
 }
@@ -36,7 +36,7 @@ function mobileConnections(positions,height) {
   let paths=positions.slice(0,-1).map((p,i)=>connector(p,positions[i+1],i)).join('');
   const a=positions.at(-1),b=positions[0];
   const side=a[0]>200?386:14;
-  const d=`M${point(a)} C${point([a[0],a[1]+95])} ${point([side,a[1]+85])} ${side} ${a[1]+20} L${side} 52 C${side} 2 ${b[0]} 2 ${point(b)}`;
+  const d=`M${point(a)} C${point([a[0],a[1]+65])} ${point([side,a[1]+55])} ${side} ${a[1]+20} L${side} 52 C${side} 2 ${b[0]} 2 ${point(b)}`;
   paths+=botanicalConnectorMarkup(d,[{x:side,y:height*.5,angle:-90,length:20,side:side>200?-1:1,variant:2}]);
   return `<svg class="flow-seaweed" viewBox="0 0 400 ${height}" aria-hidden="true">${paths}</svg>`;
 }

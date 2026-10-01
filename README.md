@@ -1,6 +1,6 @@
 # Koralli website
 
-The current design is shared at https://kjayres.github.io/koralli-site/.
+The website design review is shared at https://kjayres.github.io/koralli-site/. It includes the revised copy and structure, four-level building, mesh reef and three complete journal essays.
 
 The previous published site is preserved in the `archive/pre-redesign-2026-09-15` branch. This is a design review: draft copy labels and search-engine exclusion remain in place.
 

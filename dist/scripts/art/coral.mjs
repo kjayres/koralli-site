@@ -96,6 +96,23 @@ const TAU = Math.PI * 2;
 const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 const smooth = (n) => { const t = clamp(n); return t * t * (3 - 2 * t); };
 const hash = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+const DRAW_START = 0.3, DRAW_END = 2.5, HOLD_END = 10.5, FADE_END = 11.7;
+export const CORAL_TRACE_CYCLE_SECONDS = 12;
+
+/** Shared timing for the drawing and its accessible project caption. */
+export function coralTraceState(timeSeconds, { reducedMotion = false, variant } = {}) {
+  const seconds = Number(timeSeconds);
+  const time = reducedMotion || !Number.isFinite(seconds) ? 0 : Math.max(0, seconds);
+  const cycle = Math.floor(time / CORAL_TRACE_CYCLE_SECONDS);
+  const phase = time % CORAL_TRACE_CYCLE_SECONDS;
+  const index = Number.isInteger(variant) ? ((variant % STUDIES.length) + STUDIES.length) % STUDIES.length : cycle % STUDIES.length;
+  const stage = reducedMotion ? 'hold' : phase < DRAW_START ? 'field' : phase < DRAW_END ? 'forming' : phase < HOLD_END ? 'hold' : phase < FADE_END ? 'fading' : 'field';
+  return {
+    index, name: STUDIES[index].name, time, phase, stage,
+    growth: reducedMotion ? 1 : clamp((phase - DRAW_START) / (DRAW_END - DRAW_START)),
+    opacity: reducedMotion ? 1 : smooth(phase / DRAW_START) * (1 - smooth((phase - HOLD_END) / (FADE_END - HOLD_END))),
+  };
+}
 
 function dot(ctx, x, y, radius, colour) {
   ctx.fillStyle = colour;
@@ -108,27 +125,24 @@ function dot(ctx, x, y, radius, colour) {
  * Draw into CSS-pixel coordinates; callers own clearing, DPR scaling and RAF.
  * Time is in seconds. `variant` is optional and zero-based; omission cycles all
  * five forms. Reduced motion displays the chosen coral complete and stationary.
+ * Pass `labels: false` when a visible DOM caption already names the project.
  * Node roles illustrate collaboration, not literal team sizes or staffing ratios.
  */
-export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, variant } = {}) {
+export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, variant, labels = true } = {}) {
   if (!(w > 0 && h > 0)) return;
-  const time = reducedMotion ? 0 : Math.max(0, Number(timeSeconds) || 0);
-  const cycleLength = 14;
-  const cycle = Math.floor(time / cycleLength);
-  const phase = time % cycleLength;
-  const index = Number.isInteger(variant) ? ((variant % STUDIES.length) + STUDIES.length) % STUDIES.length : cycle % STUDIES.length;
+  const { time, phase, index, growth, opacity: fade } = coralTraceState(timeSeconds, { reducedMotion, variant });
   const study = STUDIES[index];
-  const fade = reducedMotion ? 1 : smooth(phase / 0.75) * (1 - smooth((phase - 11.2) / 1.7));
-  const growth = reducedMotion ? 1 : clamp((phase - 0.8) / 4.7);
   const scaleY = h * 0.57;
   const scaleX = Math.min(w * 0.70, h * 0.85);
   const cx = w * 0.54;
   const crownY = h * 0.22;
-  const drift = reducedMotion ? 0 : (phase / cycleLength - 0.5) * Math.min(10, h * 0.018);
+  const posePhase = Math.min(phase, DRAW_END);
+  const poseTime = time - phase + posePhase;
+  const drift = reducedMotion ? 0 : (posePhase / CORAL_TRACE_CYCLE_SECONDS - 0.5) * Math.min(10, h * 0.018);
   const motion = reducedMotion ? 0 : 1;
   const points = study.nodes.map(([x, y], i) => ({
-    x: cx + x * scaleX + motion * Math.sin(time * 0.28 + y * 2.5) * (1 - y) * 2.3,
-    y: crownY + y * scaleY + drift + motion * Math.sin(time * 0.16 + i * 0.73) * 0.4,
+    x: cx + x * scaleX + motion * Math.sin(poseTime * 0.28 + y * 2.5) * (1 - y) * 2.3,
+    y: crownY + y * scaleY + drift + motion * Math.sin(poseTime * 0.16 + i * 0.73) * 0.4,
   }));
 
   ctx.save();
@@ -180,12 +194,12 @@ export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, 
   }
 
   points.forEach((p, i) => {
-    if (growth < study.arrivals[i] || (!reducedMotion && phase < 0.8)) return;
+    if (growth < study.arrivals[i] || (!reducedMotion && phase < DRAW_START)) return;
     const colour = study.operators.has(i) ? '255,102,85' : '36,78,255';
     const arriving = reducedMotion ? 0 : 1 - clamp((growth - study.arrivals[i]) * 13);
     const radius = i === 0 ? 3.1 : study.children[i] > 1 ? 2.8 : 2.3;
     dot(ctx, p.x, p.y, radius, `rgba(${colour},${0.95 * fade})`);
-    if (arriving > 0 && phase < 5.5) {
+    if (arriving > 0 && phase < DRAW_END) {
       ctx.strokeStyle = `rgba(${colour},${0.28 * arriving * fade})`;
       ctx.lineWidth = 0.8;
       ctx.beginPath();
@@ -195,7 +209,7 @@ export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, 
   });
 
   // The colour key explains the schematic without asserting specific headcounts.
-  if (w >= 280 && h >= 280) {
+  if (labels && w >= 280 && h >= 280) {
     const root = points[0];
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';

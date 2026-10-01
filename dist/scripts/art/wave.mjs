@@ -1,234 +1,257 @@
 const TAU = Math.PI * 2;
-const PERIOD = 18;
+const INTERVAL = 6.1;
+const SPEED = .78;
 const BLUE = '36,78,255';
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const bell = x => Math.exp(-.5 * x * x);
 const random = (a, b = 0) => {
   let n = Math.imul(a + 271, 374761393) ^ Math.imul(b + 137, 668265263);
   n = Math.imul(n ^ (n >>> 13), 1274126177);
-  return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
 };
 function noise(x, seed) {
   const i = Math.floor(x), t = smooth(0, 1, x - i);
   return (random(i, seed) * (1 - t) + random(i + 1, seed) * t) * 2 - 1;
 }
 
-function makeSurface(rowCount, density) {
-  const nodes = [], faces = [], rows = [];
-  for (let row = 0; row < rowCount; row += 1) {
-    const indices = [], count = density + Math.round(random(row, 3) * 8);
-    for (let j = 0; j <= count; j += 1) {
-      const seed = random(row + 103, j + 701);
-      const depth = 1 - (row + (row > 0 && row < rowCount - 1 ? (seed - 0.5) * 0.50 : 0)) / (rowCount - 1);
-      const v = -1.26 + (j + (random(j + 317, row) - 0.5) * 0.70) / count * 2.52;
-      indices.push(nodes.length);
-      nodes.push({ depth, v, seed, row });
-    }
-    rows.push(indices);
-  }
-  for (let row = 0; row < rows.length - 1; row += 1) {
-    const a = rows[row], b = rows[row + 1]; let i = 0, j = 0;
-    while (i < a.length - 1 || j < b.length - 1) {
-      if (j === b.length - 1 || (i < a.length - 1 && nodes[a[i + 1]].v < nodes[b[j + 1]].v)) {
-        faces.push({ nodes: [a[i], b[j], a[i + 1]], foam: false }); i += 1;
-      } else {
-        faces.push({ nodes: [a[i], b[j], b[j + 1]], foam: row === rowCount - 2 }); j += 1;
+function triangulate(nodes) {
+  const count = nodes.length;
+  const points = nodes.map(p => [p.v, p.depth * .4]);
+  points.push([-12, -8], [0, 15], [12, -8]);
+  const circle = (a, b, c) => {
+    const [ax, ay] = points[a], [bx, by] = points[b], [cx, cy] = points[c];
+    const det = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+    if (Math.abs(det) < 1e-12) return null;
+    const aa = ax * ax + ay * ay, bb = bx * bx + by * by, cc = cx * cx + cy * cy;
+    const x = (aa * (by - cy) + bb * (cy - ay) + cc * (ay - by)) / det;
+    const y = (aa * (cx - bx) + bb * (ax - cx) + cc * (bx - ax)) / det;
+    return { nodes: [a, b, c], x, y, r: (x - ax) ** 2 + (y - ay) ** 2 };
+  };
+  let open = [circle(count, count + 1, count + 2)];
+  const closed = [];
+  for (let i = 0; i < count; i++) {
+    const [x, y] = points[i], next = [], boundary = new Map();
+    for (const triangle of open) {
+      const dx = x - triangle.x;
+      if (dx > 0 && dx * dx > triangle.r) { closed.push(triangle); continue; }
+      if (dx * dx + (y - triangle.y) ** 2 > triangle.r + 1e-12) { next.push(triangle); continue; }
+      for (let j = 0; j < 3; j++) {
+        const a = triangle.nodes[j], b = triangle.nodes[(j + 1) % 3];
+        const key = Math.min(a, b) * (count + 3) + Math.max(a, b);
+        if (boundary.has(key)) boundary.delete(key); else boundary.set(key, [a, b]);
       }
     }
+    for (const [a, b] of boundary.values()) { const t = circle(a, b, i); if (t) next.push(t); }
+    open = next;
   }
+  return [...closed, ...open].filter(t => t.nodes.every(i => i < count)).map(t => t.nodes);
+}
+
+function makeSurface(compact) {
+  const nodes = [], grid = new Map(), cell = .03;
+  const spacing = compact ? .014 : .009;
+  function add(v, depth, radius) {
+    const x = v, y = depth * .4, gx = Math.floor(x / cell), gy = Math.floor(y / cell);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      for (const p of grid.get(`${gx + dx},${gy + dy}`) || []) {
+        if ((x - p.v) ** 2 + (y - p.depth * .4) ** 2 < ((radius + p.radius) * .5) ** 2) return;
+      }
+    }
+    const node = { v, depth, radius, seed: random(nodes.length, 721) };
+    nodes.push(node);
+    const key = `${gx},${gy}`;
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(node);
+  }
+  // Unevenly spaced samples are denser in the lip and in broad, irregular
+  // patches behind it. Triangulation has no rows, columns or fixed diagonals.
+  for (let i = 0; i <= 210; i++) add(-1.24 + i / 210 * 2.48, 0, spacing * .6);
+  for (let i = 0; i <= 120; i++) add(-1.24 + i / 120 * 2.48, 1, spacing);
+  for (let i = 1; i < 24; i++) { add(-1.24, i / 24, spacing); add(1.24, i / 24, spacing); }
+  for (let i = 0; i < (compact ? 26000 : 56000); i++) {
+    const v = -1.24 + random(i, 137) * 2.48, depth = random(i, 311) ** 1.6;
+    const density = .79 + .36 * noise(v * 3 + depth * 5, 811);
+    const radius = spacing * (1 + depth * 1.4) * density;
+    if (depth * .4 < radius * .6 || (1 - depth) * .4 < radius * .6 || Math.abs(v) > 1.24 - radius) continue;
+    add(v, depth, radius);
+  }
+  nodes.sort((a, b) => a.v - b.v);
   const edges = [], lookup = new Map();
-  faces.forEach((face, index) => {
-    face.seed = random(index + 389, 71);
-    face.edges = face.nodes.map((a, i) => {
-      const b = face.nodes[(i + 1) % 3], low = Math.min(a, b), high = Math.max(a, b);
-      const key = low * nodes.length + high;
+  const faces = triangulate(nodes).map((indices, i) => {
+    const [a, b, c] = indices.map(j => nodes[j]);
+    if ((b.v - a.v) * (c.depth - a.depth) - (b.depth - a.depth) * (c.v - a.v) < 0) [indices[1], indices[2]] = [indices[2], indices[1]];
+    return { nodes: indices, depth:(a.depth + b.depth + c.depth) / 3, v:(a.v + b.v + c.v) / 3,
+      seed: random(i, 81), edges: indices.map((a, j) => {
+      const b = indices[(j + 1) % 3], low = Math.min(a, b), high = Math.max(a, b), key = low * nodes.length + high;
       if (!lookup.has(key)) { lookup.set(key, edges.length); edges.push([low, high]); }
       return lookup.get(key);
-    });
+    }) };
   });
   return { nodes, faces, edges };
 }
-const DESKTOP = makeSurface(35, 111);
-const MOBILE = makeSurface(29, 52);
+let desktop, mobile;
 
-/**
- * One broad triangulated water surface, viewed from above. Every fill, edge
- * and node comes from the same vertices. Small breaking fragments are actual
- * front triangles separating from that surface, not another decorative layer.
- * Caller owns clearing, DPR, RAF and offscreen lifecycle. Pointer coordinates
- * are local CSS pixels with strength 0..1. Reduced motion ignores the pointer.
- */
-export function drawWave(ctx, width, height, seconds, { reducedMotion = false, pointer = null } = {}) {
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
-  const compact = width < 760;
-  const time = reducedMotion ? 8.25 : Number.isFinite(seconds) ? ((seconds % PERIOD) + PERIOD) % PERIOD : 0;
-  const cycle = time / PERIOD, angle = cycle * TAU;
-  const progress = -0.025 + cycle * 1.16;
-  const life = smooth(0.004, 0.13, cycle) * (1 - smooth(0.84, 0.998, cycle));
-  const ox = width * (compact ? -0.015 : 0.255), oy = height * (compact ? 0.47 : 0.69);
-  const tx = width * 1.14, ty = height * (compact ? -0.035 : -0.16);
+function travel(age) {
+  const integral = x => x <= 0 ? 0 : x >= 1 ? x - .5 : x ** 3 - .5 * x ** 4;
+  return -.26 + .10 * age + .11 * integral((age - 3.4) / 2);
+}
+
+function waterFrame(width, height, elapsed, pointer) {
+  const compact = width < 760, time = elapsed * SPEED + 3.4;
+  const mesh = compact ? (mobile ||= makeSurface(true)) : (desktop ||= makeSurface(false));
+  const ox = width * (compact ? -.03 : .23), oy = height * (compact ? .47 : .79);
+  const tx = width * 1.12, ty = height * (compact ? -.20 : -.28);
   const length = Math.hypot(tx - ox, ty - oy);
-  if (!Number.isFinite(length) || length <= 0) return;
   const dx = (tx - ox) / length, dy = (ty - oy) / length, nx = -dy, ny = dx;
-  const breadth = compact ? Math.min(width * 0.79, height * 0.43) : Math.min(width * 0.61, height * 0.92);
-  const bodyDepth = length * (compact ? 0.255 : 0.238);
-  const pointerStrength = !reducedMotion && pointer && Number.isFinite(pointer.x)
-    && Number.isFinite(pointer.y) && Number.isFinite(pointer.strength) ? clamp(pointer.strength) : 0;
-  const pointerRadius = clamp(width * 0.12, 86, 190);
-  const mesh = compact ? MOBILE : DESKTOP;
-
-  function visibility(x, y, v) {
-    const edge = 1 - smooth(1.01, 1.26, Math.abs(v));
-    const copy = compact ? 1 - smooth(height * 0.38, height * 0.53, y)
-      : 1 - 0.978 * (1 - smooth(width * 0.32, width * 0.65, x)) * smooth(height * 0.29, height * 0.59, y);
-    return edge * copy * smooth(-height * 0.06, height * 0.025, y);
-  }
-
-  const vertices = mesh.nodes.map(node => {
-    const { depth, v, seed } = node;
-    // Coherent irregularity at three scales makes one changing surf front.
-    const front = progress * length + length * (
-      0.030 * noise(v * 2.8 + 0.10 * Math.sin(angle), 21)
-      + 0.0095 * noise(v * 10.4 + 0.28 * Math.sin(angle * 2), 74)
-      + 0.0038 * noise(v * 28.3 + 0.34 * Math.sin(angle), 117));
-    const lip = Math.exp(-depth / 0.085);
-    // Short, differently phased run-ups disturb only the fine waterline. The
-    // broader front stays coherent while neighbouring tongues advance/relax.
-    const runup = length * lip * (
-      0.0048 * Math.sin(v * 17.3 + angle * 4 + noise(v * 5.2, 91))
-      + 0.0022 * Math.sin(v * 39.2 - angle * 7)
-      + 0.0020 * noise(v * 56.4 + 0.7 * Math.sin(angle * 3), 143));
-    const roll = 1.21 + 0.27 * smooth(0.16, 0.80, cycle)
-      + 0.11 * Math.sin(v * 5.1 + angle);
-    const localPhase = cycle - 0.10 * smooth(-1, 1, v) + 0.025 * noise(v * 4, 67);
-    const building = smooth(0.04, 0.38, localPhase);
-    const spilling = smooth(0.37, 0.75, localPhase);
-    const shoulder = Math.exp(-0.5 * ((depth - (0.18 - 0.07 * spilling)) / 0.125) ** 2);
-    // A shoulder gathers behind the lip, folds forwards, then relaxes as the
-    // local front spills. These shifts deform the very same surface vertices.
-    const fold = bodyDepth * 0.019 * building * (1 - 0.65 * spilling)
-      * depth / (depth + 0.10) * shoulder;
-    const surge = bodyDepth * 0.022 * building * (1 - 0.9 * spilling) * Math.exp(-depth / 0.11);
-    const q = -bodyDepth * depth ** roll + fold + surge + runup;
-    const side = (1 - depth) * (compact ? 2.3 : 5.8) * Math.sin(v * 16 + angle + seed * 0.45)
-      + (compact ? 1.5 : 3.5) * spilling * Math.exp(-depth / 0.14) * Math.sin(v * 27 + angle * 0.5);
-    const drift = Math.sin(angle * 2 + seed * TAU) * (compact ? 0.7 : 1.5) * depth * (1 - depth);
-    let x = ox + dx * (front + q + drift) + nx * (v * breadth + side);
-    let y = oy + dy * (front + q + drift) + ny * (v * breadth + side);
-    if (pointerStrength) {
-      const px = (x - pointer.x) / pointerRadius, py = (y - pointer.y) / pointerRadius;
-      const distance = Math.hypot(px, py);
-      if (distance < 2.3) {
-        const response = Math.exp(-2.7 * distance * distance) * (1 - smooth(1.5, 2.3, distance));
-        const amount = 12 * pointerStrength * response * (0.85 + 0.25 * Math.sin(distance * 7.2 - angle * 3));
+  const breadth = compact ? Math.min(width * .82, height * .42) : Math.min(width * .61, height * .94);
+  const nearest = Math.floor(time / INTERVAL), surfaces = [];
+  const pointerStrength = pointer && Number.isFinite(pointer.x) && Number.isFinite(pointer.y)
+    && Number.isFinite(pointer.strength) ? clamp(pointer.strength) : 0;
+  const pointerRadius = clamp(width * .12, 86, 190);
+  for (let offset = -2; offset <= 1; offset++) {
+    const index = nearest + offset, seed = index * 73;
+    const age = time - index * INTERVAL - (random(index, 19) - .5) * 1.0;
+    if (age < -.8 || age > 18) continue;
+    const life = smooth(-.8, 1.2, age) * (1 - smooth(14.5, 18, age));
+    const vertices = mesh.nodes.map(node => {
+      const {depth, v} = node;
+      const localAge = age - .48 * noise(v * 2.8, seed + 31) - .14 * noise(v * 8, seed + 97);
+      const breaking = smooth(3.0, 5.7, localAge);
+      const spreading = smooth(5.0, 9.5, localAge);
+      const roughness = .023 * noise(v * 3.0, seed + 41) + .008 * noise(v * 9.3, seed + 103)
+        + .003 * noise(v * 25 + localAge * .13, seed + 179);
+      const fingers = .028 * spreading * noise(v * 7.2 - localAge * .10, seed + 233);
+      const front = travel(localAge) + roughness + fingers;
+      const depthScale = .20 + .18 * spreading;
+      const compression = .016 * (1 - .40 * spreading) * bell((depth - .13) / .09);
+      const drift = .003 * breaking * Math.sin(depth * 9 + v * 4 - localAge * .8) * depth;
+      const s = front - depthScale * depth + compression + drift;
+      const side = v * breadth + length * .0015 * breaking * Math.sin(v * 5 + depth * 8 - localAge * .7) * depth;
+      let x = ox + dx * s * length + nx * side;
+      let y = oy + dy * s * length + ny * side;
+      if (pointerStrength) {
+        const px = (x - pointer.x) / pointerRadius, py = (y - pointer.y) / pointerRadius;
+        const amount = 7 * pointerStrength * Math.exp(-2.7 * (px * px + py * py));
         x += px * amount; y += py * amount;
       }
-    }
-    const crest = Math.exp(-0.5 * ((depth - (0.14 - 0.06 * spilling)) / 0.14) ** 2)
-      * (1 - lip * (0.07 + 0.08 * smooth(-0.45, 0.7, noise(v * 13.5 + 0.22 * Math.sin(angle * 2), 176))));
-    const swell = 0.32 * Math.exp(-0.5 * ((depth - 0.43) / 0.23) ** 2);
-    const trailing = 0.10 * Math.exp(-0.5 * ((depth - 0.81) / 0.055) ** 2);
-    const energy = clamp(crest * (1 - 0.45 * spilling)
-      + swell * (1 + 0.2 * building) * (1 - 0.12 * spilling)
-      + trailing * (1 + 0.8 * spilling));
-    const fade = 1 - smooth(0.82, 1, depth);
-    return { x, y, v, seed, energy, visible: life * fade * visibility(x, y, v) };
-  });
+      const crestDepth = .11 - .060 * spreading;
+      const crest = bell((depth - crestDepth) / (.045 + spreading * .018));
+      const foamNoise = .62 * noise(v * 22 + depth * 15 - localAge * .37, seed + 401)
+        + .38 * noise(v * 51 - depth * 48 + localAge * .72, seed + 577);
+      const lace = smooth(-.37, .47, foamNoise);
+      const foam = bell((depth - .19) / (.10 + .14 * spreading)) * breaking * lace;
+      const wake = bell((depth - .58) / .27) * (.42 + .58 * spreading) * (.66 + .34 * lace);
+      const edge = 1 - smooth(1.07, 1.24, Math.abs(v));
+      const copy = compact ? 1 - smooth(height * .38, height * .53, y)
+        : 1 - .982 * (1 - smooth(width * .32, width * .66, x)) * smooth(height * .30, height * .62, y);
+      const visible = life * edge * copy * (1 - smooth(.74, 1, depth));
+      return { x, y, seed:node.seed, crest, foam, wake, visible };
+    });
+    surfaces.push({mesh, vertices, age, seed, dx, dy, nx, ny, length});
+  }
+  return { surfaces, compact };
+}
 
-  const fillBuckets = Array.from({ length: 20 }, () => []);
+/** Overhead breaking surf. The irregular mesh itself forms the water. */
+export function drawWave(ctx, width, height, seconds, { reducedMotion = false, pointer = null } = {}) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+  const elapsed = reducedMotion ? 2.3 / SPEED : Number.isFinite(seconds) ? seconds : 0;
+  const { surfaces, compact } = waterFrame(width, height, elapsed, reducedMotion ? null : pointer);
+  for (const {mesh, vertices, age, seed, dx, dy, nx, ny, length} of surfaces) {
+  const fills = Array.from({ length: 22 }, () => []);
   const edgeWeights = new Float32Array(mesh.edges.length);
   const nodeWeights = new Float32Array(vertices.length);
-  const foam = [];
-
-  function fillTriangle(points, alpha) {
-    if (alpha < 0.004) return false;
-    const bucket = Math.min(19, Math.floor(alpha * 100));
-    fillBuckets[bucket].push(points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y);
-    return true;
-  }
-
+  const fragments = [];
   for (const face of mesh.faces) {
-    const points = face.nodes.map(index => vertices[index]);
-    const visible = Math.min(...points.map(p => p.visible));
-    if (visible < 0.01) continue;
-    const energy = points.reduce((sum, p) => sum + p.energy, 0) / 3;
-    const texture = 0.88 + 0.12 * face.seed;
-    const fillAlpha = visible * (0.014 + 0.15 * energy) * texture;
-    if (fillAlpha < 0.004) continue;
-
-    // Only real front faces can break free. Their vertices move together and
-    // all three matching edges fade with the triangle, so no bare edges extend
-    // ahead of an independently painted crest.
-    const along = (points[0].v + points[1].v + points[2].v) / 3;
-    const onset = 0.29 + 0.20 * smooth(-1, 1, along) + 0.07 * face.seed
-      + 0.032 * noise(along * 16.5, 204);
-    const age = (cycle - onset) / 0.19;
-    if (face.foam && face.seed > 0.64 && age > 0) {
-      if (age < 1) {
-        const opacity = 1 - smooth(0.18, 1, age);
-        const travel = (compact ? 11 : 23) * (0.68 + face.seed * 0.48) * age ** 1.2;
-        const across = (face.seed - 0.5) * (compact ? 7 : 14) * age;
-        const shrink = 1 - 0.56 * smooth(0.06, 1, age);
-        const centre = { x: points.reduce((s,p) => s+p.x,0)/3, y: points.reduce((s,p) => s+p.y,0)/3 };
-        const moved = points.map(p => ({ ...p,
-          x: centre.x + (p.x-centre.x)*shrink + dx * travel + nx * across,
-          y: centre.y + (p.y-centre.y)*shrink + dy * travel + ny * across }));
-        if (fillTriangle(moved, fillAlpha * opacity)) {
-          foam.push({ points: moved, alpha: visible * (0.12 + energy * 0.23) * opacity });
-        }
+    const [a, b, c] = face.nodes.map(index => vertices[index]);
+    if ((a.x < -24 && b.x < -24 && c.x < -24) || (a.x > width + 24 && b.x > width + 24 && c.x > width + 24)
+      || (a.y < -24 && b.y < -24 && c.y < -24) || (a.y > height + 24 && b.y > height + 24 && c.y > height + 24)) continue;
+    const visible = (a.visible + b.visible + c.visible) / 3;
+    if (visible < .012) continue;
+    const crest = (a.crest + b.crest + c.crest) / 3;
+    const foam = (a.foam + b.foam + c.foam) / 3;
+    const wake = (a.wake + b.wake + c.wake) / 3;
+    const texture = .78 + face.seed * .22;
+    const fill = visible * (.008 + .14 * crest + .15 * foam + .04 * wake) * texture;
+    // Small leading cells break away with the spilling lip. They are removed
+    // from the parent mesh, carry its three vertices, then disperse and fade.
+    const onset = 4.5 + .65 * noise(face.v * 5.2, seed + 617) + face.seed * .85;
+    if (face.depth < .070 && face.seed > .48 && age > onset) {
+      const release = (age - onset) / 2.65;
+      if (release < 1) {
+        const fade = 1 - smooth(.16, 1, release), spread = Math.sin(release * Math.PI);
+        const forward = length * .025 * spread * (.55 + face.seed * .45);
+        const across = length * .010 * spread * (face.seed - .5);
+        const scale = 1 - .60 * smooth(0, 1, release), cx = (a.x + b.x + c.x) / 3, cy = (a.y + b.y + c.y) / 3;
+        const points = [a, b, c].map(p => ({x:cx + (p.x - cx) * scale + dx * forward + nx * across,
+          y:cy + (p.y - cy) * scale + dy * forward + ny * across}));
+        const alpha = fill * fade;
+        if (alpha >= .005) fills[Math.min(21, Math.floor(alpha * 100))].push(...points.flatMap(p => [p.x, p.y]));
+        fragments.push({points, alpha:visible * (.12 + crest * .23) * fade});
       }
       continue;
     }
-
-    fillTriangle(points, fillAlpha);
-    const weight = visible * (0.025 + energy * 0.29);
-    for (const edge of face.edges) edgeWeights[edge] = Math.max(edgeWeights[edge], weight);
-    for (const index of face.nodes) nodeWeights[index] = Math.max(nodeWeights[index], weight);
+    if (fill >= .005) fills[Math.min(21, Math.floor(fill * 100))].push(a.x, a.y, b.x, b.y, c.x, c.y);
+    const edge = visible * (.021 + .32 * crest + .20 * foam + .06 * wake);
+    const node = visible * (.025 + .34 * crest + .40 * foam + .055 * wake);
+    for (const index of face.edges) edgeWeights[index] = Math.max(edgeWeights[index], edge);
+    for (const index of face.nodes) nodeWeights[index] = Math.max(nodeWeights[index], node);
   }
-
-  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  // Batching retains identical vertex coordinates while keeping the fine
-  // triangulation practical to animate. Every subpath is a surface triangle.
-  for (let bucket = 0; bucket < fillBuckets.length; bucket += 1) {
-    const positions = fillBuckets[bucket]; if (!positions.length) continue;
-    ctx.fillStyle = `rgba(${BLUE},${((bucket + 0.5) / 100).toFixed(3)})`;
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let bucket = 0; bucket < fills.length; bucket++) {
+    const positions = fills[bucket]; if (!positions.length) continue;
+    ctx.fillStyle = `rgba(${BLUE},${((bucket + .5) / 100).toFixed(3)})`;
     ctx.beginPath();
     for (let i = 0; i < positions.length; i += 6) {
-      ctx.moveTo(positions[i], positions[i + 1]); ctx.lineTo(positions[i + 2], positions[i + 3]); ctx.lineTo(positions[i + 4], positions[i + 5]); ctx.closePath();
+      ctx.moveTo(positions[i], positions[i + 1]); ctx.lineTo(positions[i + 2], positions[i + 3]);
+      ctx.lineTo(positions[i + 4], positions[i + 5]); ctx.closePath();
     }
     ctx.fill();
   }
-
-  const edgeBuckets = Array.from({ length: 12 }, () => []);
-  for (let i = 0; i < mesh.edges.length; i += 1) {
-    const weight = edgeWeights[i]; if (weight < 0.012) continue;
+  const lines = Array.from({ length: 16 }, () => []);
+  for (let i = 0; i < mesh.edges.length; i++) {
+    const weight = edgeWeights[i]; if (weight < .018) continue;
     const [a, b] = mesh.edges[i], p = vertices[a], q = vertices[b];
-    const bucket = Math.min(11, Math.floor(weight * 35));
-    edgeBuckets[bucket].push(p.x, p.y, q.x, q.y);
+    lines[Math.min(15, Math.floor(weight * 40))].push(p.x, p.y, q.x, q.y);
   }
-  for (const fragment of foam) {
-    if (fragment.alpha < 0.012) continue;
-    const bucket = Math.min(11, Math.floor(fragment.alpha * 35));
-    fragment.points.forEach((p, i) => {
-      const q = fragment.points[(i + 1) % 3];
-      edgeBuckets[bucket].push(p.x, p.y, q.x, q.y);
-    });
+  for (const {points, alpha} of fragments) {
+    if (alpha < .018) continue;
+    for (let i = 0; i < 3; i++) {
+      const p = points[i], q = points[(i + 1) % 3];
+      lines[Math.min(15, Math.floor(alpha * 40))].push(p.x, p.y, q.x, q.y);
+    }
   }
-  for (let bucket = 0; bucket < edgeBuckets.length; bucket += 1) {
-    const positions = edgeBuckets[bucket]; if (!positions.length) continue;
-    ctx.strokeStyle = `rgba(${BLUE},${((bucket + 0.5) / 35).toFixed(3)})`;
-    ctx.lineWidth = compact ? 0.38 : 0.45;
+  for (let bucket = 0; bucket < lines.length; bucket++) {
+    const positions = lines[bucket]; if (!positions.length) continue;
+    ctx.strokeStyle = `rgba(${BLUE},${((bucket + .5) / 40).toFixed(3)})`;
+    ctx.lineWidth = compact ? .40 : .47;
     ctx.beginPath();
     for (let i = 0; i < positions.length; i += 4) { ctx.moveTo(positions[i], positions[i + 1]); ctx.lineTo(positions[i + 2], positions[i + 3]); }
     ctx.stroke();
   }
-
-  function dot(p, weight) {
-    if (weight < 0.027) return;
-    ctx.fillStyle = `rgba(${BLUE},${Math.min(0.67, weight * 1.7).toFixed(3)})`;
-    ctx.beginPath(); ctx.arc(p.x, p.y, (0.38 + p.seed * 0.35 + p.energy * 0.14) * (compact ? 0.83 : 1), 0, TAU); ctx.fill();
+  const grains = Array.from({ length: 15 }, () => []);
+  vertices.forEach((p, i) => {
+    const alpha = Math.min(.73, nodeWeights[i] * 1.8);
+    if (alpha < .05 || p.x < -2 || p.x > width + 2 || p.y < -2 || p.y > height + 2) return;
+    const radius = (.38 + p.seed * .30 + p.foam * .19) * (compact ? .90 : 1);
+    grains[Math.min(14, Math.floor(alpha * 20))].push(p.x, p.y, radius);
+  });
+  for (const {points, alpha} of fragments) {
+    if (alpha < .03) continue;
+    for (const p of points) grains[Math.min(14, Math.floor(alpha * 32))].push(p.x, p.y, compact ? .46 : .58);
   }
-  vertices.forEach((p, i) => dot(p, nodeWeights[i]));
-  foam.forEach(fragment => fragment.points.forEach(p => dot(p, fragment.alpha)));
+  for (let bucket = 0; bucket < grains.length; bucket++) {
+    const positions = grains[bucket]; if (!positions.length) continue;
+    ctx.fillStyle = `rgba(${BLUE},${((bucket + .5) / 20).toFixed(3)})`;
+    ctx.beginPath();
+    for (let i = 0; i < positions.length; i += 3) {
+      ctx.moveTo(positions[i] + positions[i + 2], positions[i + 1]);
+      ctx.arc(positions[i], positions[i + 1], positions[i + 2], 0, TAU);
+    }
+    ctx.fill();
+  }
   ctx.restore();
+  }
 }
