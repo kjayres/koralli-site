@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, mkdirSync, writeFileSync, existsSync, realpa
 import { resolve, dirname, relative, isAbsolute, posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { buildingMarkup } from '../src/scripts/art/building.mjs';
 import { workbenchMarkup, escapeHTML } from '../src/scripts/workflow-view.mjs';
 
@@ -48,6 +49,36 @@ function withBasePath(name, bytes, basePath) {
   return Buffer.from(text);
 }
 
+export function withAssetVersions(files) {
+  const modules = [...files.keys()].filter(name => /\.(?:m?js|css)$/.test(name)).sort();
+  const hash = createHash('sha256');
+  for (const name of modules) hash.update(name).update('\0').update(files.get(name)).update('\0');
+  const version = hash.digest('hex').slice(0, 12);
+  const versioned = target => {
+    const hashAt = target.indexOf('#'), fragment = hashAt < 0 ? '' : target.slice(hashAt);
+    const location = hashAt < 0 ? target : target.slice(0, hashAt), queryAt = location.indexOf('?');
+    const path = queryAt < 0 ? location : location.slice(0, queryAt);
+    const query = new URLSearchParams(queryAt < 0 ? '' : location.slice(queryAt + 1));
+    query.set('v', version);
+    return `${path}?${query}${fragment}`;
+  };
+  for (const [name, bytes] of files) {
+    let text;
+    if (/\.m?js$/.test(name)) text = bytes.toString().replace(
+      /(\b(?:from\s*|import\s*\(\s*|import\s*))(["'])(\.{1,2}\/[^"']+\.m?js(?:[?#][^"']*)?)\2/g,
+      (_, lead, quote, target) => lead + quote + versioned(target) + quote);
+    else if (name.endsWith('.html')) text = bytes.toString().replace(
+      /(<script\b[^>]*?\bsrc\s*=\s*)(["'])([^"']+)\2/gi,
+      (match, lead, quote, target) => /^[a-z][a-z\d+.-]*:|^\/\//i.test(target) || !/\.m?js(?:[?#]|$)/.test(target)
+        ? match : lead + quote + versioned(target.replaceAll('&amp;', '&')).replaceAll('&', '&amp;') + quote)
+      .replace(/(<link\b[^>]*?\bhref\s*=\s*)(["'])([^"']+\.css(?:[?#][^"']*)?)\2/gi,
+        (match, lead, quote, target) => /^[a-z][a-z\d+.-]*:|^\/\//i.test(target) ? match
+          : lead + quote + versioned(target.replaceAll('&amp;', '&')).replaceAll('&', '&amp;') + quote);
+    if (text !== undefined) files.set(name, Buffer.from(text));
+  }
+  return files;
+}
+
 export function renderSite(basePath = './') {
   checkedBasePath(basePath);
   const files = new Map();
@@ -76,6 +107,7 @@ export function renderSite(basePath = './') {
       if (!files.has(match[1] || 'index.html')) throw new Error(`Missing local link in ${name}: /${match[1]}`);
     }
   }
+  withAssetVersions(files);
   for (const [name, bytes] of files) files.set(name, withBasePath(name, bytes, basePath));
   return files;
 }

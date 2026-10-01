@@ -33,6 +33,13 @@ function midpoint(a, b) {
 // This runs only when the static reef cache is rebuilt. Inverse depth is
 // linear across a projected triangle, unlike ordinary camera-space depth.
 export function paintReefSurface(ctx, triangles, width, height) {
+  const steps = reefSurfaceSteps(ctx, triangles, width, height);
+  let result = steps.next();
+  while (!result.done) result = steps.next();
+  return result.value;
+}
+
+export function* reefSurfaceSteps(ctx, triangles, width, height) {
   if (!(width > 0 && height > 0 && Number.isFinite(width + height))) return null;
   const transform = ctx.getTransform?.();
   const requested = transform ? Math.max(Math.hypot(transform.a, transform.b), Math.hypot(transform.c, transform.d)) : 1;
@@ -60,7 +67,9 @@ export function paintReefSurface(ctx, triangles, width, height) {
     if (previous) { previous.slope = Math.max(previous.slope, slope); return; }
     edges.set(key, { a, b, stroke: triangle.stroke, width: lineWidth, slope });
   }
+  let processed = 0;
   for (const triangle of triangles) {
+    if (++processed % 256 === 0) yield;
     const { a, b, c } = triangle;
     if (![a, b, c].every(p => p && Number.isFinite(p.x + p.y + p.z) && p.z > 0)) continue;
     const ax = a.x * dpr, ay = a.y * dpr, bx = b.x * dpr, by = b.y * dpr, cx = c.x * dpr, cy = c.y * dpr;
@@ -100,6 +109,7 @@ export function paintReefSurface(ctx, triangles, width, height) {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const groups = new Map();
   for (const edge of edges.values()) {
+    if (++processed % 1024 === 0) yield;
     if (!(Number.isFinite(edge.width) && edge.width > 0)) continue;
     const key = `${edge.stroke}:${edge.width}`;
     if (!groups.has(key)) groups.set(key, []);
@@ -111,6 +121,7 @@ export function paintReefSurface(ctx, triangles, width, height) {
     ctx.beginPath();
     let pathCount = 0;
     for (const { a, b, slope } of group) {
+      if (++processed % 256 === 0) yield;
       const clip = clipLine(a, b, width, height);
       if (!clip) continue;
       const [lo, hi] = clip, dx = b.x - a.x, dy = b.y - a.y;
@@ -175,15 +186,17 @@ function actorWorkspace(ctx, width, height) {
 
 // Moving geometry is a small transparent layer over the cached reef. Reuse the
 // returned workspace on every frame; the static underlay may have a higher DPR.
-export function paintReefActors(ctx, triangles, width, height, { underlay = null, workspace = null } = {}) {
+export function* reefActorPreparationSteps(ctx, width, height, underlay = null, workspace = null) {
   if (!(width > 0 && height > 0 && Number.isFinite(width + height))) return null;
   const work = workspace?.width === width && workspace?.height === height ? workspace : actorWorkspace(ctx, width, height);
-  const { rasterWidth, rasterHeight, pixels, depthBuffer: depth, baseDepth, colours, groups, edges, edgeLookup } = work;
+  const {rasterWidth,rasterHeight,baseDepth}=work;
   if (work.underlay !== underlay || work.underlayBuffer !== underlay?.depthBuffer) {
     work.underlay = underlay; work.underlayBuffer = underlay?.depthBuffer;
     work.staticScaleX = underlay ? underlay.rasterWidth / width : 1;
     work.staticScaleY = underlay ? underlay.rasterHeight / height : 1;
-    for (let y = 0; y < rasterHeight; y++) for (let x = 0; x < rasterWidth; x++) {
+    for (let y = 0; y < rasterHeight; y++) {
+      if(y%16===0)yield;
+      for (let x = 0; x < rasterWidth; x++) {
       let nearest = 0;
       if (underlay) {
         const x0 = Math.floor(x * work.staticScaleX), x1 = Math.min(underlay.rasterWidth - 1, Math.ceil((x + 1) * work.staticScaleX) - 1);
@@ -195,8 +208,18 @@ export function paintReefActors(ctx, triangles, width, height, { underlay = null
       // Conservative downsampling prevents a rear actor leaking through the
       // half-pixel boundary of a foreground branch at the higher static DPR.
       baseDepth[y * rasterWidth + x] = nearest;
+      }
     }
   }
+  return work;
+}
+
+export function paintReefActors(ctx, triangles, width, height, { underlay = null, workspace = null } = {}) {
+  const steps=reefActorPreparationSteps(ctx,width,height,underlay,workspace);
+  let prepared=steps.next();while(!prepared.done)prepared=steps.next();
+  const work=prepared.value;
+  if(!work)return null;
+  const { rasterWidth, rasterHeight, pixels, depthBuffer: depth, baseDepth, colours, groups, edges, edgeLookup } = work;
   pixels.fill(0); depth.set(baseDepth);
   for (const widths of groups.values()) for (const group of widths.values()) group.count = 0;
   edgeLookup.clear();

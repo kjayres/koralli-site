@@ -1,6 +1,6 @@
-import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs';
-import { coralStudies } from './coral.mjs';
-import { drawInspectionObject } from './inspection-objects.mjs';
+import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=6116993ede5c';
+import { coralStudies } from './coral.mjs?v=6116993ede5c';
+import { drawInspectionObject } from './inspection-objects.mjs?v=6116993ede5c';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));

@@ -8,10 +8,18 @@
 .reef-section .reef-canvas canvas,
 .reef-section .reef-still { position:absolute; inset:0; display:block; width:100%; height:100%; }
 .reef-section .reef-still img { display:block; width:100%; height:100%; object-fit:cover; }
+.reef-section .reef-canvas > canvas { opacity:0; }
+.reef-section .reef-canvas.art-ready > canvas { opacity:1; transition:opacity .45s ease; }
+.reef-section .reef-canvas.art-ready > .reef-still { visibility:visible; opacity:0; transition:opacity .45s ease; }
+.reef-section .reef-still { opacity:1; }
 .reef-section .reef-canvas::after { content:''; position:absolute; inset:auto 0 0; height:52px; background:linear-gradient(transparent,#0C1630); pointer-events:none; }
 .home-page .site-footer { background:#0C1630; }
 @media (max-width:759px) {
   .reef-editorial { grid-template-columns:1fr; gap:24px; }
   .reef-editorial p:not(.eyebrow) { font-size:16px; }
   .reef-section .reef-canvas { height:440px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .reef-section .reef-canvas.art-ready > canvas,
+  .reef-section .reef-canvas.art-ready > .reef-still { transition:none; }
 }

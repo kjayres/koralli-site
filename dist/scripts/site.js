@@ -6,12 +6,12 @@ let frame = 0;
 let lastTime = 0;
 let updateApproach = () => {};
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs'),
-  research: () => import('./art/research.mjs'),
-  approach: () => import('./art/approach.mjs'),
-  coral: () => import('./art/coral.mjs'),
-  reef: () => import('./art/reef.mjs'),
-  'journal-water': () => import('./art/journal-water.mjs')
+  wave: () => import('./art/wave.mjs?v=6116993ede5c'),
+  research: () => import('./art/research.mjs?v=6116993ede5c'),
+  approach: () => import('./art/approach.mjs?v=6116993ede5c'),
+  coral: () => import('./art/coral.mjs?v=6116993ede5c'),
+  reef: () => import('./art/reef.mjs?v=6116993ede5c'),
+  'journal-water': () => import('./art/journal-water.mjs?v=6116993ede5c')
 };
 
 function artworkFailed(state, error) {
@@ -22,6 +22,23 @@ function artworkFailed(state, error) {
   console.error(`Unable to display ${state.kind} artwork:`, error);
 }
 
+async function warmReefArtwork(state) {
+  if (state.failed || document.hidden || !state.w || !state.h) return;
+  const revision = state.reefRevision = (state.reefRevision || 0) + 1;
+  const isCurrent = () => revision === state.reefRevision && !state.failed && !document.hidden;
+  state.reefReady = false;
+  state.host.classList.remove('art-ready');
+  try {
+    if (state.reef.prewarmReef) {
+      if (!await state.reef.prewarmReef(state, isCurrent)) return;
+    } else state.reef.seedReef(state);
+    if (!isCurrent()) return;
+    state.reefReady = true;
+    paint(state);
+    schedule();
+  } catch (error) { if (isCurrent()) artworkFailed(state, error); }
+}
+
 async function prepareArtwork(state) {
   if (state.loading || state.failed) return;
   state.loading = true;
@@ -29,13 +46,13 @@ async function prepareArtwork(state) {
     state.art = await artworkLoaders[state.kind]();
     if (state.kind === 'reef') {
       state.reef = new state.art.Reef();
-      state.reef.seedReef(state);
     }
     if (state.kind === 'journal-water') {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=6116993ede5c');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
+    if (state.kind === 'reef') { await warmReefArtwork(state); return; }
     paint(state);
     schedule();
   } catch (error) { artworkFailed(state, error); }
@@ -44,6 +61,7 @@ async function prepareArtwork(state) {
 function paint(state, dt = 0) {
   const { ctx, w, h, kind } = state;
   if (!state.loaded || state.failed || !w || !h) return;
+  if (kind === 'reef' && !state.reefReady) return;
   try {
     ctx.clearRect(0, 0, w, h);
     if (!motion.matches) state.time += dt;
@@ -97,7 +115,7 @@ function tick(now) {
 }
 
 function schedule() {
-  if (!frame && !motion.matches && !document.hidden && canvasStates.some(state => state.visible && !state.paused && state.loaded && !state.failed)) frame = requestAnimationFrame(tick);
+  if (!frame && !motion.matches && !document.hidden && canvasStates.some(state => state.visible && !state.paused && state.loaded && !state.failed && (state.kind !== 'reef' || state.reefReady))) frame = requestAnimationFrame(tick);
 }
 
 for (const canvas of document.querySelectorAll('canvas[data-art]')) {
@@ -147,15 +165,15 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      state.reef?.seedReef(state);
-      paint(state);
+      if (state.kind === 'reef' && state.loaded) warmReefArtwork(state);
+      else paint(state);
     } catch (error) { artworkFailed(state, error); }
   };
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(entries => {
     state.visible = entries[0].isIntersecting;
     lastTime = 0;
-    if (state.visible) paint(state);
+    if (state.visible && state.kind !== 'reef') paint(state);
     schedule();
   }).observe(canvas);
   canvasStates.push(state);
@@ -165,13 +183,17 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
     const nearby = new IntersectionObserver(entries => {
       if (!entries[0].isIntersecting) return;
       nearby.disconnect();
+      if (state.kind === 'reef') {
+        const still = state.host.querySelector('.reef-still img');
+        if (still) { still.loading = 'eager'; still.decode?.().catch(() => {}); }
+      }
       prepareArtwork(state);
-    }, { rootMargin: '600px' });
+    }, { rootMargin: state.kind === 'reef' ? '1800px' : '600px' });
     nearby.observe(canvas);
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=6116993ede5c').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -301,7 +323,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs').then(module => {
+if (building && svg) import('./art/building.mjs?v=6116993ede5c').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -342,16 +364,22 @@ motion.addEventListener('change', () => {
   schedule();
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { cancelAnimationFrame(frame); frame = 0; }
-  else { lastTime = 0; schedule(); }
+  if (document.hidden) {
+    cancelAnimationFrame(frame); frame = 0;
+    canvasStates.filter(state => state.kind === 'reef' && !state.reefReady).forEach(state => state.reefRevision = (state.reefRevision || 0) + 1);
+  } else {
+    lastTime = 0;
+    canvasStates.filter(state => state.kind === 'reef' && state.loaded && !state.reefReady).forEach(warmReefArtwork);
+    schedule();
+  }
 });
 document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
-if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs')
+if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=6116993ede5c')
   .then(({ initWorkflows }) => initWorkflows())
   .catch(error => console.error('Unable to initialise the workflow examples:', error));
-if (document.querySelector('#team-question')) import('./team.mjs')
+if (document.querySelector('#team-question')) import('./team.mjs?v=6116993ede5c')
   .then(({ initTeam }) => initTeam())
   .catch(error => console.error('Unable to initialise the team examples:', error));
 onScroll();

@@ -1,4 +1,4 @@
-import { reefFishMarkup } from './reef-life.mjs';
+import { reefFishMarkup } from './reef-life.mjs?v=6116993ede5c';
 
 const BLUE = '#6485FF';
 const CORAL = '#FF6655';

@@ -1,9 +1,9 @@
-import { ORGANIC_CORALS } from './reef-organic.mjs';
-import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs';
-import { reefCurrent, reefPlankton } from './reef-current.mjs';
-import { movingTurtle } from './reef-turtle.mjs';
-import { fishPose } from './reef-fish-motion.mjs';
-import { paintReefSurface, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs';
+import { ORGANIC_CORALS } from './reef-organic.mjs?v=6116993ede5c';
+import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs?v=6116993ede5c';
+import { reefCurrent, reefPlankton } from './reef-current.mjs?v=6116993ede5c';
+import { movingTurtle } from './reef-turtle.mjs?v=6116993ede5c';
+import { fishPose } from './reef-fish-motion.mjs?v=6116993ede5c';
+import { reefSurfaceSteps, reefActorPreparationSteps, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs?v=6116993ede5c';
 
 const TAU = Math.PI * 2;
 const WATER = [12, 22, 48];
@@ -237,14 +237,32 @@ function style(material, faceNormal, depth, distance) {
   return (cache[key] = { fill: mix(WATER, colour, fill * fog), stroke, width });
 }
 
+function finishSteps(steps) {
+  let result=steps.next();
+  while(!result.done)result=steps.next();
+  return result.value;
+}
+
 export class Reef {
   props = { fish: true, turtles: true };
 
   seedReef(s) {
+    if (s.reefScene && s.reefCompact === (s.w < 600)) return;
+    finishSteps(this.seedReefSteps(s));
+  }
+
+  *seedReefSteps(s) {
     if (!(s.w > 0 && s.h > 0)) return;
     s.reefCompact = s.w < 600;
     const layout=reefHabitat(s.reefCompact);
-    s.reefScene = groundScene(extendedFloor(s.reefCompact), layout.map(prepare),s.reefCompact);
+    yield;
+    const scene=[extendedFloor(s.reefCompact)];
+    yield;
+    for(let i=0;i<layout.length;i++) {
+      scene.push(groundScene(null,[prepare(layout[i],i)],s.reefCompact)[1]);
+      yield;
+    }
+    s.reefScene = scene;
     s.reefGeometryStats = {
       meshes: s.reefScene.length,
       vertices: s.reefScene.reduce((sum, object) => sum + object.vertices.length, 0),
@@ -254,6 +272,31 @@ export class Reef {
 
   stepReef(s) { this.drawReef(s); }
 
+  async prewarmReef(s, isCurrent = () => true) {
+    const state={...s},started=performance.now(),stats={slices:0,maxSliceMs:0,durationMs:0};
+    const run=async steps=>{
+      let result;
+      do {
+        if(!isCurrent()){steps.return();return null;}
+        const start=performance.now();
+        do { result=steps.next(); } while(!result.done&&performance.now()-start<8);
+        stats.slices++;stats.maxSliceMs=Math.max(stats.maxSliceMs,performance.now()-start);
+        if(!result.done)await new Promise(resolve=>setTimeout(resolve,0));
+      } while(!result.done);
+      return result.value;
+    };
+    if(!state.reefScene||state.reefCompact!==(state.w<600))await run(this.seedReefSteps(state));
+    if(!isCurrent())return false;
+    const cache=await run(this.staticCacheSteps(state));
+    if(!isCurrent()||!cache)return false;
+    cache.actorWorkspace=await run(reefActorPreparationSteps(state.ctx,state.w,state.h,cache.surface));
+    if(!isCurrent()||!cache.actorWorkspace)return false;
+    stats.durationMs=performance.now()-started;
+    Object.assign(s,{reefScene:state.reefScene,reefCompact:state.reefCompact,
+      reefGeometryStats:state.reefGeometryStats,reefCache:cache,reefWarmStats:stats});
+    return true;
+  }
+
   drawReef(s) {
     if (!s.ctx || !Number.isFinite(s.w) || !Number.isFinite(s.h) || s.w <= 0 || s.h <= 0) return;
     if (!s.reefScene || s.reefCompact !== (s.w < 600)) this.seedReef(s);
@@ -261,6 +304,10 @@ export class Reef {
       this.drawCachedReef(s);
       return;
     }
+    finishSteps(this.directReefSteps(s));
+  }
+
+  *directReefSteps(s) {
     const { ctx } = s, time = Number.isFinite(s.t) ? s.t / 60 : 0;
     const cam = camera(s.w, s.h, time, s.reefCompact), triangles = [], landmarks = [];
     const objects=s.reefScene.map(object=>!object.motion?object:this.props.motion===false?
@@ -272,16 +319,18 @@ export class Reef {
 
     for (const object of objects) {
       const points = object.vertices.map(p => cam.project(p));
-      object.faces.forEach((face, faceIndex) => {
+      for(let faceIndex=0;faceIndex<object.faces.length;faceIndex++) {
+        if(faceIndex%256===0)yield;
+        const face=object.faces[faceIndex];
         const a = points[face[0]], b = points[face[1]], c = points[face[2]];
         const xmin = Math.min(a.x, b.x, c.x), xmax = Math.max(a.x, b.x, c.x);
         const ymin = Math.min(a.y, b.y, c.y), ymax = Math.max(a.y, b.y, c.y);
-        if (xmax < -2 || xmin > s.w + 2 || ymax < -2 || ymin > s.h + 2) return;
+        if (xmax < -2 || xmin > s.w + 2 || ymax < -2 || ymin > s.h + 2) continue;
         const depth = (a.z + b.z + c.z) / 3;
         const shade = style(object.material, object.normals[faceIndex], depth, cam.distance);
         const subdivide=object.coral && (object.subdivide || Math.max(xmax-xmin,ymax-ymin)>18);
         triangles.push({ a, b, c, depth, xmin, xmax, ymin, ymax, subdivide, ...shade });
-      });
+      }
       for (const index of object.nodes) landmarks.push({ ...points[index], material: object.material });
     }
 
@@ -290,7 +339,7 @@ export class Reef {
     ctx.fillStyle = '#0C1630'; ctx.fillRect(0, 0, s.w, s.h);
     if(this.props.motion!==false)waterDrift(ctx,s.w,s.h,time);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    if (s.reefSkipCache) s.reefSurfaceStats = paintReefSurface(ctx, triangles, s.w, s.h);
+    if (s.reefSkipCache) s.reefSurfaceStats = yield* reefSurfaceSteps(ctx, triangles, s.w, s.h);
     else for (const triangle of triangles) {
       ctx.fillStyle = triangle.fill; ctx.strokeStyle = triangle.stroke; ctx.lineWidth = triangle.width;
       ctx.beginPath(); ctx.moveTo(triangle.a.x, triangle.a.y); ctx.lineTo(triangle.b.x, triangle.b.y); ctx.lineTo(triangle.c.x, triangle.c.y); ctx.closePath();
@@ -326,15 +375,7 @@ export class Reef {
     const {ctx}=s,dpr=Math.min(ctx.getTransform?.()?.a||1,2);
     let cache=s.reefCache;
     if(!cache||cache.w!==s.w||cache.h!==s.h||cache.dpr!==dpr||cache.scene!==s.reefScene) {
-      const canvas=typeof OffscreenCanvas==='function' ? new OffscreenCanvas(Math.ceil(s.w*dpr),Math.ceil(s.h*dpr))
-        : ctx.canvas.ownerDocument.createElement('canvas');
-      canvas.width=Math.ceil(s.w*dpr);canvas.height=Math.ceil(s.h*dpr);
-      const paint=canvas.getContext('2d');
-      paint.setTransform(dpr,0,0,dpr,0,0);
-      const state={...s,ctx:paint,reefSkipCache:true},still=new Reef();
-      still.props={fish:false,turtles:false,motion:false};still.drawReef(state);
-      cache=s.reefCache={w:s.w,h:s.h,dpr,scene:s.reefScene,canvas,
-        surface:state.reefSurfaceStats,stats:state.reefFrameStats};
+      cache=s.reefCache=finishSteps(this.staticCacheSteps(s));
     }
     ctx.clearRect(0,0,s.w,s.h);ctx.drawImage(cache.canvas,0,0,s.w,s.h);
     const time=Number.isFinite(s.t)?s.t/60:0,cam=camera(s.w,s.h,time,s.reefCompact),faces=[],nodes=[];
@@ -371,5 +412,19 @@ export class Reef {
     s.reefFrameStats={triangles:cache.stats.triangles+faces.length,visibleNodes:cache.stats.visibleNodes+visibleNodes,
       fish:this.props.fish===false?0:4,turtles:this.props.turtles===false?0:2,
       movingCorals:moving.filter(object=>object.motion).length,cached:true};
+  }
+
+  *staticCacheSteps(s) {
+    const dpr=Math.min(s.ctx.getTransform?.()?.a||1,2);
+    const canvas=typeof OffscreenCanvas==='function' ? new OffscreenCanvas(Math.ceil(s.w*dpr),Math.ceil(s.h*dpr))
+      :s.ctx.canvas.ownerDocument.createElement('canvas');
+    canvas.width=Math.ceil(s.w*dpr);canvas.height=Math.ceil(s.h*dpr);
+    const paint=canvas.getContext('2d');
+    if(!paint)throw new Error('Reef cache canvas is unavailable.');
+    paint.setTransform(dpr,0,0,dpr,0,0);
+    const state={...s,ctx:paint,reefSkipCache:true},still=new Reef();
+    still.props={fish:false,turtles:false,motion:false};
+    yield* still.directReefSteps(state);
+    return {w:s.w,h:s.h,dpr,scene:s.reefScene,canvas,surface:state.reefSurfaceStats,stats:state.reefFrameStats};
   }
 }

@@ -1,5 +1,5 @@
 // Native wire geometry, drawn in CSS pixels. References: Australian Museum
-// Myctophidae; MBARI rattail fish; NOAA glass sponges and deep-water sea pens.
+// Myctophidae and MBARI rattail fish.
 const TAU = Math.PI * 2;
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const smooth = value => value * value * (3 - 2 * value);
@@ -113,95 +113,6 @@ export function drawDeepFish(ctx, scene, time = 0, current = 0, scroll = 0) {
     ctx.globalAlpha=alpha*.94;ctx.beginPath();
     for(const point of item.mesh.photophores){const p=project(point);ctx.moveTo(p[0]+.65,p[1]);ctx.arc(...p,.65,0,TAU);}
     ctx.fill();
-  }
-  ctx.restore();
-}
-
-const habitats = new WeakMap();
-const makePath = lines => {
-  if(typeof Path2D==='undefined')return null;
-  const path=new Path2D();for(const line of lines)trace(path,line);return path;
-};
-function attachment(x,y,radius) {
-  const ring=Array.from({length:7},(_,i)=>{
-    const angle=i*TAU/6,r=radius*(1+.08*Math.sin((i%6)*2.7));
-    return [x+Math.cos(angle)*r,y+4+Math.sin(angle)*r*.22];
-  });
-  const top=[x-radius*.08,y-3],lines=[ring];
-  for(let i=0;i<6;i++)lines.push([top,ring[i]]);
-  const middle=ring.map(p=>[lerp(top[0],p[0],.57),lerp(top[1],p[1],.57)-1]);
-  lines.push(middle);
-  for(let i=0;i<6;i++)lines.push([middle[i],ring[(i+1)%6]]);
-  return {lines,path:makePath(lines)};
-}
-function habitat(scene) {
-  if(habitats.has(scene))return habitats.get(scene);
-  const {width,height,compact,size}=scene,root=height-12;
-  const sponges=(compact?[[16,122,18,.08],[width-13,155,21,-.10]]
-    :[[25,196,26,.09],[83,125,19,-.06],[width-31,243,32,-.12]]).map(([x,tall,radius,lean],seed)=>{
-    const points=[],lines=[],rows=8,segments=8;
-    for(let row=0;row<=rows;row++) {
-      const u=row/rows,ring=[];
-      const reach=radius*(.15+.86*Math.sin(u*Math.PI*.57)**1.1);
-      for(let i=0;i<segments;i++) {
-        const a=i*TAU/segments+u*.24;
-        ring.push(points.length);
-        points.push([x+(u*tall*lean+Math.cos(a)*reach)*size,
-          root-u*tall*size+Math.sin(a)*reach*size*.28*(.3+.7*u)]);
-      }
-      lines.push([...ring,ring[0]]);
-      if(row)for(let i=0;i<segments;i++)lines.push([ring[i]-segments,ring[i]]);
-    }
-    // A narrow rim and alternating diagonal bracing read as a glass lattice.
-    for(let row=1;row<rows;row+=2)for(let i=0;i<segments;i+=2)lines.push([row*segments+i,(row+1)*segments+(i+1)%segments]);
-    const wire=lines.map(line=>line.map(i=>points[i]));
-    const rim=Array.from({length:segments+1},(_,i)=>points[rows*segments+i%segments]);
-    const roots=Array.from({length:3},(_,i)=>[[x,root-3],[x+(i-1)*radius*size*.35,root-1],
-      [x+(i-1)*radius*size*.66,root+1]]);
-    return {wire,rim,roots,wirePath:makePath(wire),rimPath:makePath([rim,...roots]),
-      foot:attachment(x,root,radius*size*.69),seed};
-  });
-  const pens=(compact?[[width-37,204,-.08],[32,174,.05]]
-    :[[width-87,310,-.08],[54,279,.055]]).map(([x,tall,lean],seed)=>({x,root,height:tall*size,lean,seed,
-      foot:attachment(x,root,11*size)}));
-  const result={sponges,pens};habitats.set(scene,result);return result;
-}
-
-/** Glass sponges stay attached; only the slender sea pens yield to the current. */
-export function drawDeepHabitat(ctx, scene, time = 0, current = 0) {
-  const {sponges,pens}=habitat(scene);
-  ctx.save();ctx.strokeStyle='#91A6C6';ctx.lineWidth=.43;
-  for(const {foot} of [...sponges,...pens]) {
-    ctx.globalAlpha=scene.compact?.16:.22;
-    if(foot.path)ctx.stroke(foot.path);
-    else {ctx.beginPath();for(const line of foot.lines)trace(ctx,line);ctx.stroke();}
-  }
-  for(const sponge of sponges) {
-    ctx.globalAlpha=scene.compact?.14:.20;
-    if(sponge.wirePath)ctx.stroke(sponge.wirePath);
-    else {ctx.beginPath();for(const line of sponge.wire)trace(ctx,line);ctx.stroke();}
-    ctx.globalAlpha=scene.compact?.24:.31;ctx.lineWidth=.57;
-    if(sponge.rimPath)ctx.stroke(sponge.rimPath);
-    else {ctx.beginPath();trace(ctx,sponge.rim);for(const line of sponge.roots)trace(ctx,line);ctx.stroke();}
-    ctx.lineWidth=.43;
-  }
-  for(const pen of pens) {
-    const point=u=>[pen.x+pen.height*(pen.lean*u+u*u*(current*.018+
-      .012*Math.sin(time*.32-u*2.5+pen.seed))),pen.root-pen.height*u];
-    ctx.globalAlpha=scene.compact?.18:.26;ctx.lineWidth=.50;ctx.beginPath();
-    trace(ctx,Array.from({length:17},(_,i)=>point(i/16)));
-    for(let rib=0;rib<12;rib++) {
-      const u=.29+rib*.057,root=point(u);
-      const width=Math.sin((u-.19)/.86*Math.PI)**.75*pen.height*.085;
-      for(const side of [-1,1]) {
-        const end=[root[0]+side*width,root[1]-pen.height*.045];
-        trace(ctx,[root,[lerp(root[0],end[0],.60),lerp(root[1],end[1],.35)],end]);
-      }
-    }
-    ctx.stroke();
-    ctx.globalAlpha*=.75;ctx.lineWidth=.4;ctx.beginPath();
-    for(const side of [-1,1])trace(ctx,[[pen.x,pen.root-4],[pen.x+side*4,pen.root],[pen.x+side*10,pen.root+1]]);
-    ctx.stroke();
   }
   ctx.restore();
 }
