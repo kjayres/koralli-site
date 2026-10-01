@@ -14,6 +14,12 @@ const noise = (x, seed = 0) => {
   return mix(hash(cell + seed * 71), hash(cell + 1 + seed * 71), smooth(x - cell)) * 2 - 1;
 };
 
+/** Shared horizontal current for the marine scene and the living title. */
+export function journalCurrent(time = 0) {
+  const seconds = Number.isFinite(time) ? Math.max(0, time) : 0;
+  return .6 * noise(seconds * .06, 41) + .4 * Math.sin(seconds * .23 + 1.4);
+}
+
 let cachedScene;
 
 function makeScene(width, height) {
@@ -241,7 +247,7 @@ export function drawJournalWater(ctx, width, height, time = 0, options = {}) {
   const elapsed = Number(time);
   const seconds = options.reducedMotion || !Number.isFinite(elapsed) ? 0 : Math.max(0, elapsed);
   const scroll = options.reducedMotion ? 0 : clamp(Number(options.scrollProgress) || 0, 0, 1);
-  const current = .6 * noise(seconds * .06, 41) + .4 * Math.sin(seconds * .23 + 1.4);
+  const current = journalCurrent(seconds);
   ctx.clearRect(0, 0, width, height);
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';

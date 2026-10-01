@@ -26,9 +26,13 @@ async function prepareReef(state) {
 }
 
 async function prepareJournal(state) {
-  journalModule ||= import('./art/journal-water.mjs');
-  const { drawJournalWater } = await journalModule;
+  journalModule ||= Promise.all([
+    import('./art/journal-water.mjs'),
+    import('./art/journal-lettering.mjs')
+  ]);
+  const [{ drawJournalWater }, { initJournalLettering }] = await journalModule;
   state.drawJournal = drawJournalWater;
+  state.updateJournalLettering = initJournalLettering();
   paint(state);
   schedule();
 }
@@ -56,7 +60,10 @@ function paint(state, dt = 0) {
       }
     }
   }
-  if (kind === 'journal-water' && state.drawJournal) state.drawJournal(ctx, w, h, state.time, options);
+  if (kind === 'journal-water' && state.drawJournal) {
+    state.drawJournal(ctx, w, h, state.time, options);
+    state.updateJournalLettering(state.time, options);
+  }
   if (kind === 'coral') {
     drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
     const study = coralTraceState(state.time, options);

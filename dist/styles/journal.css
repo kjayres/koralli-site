@@ -21,11 +21,9 @@
 .journal-opening { display:block; margin-top:68px; }
 .journal-opening h1 { position:relative; width:max-content; max-width:100%; font-size:clamp(74px,9.1vw,132px); font-weight:400; line-height:1.04; letter-spacing:-.053em; }
 .journal-title-line { display:block; white-space:nowrap; }
-.letter-habitat { position:relative; display:inline-block; }
-.letter-habitat img { position:absolute; display:block; max-width:none; height:auto; pointer-events:none; }
-.habitat-urchin img { width:.40em; left:.04em; bottom:.595em; }
-.habitat-coral img { width:.34em; left:.005em; bottom:.75em; }
-.habitat-fronds img { width:.26em; left:.10em; bottom:.74em; }
+.journal-coral-letter { display:inline-block; vertical-align:baseline; overflow:visible; fill:currentColor; }
+.journal-coral-letter text { font-family:inherit; letter-spacing:normal; fill:currentColor; }
+.journal-logo-branch { fill:currentColor; }
 .journal-opening .lead { margin-top:40px; max-width:430px; color:var(--water-muted); font-size:clamp(18px,1.6vw,22px); line-height:1.5; padding:0; }
 .journal-waterline { display:flex; justify-content:space-between; align-items:end; gap:30px; margin-top:56px; }
 .journal-waterline .text-link { color:var(--water-ink); font-size:10px; }
