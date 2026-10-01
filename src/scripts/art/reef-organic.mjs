@@ -450,6 +450,184 @@ function laceFan(seed = 1) {
   return finish(m);
 }
 
+// Smaller colonies vary their overall habit, not only the position of their tips.
+function compactBranches(seed, spreading = false) {
+  const m = mesh(), count = spreading ? 5 : 6;
+  const curve = (a, b, bend, steps) => Array.from({ length: steps }, (_, i) => {
+    const t = i / (steps - 1);
+    return add(add(scale(a, 1 - t), scale(b, t)), scale(bend, Math.sin(Math.PI * t)));
+  });
+  const root = [[0, 0, 0], [.006, -.004, .035]];
+  const trunk = m.tube(root, [.065, .046], { sides: 5, close: false });
+  for (let i = 0; i < count; i++) {
+    const key = seed + i * 67, angle = i * 2.399963 + .5 * random(key);
+    const inner = i % 3 === 1;
+    const reach = ((spreading ? .25 : .09) + random(key + 3) * (spreading ? .12 : .08)) * (inner ? .42 : 1);
+    const rise = .09 + random(key + 7) * .075 + (inner ? .085 : 0);
+    const end = [Math.cos(angle) * reach, Math.sin(angle) * reach, rise];
+    const primaryCurve = curve(root[1], end, [-.025 * Math.sin(angle), .025 * Math.cos(angle), -.012], 5);
+    const primary = m.tube(primaryCurve, [.046, .037, .030, .024, .021],
+      { sides: 5, start: trunk[1], close: false });
+    const forks = 3;
+    for (let j = 0; j < forks; j++) {
+      const twigKey = key + j * 31;
+      const turn = angle + (j - (forks - 1) / 2) * 1.1 + .4 * (random(twigKey + 13) - .5);
+      const length = (spreading ? .05 : .035) + random(twigKey + 17) * .045;
+      const growth = [Math.cos(turn) * length, Math.sin(turn) * length,
+        .09 + random(twigKey + 19) * (spreading ? .065 : .10)];
+      const tip = add(end, growth);
+      const secondaryCurve = curve(end, tip, [.018 * Math.sin(turn), -.018 * Math.cos(turn), .005], 4);
+      const secondary = m.tube(secondaryCurve, [.021, .018, .014, .011],
+        { sides: 5, start: primary.at(-1), rounded: true });
+      // Unequal lateral buds break the symmetrical candelabra silhouette.
+      for (let k = 0; k < 2; k++) {
+        const budKey = twigKey + k * 43, parent = k ? secondary[3] : secondary[2];
+        const base = secondaryCurve[k ? 3 : 2];
+        const azimuth = turn + (k ? -.9 : 1.35) + .4 * random(budKey + 23);
+        const reach2 = .022 + random(budKey + 29) * .026;
+        const drift = [Math.cos(azimuth) * reach2, Math.sin(azimuth) * reach2,
+          .035 + random(budKey + 37) * .052];
+        const budCurve = curve(base, add(base, drift), [-.008 * Math.sin(azimuth), .008 * Math.cos(azimuth), 0], 3);
+        m.tube(budCurve, [.012, .010, .007],
+          { sides: 5, start: parent, rounded: true });
+      }
+    }
+  }
+  return finish(m);
+}
+
+function roundedColony(seed, mode = 'massive') {
+  const m = mesh(), { directions, triangles } = hemisphere(4);
+  const low = mode === 'encrusting', lobed = mode === 'lobed';
+  const bulges = Array.from({ length: lobed ? 5 : 3 }, (_, i) => {
+    const angle = i * 2.399963 + seed;
+    const z = .25 + random(seed + i * 17) * .58, r = Math.sqrt(1 - z * z);
+    return [Math.cos(angle) * r, Math.sin(angle) * r, z];
+  });
+  for (let i = 0; i < directions.length; i++) {
+    const p = directions[i], angle = Math.atan2(p[1], p[0]);
+    const undulation = .055 * Math.sin(3 * angle + seed) + .03 * Math.cos(5 * angle - seed);
+    const bumps = bulges.reduce((sum, b) => sum + Math.exp(-sub(p, b).reduce((s, n) => s + n * n, 0) / .13), 0);
+    const radius = 1 + undulation + (lobed ? .42 : .055) * bumps;
+    const roughness = (low ? .012 : .036) * Math.sin(p[0] * 19 + 2.8 * Math.sin(7 * p[1]) + seed)
+      * Math.sin(p[1] * 15 + 2 * Math.sin(6 * p[0]) - seed);
+    m.point([p[0] * .52 * radius, p[1] * .43 * radius,
+      p[2] === 0 ? 0 : p[2] * (low ? .22 : .50) * (1 + .10 * p[0] - .07 * p[1] + (lobed ? .28 : .08) * bumps + roughness)]);
+    if (i % 43 === 0 && p[2] > .15) m.nodes.add(i);
+  }
+  for (const face of triangles) m.face(...face);
+  const rim = directions.map((p, i) => ({ p, i })).filter(({ p }) => p[2] === 0)
+    .sort((a, b) => Math.atan2(a.p[1], a.p[0]) - Math.atan2(b.p[1], b.p[0])).map(({ i }) => i);
+  m.cap(rim, [0, 0, 0], true);
+  return finish(m);
+}
+
+function folioseColony(seed) {
+  const m = mesh(), sectors = 18, rows = 5;
+  // Offset partial plates form a low rosette; there is no stack of circular tables.
+  for (let leaf = 0; leaf < 3; leaf++) {
+    const key = seed + leaf * 71, turn = leaf * 2.399963 + random(key) * .5;
+    const spread = 3.6 + random(key + 7) * .6, reach = .39 + random(key + 11) * .14;
+    const centre = [.025 * Math.cos(turn), .025 * Math.sin(turn), .05 + leaf * .048];
+    const top = [m.point(centre)], rings = [], upperFaces = [];
+    for (let row = 1; row <= rows; row++) {
+      const t = row / rows, ring = [];
+      for (let j = 0; j <= sectors; j++) {
+        const theta = turn + (j / sectors - .5) * spread;
+        const edge = 1 + .09 * Math.sin(5 * theta + seed) + .045 * Math.sin(9 * theta + leaf);
+        const r = reach * t * (1 + (edge - 1) * t * t);
+        const z = centre[2] + .09 * t * t + .024 * Math.sin(theta * 3 + leaf) * t * t
+          + .022 * Math.sin(theta - turn) * t;
+        const index = m.point([centre[0] + r * Math.cos(theta), centre[1] + r * Math.sin(theta), z]);
+        ring.push(index); top.push(index);
+      }
+      if (!rings.length) for (let j = 0; j < sectors; j++) upperFaces.push([top[0], ring[j], ring[j + 1]]);
+      else for (let j = 0; j < sectors; j++) {
+        const prev = rings.at(-1);
+        upperFaces.push([prev[j], ring[j], ring[j + 1]], [prev[j], ring[j + 1], prev[j + 1]]);
+      }
+      rings.push(ring);
+    }
+    const bottom = new Map(top.map(i => [i, m.point(add(m.vertices[i], [0, 0, -.014]))]));
+    for (const face of upperFaces) {
+      m.face(...face);
+      m.face(...face.map(i => bottom.get(i)).reverse());
+    }
+    const boundary = [top[0], ...rings.map(r => r[0]), ...rings.at(-1).slice(1),
+      ...rings.slice(0, -1).reverse().map(r => r.at(-1))];
+    m.join(boundary.map(i => bottom.get(i)), boundary);
+    for (let j = 2; j < sectors; j += 5) m.nodes.add(rings.at(-1)[j]);
+    // The folded inner portion reaches the substrate, so the rosette has no hovering centre.
+    if (leaf === 0) m.tube([[0, 0, 0], centre], [.055, .045], { sides: 6, rounded: true });
+  }
+  return finish(m);
+}
+
+function softTuft(seed, open = false) {
+  const m = mesh(), count = open ? 5 : 7;
+  for (let i = 0; i < count; i++) {
+    const key = seed + i * 47, angle = i * 2.399963 + random(key) * .55;
+    const reach = .10 + random(key + 5) * (open ? .13 : .08);
+    const base = [Math.cos(angle) * reach * .60, Math.sin(angle) * reach * .60, 0];
+    const height = .20 + random(key + 11) * .13;
+    const end = [Math.cos(angle) * reach + .06, Math.sin(angle) * reach, height];
+    const centres = Array.from({ length: 5 }, (_, row) => {
+      const t = row / 4;
+      return [base[0] + (end[0] - base[0]) * t * t, base[1] + (end[1] - base[1]) * t * t, height * t];
+    });
+    const stalk = m.tube(centres, [.032, .029, .032, .033, .027], { sides: 6, rounded: true });
+    const fingers = open ? 2 : 3;
+    for (let finger = 0; finger < fingers; finger++) {
+      const turn = angle + (finger - (fingers - 1) / 2) * 1.4;
+      const attachment = finger === 0 ? 2 : finger === 1 ? 3 : 4;
+      const base = centres[attachment];
+      const drift = [.075 * Math.cos(turn), .075 * Math.sin(turn), .065 + random(key + finger * 19 + 17) * .06];
+      m.tube([base, add(base, scale(drift, .55)), add(base, drift)], [.019, .021, .014],
+        { sides: 6, start: stalk[attachment], rounded: true });
+    }
+  }
+  return finish(m);
+}
+
+function seaweedRibbons(seed) {
+  const m = mesh(), count = 4, rows = 13, across = 2;
+  for (let blade = 0; blade < count; blade++) {
+    const key = seed + blade * 53, turn = blade * 2.399963 + random(key) * .6;
+    const length = .68 + random(key + 5) * .34, width = .044 + random(key + 7) * .024;
+    const root = [.025 * Math.cos(turn), .025 * Math.sin(turn), 0];
+    const rings = [], surfaceFaces = [], front = [];
+    for (let row = 0; row <= rows; row++) {
+      const t = row / rows, ring = [];
+      const drift = .26 * t ** 1.7 + .10 * Math.sin(t * 5 + blade) * t;
+      const x = root[0] + Math.cos(turn) * drift, y = root[1] + Math.sin(turn) * drift;
+      const angle = turn + .6 * Math.sin(t * 4 + seed + blade);
+      const breadth = width * (.20 + .80 * Math.sin(Math.PI * t) ** .65) * (1 - t * .90);
+      for (let j = 0; j <= across; j++) {
+        const u = (j / across - .5) * 2;
+        const index = m.point([x + Math.cos(angle) * breadth * u, y + Math.sin(angle) * breadth * u,
+          length * t + .012 * Math.sin(t * 9 + blade) * u * t]);
+        ring.push(index); front.push({ index, angle });
+      }
+      if (rings.length) for (let j = 0; j < across; j++) {
+        const prev = rings.at(-1);
+        surfaceFaces.push([prev[j], ring[j], ring[j + 1]], [prev[j], ring[j + 1], prev[j + 1]]);
+      }
+      rings.push(ring);
+    }
+    // A thin volume remains visible from either side as the blade twists in the current.
+    const back = new Map(front.map(({ index, angle }) => [index,
+      m.point(add(m.vertices[index], [Math.sin(angle) * .002, -Math.cos(angle) * .002, 0]))]));
+    for (const face of surfaceFaces) {
+      m.face(...face); m.face(...face.map(i => back.get(i)).reverse());
+    }
+    const boundary = [...rings[0], ...rings.slice(1).map(r => r.at(-1)),
+      ...rings.at(-1).slice(0, -1).reverse(), ...rings.slice(1, -1).reverse().map(r => r[0])];
+    m.join(boundary.map(i => back.get(i)), boundary);
+    m.nodes.add(rings.at(-1)[1]);
+  }
+  return finish(m);
+}
+
 export const ORGANIC_CORALS = {
   staghorn: staghorn(11),
   staghorn_spreading: staghorn(29),
@@ -462,4 +640,18 @@ export const ORGANIC_CORALS = {
   coral_bush: coralBush(61),
   coral_bush_broad: coralBush(103),
   lace_fan: laceFan(13),
+  branching_compact: compactBranches(83),
+  branching_compact_2: compactBranches(191),
+  branching_compact_3: compactBranches(227),
+  branching_spreading: compactBranches(137, true),
+  massive_coral: roundedColony(31),
+  massive_coral_2: roundedColony(157),
+  massive_lobed: roundedColony(71, 'lobed'),
+  massive_lobed_2: roundedColony(193, 'lobed'),
+  encrusting_coral: roundedColony(109, 'encrusting'),
+  foliose_coral: folioseColony(43),
+  soft_tuft: softTuft(89),
+  soft_tuft_open: softTuft(149, true),
+  seaweed_ribbons: seaweedRibbons(59),
+  seaweed_ribbons_open: seaweedRibbons(131),
 };
