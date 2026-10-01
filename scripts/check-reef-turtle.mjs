@@ -26,17 +26,22 @@ assert.ok(base.nodes.every(index => Number.isInteger(index) && base.vertices[ind
 assert.deepEqual(base.vertices.flatMap((_, i) => used.has(i) ? [] : [i]), base.nodes,
   'Only the eye landmarks should be outside the closed mesh');
 
-const times = new Set(Array.from({ length: 301 }, (_, i) => i * 2)), boundaries = [];
-for (let cycle = 0; cycle * 9.2 <= 600; cycle++) for (const phase of [0, 1.35, 2.65, 3.5, 9.2]) {
-  const time = cycle * 9.2 + phase;
-  if (time <= 600) { times.add(time); boundaries.push(time); }
+function sampleTimes(index) {
+  const times = new Set(Array.from({ length: 301 }, (_, i) => i * 2)), boundaries = [];
+  const rate = index === 1 ? .93 : 1, offset = index === 1 ? 4.1 : 0;
+  for (let cycle = 0; cycle * 9.2 <= 600 * rate + offset; cycle++) for (const phase of [0, 1.35, 2.65, 3.5, 9.2]) {
+    const time = (cycle * 9.2 + phase - offset) / rate;
+    if (time >= 0 && time <= 600) { times.add(time); boundaries.push(time); }
+  }
+  return { times, boundaries };
 }
 
-for (const compact of [false, true]) {
+for (const compact of [false, true]) for (const index of [0, 1]) {
   const habitat = reefHabitat(compact);
+  const { times, boundaries } = sampleTimes(index);
   let minimumFloor = Infinity, minimumColony = Infinity;
   for (const time of times) {
-    const turtle = movingTurtle(time, compact), minimum = [Infinity, Infinity, Infinity], maximum = [-Infinity, -Infinity, -Infinity];
+    const turtle = movingTurtle(time, compact, index), minimum = [Infinity, Infinity, Infinity], maximum = [-Infinity, -Infinity, -Infinity];
     for (const vertex of turtle.vertices) {
       assert.ok(vertex.every(Number.isFinite), `Finite geometry at ${time}s`);
       vertex.forEach((value, i) => { minimum[i] = Math.min(minimum[i], value); maximum[i] = Math.max(maximum[i], value); });
@@ -57,16 +62,23 @@ for (const compact of [false, true]) {
       for (const p of nearby) if (Math.abs(vertex[0] - p.origin[0]) < p.envelope.rx + 2
         && Math.abs(vertex[1] - p.origin[1] * 3.1) < p.envelope.ry + 2) {
         const clearance = vertex[2] - p.origin[2] - p.height - 4;
-        assert.ok(clearance > 0, `${compact ? 'Phone' : 'Desktop'} turtle intersects ${p.name} at ${time}s`);
+        assert.ok(clearance > 0, `${compact ? 'Phone' : 'Desktop'} turtle ${index + 1} intersects ${p.name} at ${time}s`);
         minimumColony = Math.min(minimumColony, clearance);
       }
     }
+    const other = movingTurtle(time, compact, 1 - index);
+    const otherMinimum = [Infinity, Infinity, Infinity], otherMaximum = [-Infinity, -Infinity, -Infinity];
+    for (const p of other.vertices) p.forEach((v, i) => {
+      otherMinimum[i] = Math.min(otherMinimum[i], v); otherMaximum[i] = Math.max(otherMaximum[i], v);
+    });
+    assert.ok(minimum.some((v, i) => v > otherMaximum[i] + 4 || maximum[i] + 4 < otherMinimum[i]),
+      `The turtles' complete animated bounding boxes must remain separated at ${time}s`);
   }
   assert.ok(minimumFloor > 0, 'The complete turtle must remain above the seabed');
 
   // Locate route turns from the exposed pose rather than duplicating its
   // ellipse equation, then check the rendered mesh on both sides of a turn.
-  const velocityX = time => turtlePose(time + .005, compact).centre[0] - turtlePose(time - .005, compact).centre[0];
+  const velocityX = time => turtlePose(time + .005, compact, index).centre[0] - turtlePose(time - .005, compact, index).centre[0];
   const continuityTimes = [...boundaries];
   for (let time = 2; time <= 600; time += 2) if (velocityX(time - 2) * velocityX(time) < 0) {
     let lo = time - 2, hi = time;
@@ -77,10 +89,10 @@ for (const compact of [false, true]) {
     continuityTimes.push((lo + hi) / 2);
   }
   for (const time of continuityTimes) {
-    const before = movingTurtle(time - .001, compact), after = movingTurtle(time + .001, compact);
+    const before = movingTurtle(time - .001, compact, index), after = movingTurtle(time + .001, compact, index);
     assert.ok(before.vertices.every((p, i) => Math.hypot(...subtract(p, after.vertices[i])) < 1),
       `No position or pose jump at a turn/stroke boundary (${time}s)`);
   }
-  console.log(`${compact ? 'Phone' : 'Desktop'} turtle: ${times.size} poses checked; minimum seabed clearance ${minimumFloor.toFixed(1)}, colony clearance ${minimumColony.toFixed(1)} world units.`);
+  console.log(`${compact ? 'Phone' : 'Desktop'} turtle ${index + 1}: ${times.size} poses checked; minimum seabed clearance ${minimumFloor.toFixed(1)}, colony clearance ${minimumColony.toFixed(1)} world units.`);
 }
-console.log(`Turtle checks passed: ${base.vertices.length} vertices, ${base.faces.length} closed triangles, finite poses and continuous turns/strokes.`);
+console.log(`Turtle checks passed: ${base.vertices.length} vertices and ${base.faces.length} closed triangles each, finite poses, separate routes and continuous turns/strokes.`);

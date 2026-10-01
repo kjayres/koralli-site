@@ -2,6 +2,7 @@ import { ORGANIC_CORALS } from './reef-organic.mjs';
 import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs';
 import { reefCurrent, reefPlankton } from './reef-current.mjs';
 import { movingTurtle } from './reef-turtle.mjs';
+import { fishPose } from './reef-fish-motion.mjs';
 import { paintReefSurface, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs';
 
 const TAU = Math.PI * 2;
@@ -22,9 +23,11 @@ function normal(a, b, c) {
 }
 
 function makeFish() {
-  const vertices = [[29, 0, .3]], faces = [], segments = 12;
-  const rings = [[26, 1.8, 2.5], [22, 3.2, 5.1], [16, 4.8, 8.0], [8, 5.8, 10.0],
-    [0, 5.3, 10.2], [-8, 4.1, 8.5], [-15, 2.2, 5.7], [-21, 1.1, 2.4], [-24, .6, 1.6]];
+  // Chromis viridis: a short, deep, compressed body and a deeply forked tail.
+  // Proportions: ICAR-CMFRI, Prioritized Species for Mariculture in India (2017).
+  const vertices = [[26, 0, .5]], faces = [], segments = 12;
+  const rings = [[24.5, 1.4, 2.0], [22, 2.8, 4.6], [17, 4.2, 8.9], [10, 4.9, 11.6],
+    [2, 4.8, 12.7], [-6, 4.0, 11.3], [-13, 2.6, 8.0], [-19, 1.3, 4.0], [-24, .6, 1.7]];
   for (const [x, width, height] of rings) {
     for (let i=0;i<segments;i++) {
       const angle=i*TAU/segments;
@@ -52,20 +55,21 @@ function makeFish() {
       faces.push([a,b,a+1],[a+1,b,b+1]);
     }
   }
-  fin([[13,8.8,9.0],[8,10,13],[2,10.3,14.3],[-4,9.5,13.6],[-10,7.8,11.5],[-16,5,7.0],[-20,3,3.4]]
-    .map(([x,z,top])=>[[x,0,z],[x-1.8,0,top]]));
-  fin([[1,-8.8,-9.0],[-4,-8.4,-12.0],[-9,-7.1,-12.5],[-14,-5.4,-10.5],[-19,-2.8,-4.2]]
-    .map(([x,z,bottom])=>[[x,0,z],[x-2,0,bottom]]));
+  fin([[16,9.3,10.2],[11,11.2,12.9],[6,12.2,13.7],[1,12.6,14.0],[-4,11.8,14.2],
+    [-9,10.0,14.2],[-13,8.0,12.8],[-17,5.4,9.3],[-21,2.8,3.7]]
+    .map(([x,z,top])=>[[x,0,z],[x-1.4,0,top]]));
+  fin([[1,-11.0,-11.8],[-4,-10.5,-12.8],[-9,-8.8,-13.4],[-14,-6.5,-11.0],[-20,-2.8,-3.9]]
+    .map(([x,z,bottom])=>[[x,0,z],[x-1.8,0,bottom]]));
   fin(Array.from({length:9},(_,i)=>{
     const u=(i-4)/4;
-    return [[-23.7,0,u*1.6],[-28.2-7.2*Math.abs(u)**1.35,0,u*11.2]];
+    return [[-23.7,0,u*1.7],[-26.8-8.8*Math.abs(u)**.8,0,u*13.3]];
   }));
   for(const side of [-1,1])fin(Array.from({length:5},(_,i)=>{
     const t=i/4;
-    return [[12-5*t,side*(4.7+.7*t),1-3*t],
-      [9-13*Math.sin(t*Math.PI/2),side*(5.4+5*Math.sin(t*Math.PI)),1-4.8*t]];
+    return [[13-4*t,side*(4.4+.4*t),1-3*t],
+      [10-13*Math.sin(t*Math.PI/2),side*(4.8+4*Math.sin(t*Math.PI)),1-4.8*t]];
   }));
-  const eyes=[vertices.push([22,3.02,1.5])-1,vertices.push([22,-3.02,1.5])-1];
+  const eyes=[vertices.push([21.4,2.93,2.0])-1,vertices.push([21.4,-2.93,2.0])-1];
   return {vertices,faces,nodes:eyes,material:'fish'};
 }
 const FISH = makeFish();
@@ -134,30 +138,7 @@ function groundScene(terrain, objects, compact) {
   return [terrain, ...objects];
 }
 
-function fishPose(time, index, compact) {
-  const direction=index%2?-1:1,rate=[.026,.021,.029,.024][index];
-  const pulseRate=.075+index*.019,pulsePhase=index*1.91;
-  // Integrating the speed variation keeps the route continuous through each turn.
-  const angle=[-.85,.3,2.25,3.34][index]+direction*rate*
-    (time+.16/pulseRate*(Math.cos(pulsePhase)-Math.cos(time*pulseRate+pulsePhase)));
-  const angularRate=direction*rate*(1+.16*Math.sin(time*pulseRate+pulsePhase));
-  const span=(compact?380:1080)*(compact?[1,.90,1.06,.95]:[1,.52,1.06,.82])[index];
-  const depth=[210,155,235,180][index];
-  const x=Math.sin(angle)*span,y=[-130,190,20,-290][index]+Math.cos(angle)*depth;
-  const vx=Math.cos(angle)*span*angularRate,vy=-Math.sin(angle)*depth*angularRate;
-  const turnRate=-span*depth*angularRate/(span*span*Math.cos(angle)**2+depth*depth*Math.sin(angle)**2);
-  const bobRate=[.20,.16,.23,.18][index],bob=[5,7,4,6][index],phase=index*1.37;
-  const vz=Math.cos(time*bobRate+phase)*bob*bobRate;
-  return {
-    centre:[x,y,(compact?455:520)-index*35+Math.sin(time*bobRate+phase)*bob],
-    yaw:Math.atan2(vy,vx),
-    pitch:clamp(Math.atan2(vz,Math.hypot(vx,vy)),-.05,.05),
-    bank:clamp(turnRate*.38,-.065,.065),
-    size:[.83,.69,.96,.77][index],
-  };
-}
-
-function movingFish(time, index, compact) {
+export function movingFish(time, index, compact) {
   const pose = fishPose(time, index, compact);
   const cy = Math.cos(pose.yaw), sy = Math.sin(pose.yaw), cp = Math.cos(pose.pitch), sp = Math.sin(pose.pitch);
   const cb = Math.cos(pose.bank), sb = Math.sin(pose.bank);
@@ -171,7 +152,7 @@ function movingFish(time, index, compact) {
     return [pose.centre[0] + (px * cy - by * sy) * pose.size,
       pose.centre[1] + (px * sy + by * cy) * pose.size, pose.centre[2] + pz * pose.size];
   });
-  return { ...FISH, name: `Fish ${index + 1}`, vertices,
+  return { ...FISH, name: `Blue-green chromis ${index + 1}`, vertices,
     normals: FISH.faces.map(face => normal(vertices[face[0]], vertices[face[1]], vertices[face[2]])) };
 }
 
@@ -287,7 +268,7 @@ export class Reef {
     if (this.props.fish ?? true) {
       for (let i = 0; i < 4; i += 1) objects.push(movingFish(time, i, s.reefCompact));
     }
-    if (this.props.turtles !== false) objects.push(movingTurtle(time, s.reefCompact));
+    if (this.props.turtles !== false) for (let i = 0; i < 2; i++) objects.push(movingTurtle(time, s.reefCompact, i));
 
     for (const object of objects) {
       const points = object.vertices.map(p => cam.project(p));
@@ -338,7 +319,7 @@ export class Reef {
     }
     ctx.restore();
     s.reefFrameStats = { triangles: triangles.length, visibleNodes, fish: this.props.fish === false ? 0 : 4,
-      turtles: this.props.turtles === false ? 0 : 1 };
+      turtles: this.props.turtles === false ? 0 : 2 };
   }
 
   drawCachedReef(s) {
@@ -361,7 +342,7 @@ export class Reef {
     const moving=this.props.motion===false?[]:s.reefScene.filter(object=>object.motion)
       .map(object=>movingCoral(coralSection(object,true),time));
     if(this.props.fish!==false)for(let i=0;i<4;i++)moving.push(movingFish(time,i,s.reefCompact));
-    if(this.props.turtles!==false)moving.push(movingTurtle(time,s.reefCompact));
+    if(this.props.turtles!==false)for(let i=0;i<2;i++)moving.push(movingTurtle(time,s.reefCompact,i));
     for(const object of moving) {
       const points=object.vertices.map(p=>cam.project(p));
       object.faces.forEach((face,j)=>{
@@ -388,7 +369,7 @@ export class Reef {
     }
     ctx.restore();
     s.reefFrameStats={triangles:cache.stats.triangles+faces.length,visibleNodes:cache.stats.visibleNodes+visibleNodes,
-      fish:this.props.fish===false?0:4,turtles:this.props.turtles===false?0:1,
+      fish:this.props.fish===false?0:4,turtles:this.props.turtles===false?0:2,
       movingCorals:moving.filter(object=>object.motion).length,cached:true};
   }
 }

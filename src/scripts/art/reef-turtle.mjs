@@ -2,10 +2,11 @@ const TAU = Math.PI * 2;
 const ease = t => t * t * t * (t * (t * 6 - 15) + 10);
 
 function normal(a, b, c) {
-  const u = b.map((v, i) => v - a[i]), v = c.map((n, i) => n - a[i]);
-  const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-  const length = Math.hypot(...n) || 1;
-  return n.map(value => value / length);
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  const x = uy * vz - uz * vy, y = uz * vx - ux * vz, z = ux * vy - uy * vx;
+  const length = Math.hypot(x, y, z) || 1;
+  return [x / length, y / length, z / length];
 }
 
 function makeTurtle() {
@@ -32,24 +33,48 @@ function makeTurtle() {
     if (signedVolume < 0) for (let i = firstFace; i < faces.length; i++) faces[i].reverse();
   }
 
-  // A low oval carapace, tapering aft, with a separate narrow lip and plastron.
-  const shellRings = [[.22, 13.5], [.45, 12.4], [.66, 10.3], [.83, 7.1], [.94, 3.8], [1, .8],
-    [1, -1.8], [.90, -5], [.66, -7], [.35, -8]].map(([r, z]) => Array.from({ length: 24 }, (_, j) => {
+  // Hawksbills have a tapering shell, overlapping scutes and a toothed rear
+  // margin. The shallow teeth belong to the rim rather than separate spikes.
+  const shellProfile = [[0, 14], [.22, 13.5], [.45, 12.4], [.66, 10.3], [.83, 7.1], [.94, 3.8], [1, .8]];
+  const shellPoint = (u, v) => {
+    const r = Math.hypot(u, v), c = r ? u / r : 0;
+    const i = Math.min(shellProfile.findIndex(([radius]) => radius >= r), shellProfile.length - 1);
+    const [r0, z0] = shellProfile[Math.max(0, i - 1)], [r1, z1] = shellProfile[Math.max(0, i)];
+    const z = r1 === r0 ? z0 : z0 + (z1 - z0) * (r - r0) / (r1 - r0);
+    return [35 * u - 1.5 * r * r, 26.5 * v * (1 + .16 * c), z];
+  };
+  const shellRings = [...shellProfile.slice(1), [1, -1.8], [.90, -5], [.35, -8]].map(([r, z]) => Array.from({ length: 24 }, (_, j) => {
     const angle = j * TAU / 24, c = Math.cos(angle), s = Math.sin(angle);
-    return [35 * r * c - 1.5 * r * r, 27 * r * s * (1 + .10 * c),
+    const tooth = .05 * Math.max(0, -c + .25) / 1.25 * (j % 2 ? -.35 : 1) * Math.max(0, (r - .83) / .17);
+    return [35 * (r + tooth) * c - 1.5 * r * r, 26.5 * (r + tooth) * s * (1 + .16 * c),
       z + (z > 0 ? .24 * r * Math.cos(angle * 5) : 0)];
   }));
   volume([0, 0, 14], shellRings, [0, 0, -8.3]);
 
-  // The neck emerges under the forward rim. A small blunt head avoids the
-  // large round head and beak that would make this read as a land tortoise.
-  const neck = [[26, 4.4, 4.0, -3.0], [30, 4.8, 4.2, -2.4], [35, 5.0, 4.5, -1.5],
-    [39, 6.2, 5.2, -.3], [43, 6.7, 5.4, -.2], [47, 5.8, 4.4, -.9], [51, 3.8, 3.0, -1.7]];
+  function scute(u, v, side = 0) {
+    const outline = side
+      ? [[.19, 0], [.06, .22], [-.19, .18], [-.23, -.03], [-.08, -.19], [.12, -.17]]
+      : [[.22, 0], [.09, .23], [-.18, .24], [-.26, 0], [-.18, -.24], [.09, -.23]];
+    const perimeter = outline.map(([du, dv]) => {
+      const p = shellPoint(u + du, v + dv * (side || 1));
+      // The trailing lip sits over the next plate, like a low roof shingle.
+      return [...p.slice(0, 2), p[2] + .4 + 1.5 * (.22 - du) / .48];
+    });
+    const centre = shellPoint(u, v), underside = perimeter.map(p => [p[0], p[1], p[2] - .65]);
+    volume([centre[0], centre[1], centre[2] + 1.1], [perimeter, underside], [centre[0], centre[1], centre[2] - .2]);
+  }
+  for (const u of [.64, .31, -.02, -.35, -.65]) scute(u, 0);
+  for (const side of [-1, 1]) for (const [u, v] of [[.54, .40], [.20, .55], [-.16, .55], [-.50, .43]]) scute(u, v * side, side);
+
+  // A narrow head and a downturned upper beak distinguish the hawksbill from
+  // the rounder green turtle. The neck still emerges underneath the rim.
+  const neck = [[26, 3.8, 3.6, -3], [31, 4, 3.8, -2.3], [36, 4.5, 4.6, -1],
+    [40, 5, 5.1, -.2], [44, 4.6, 4.4, -.3], [48, 3.8, 3.3, -.8], [52, 2.4, 2.5, -1.8], [55, 1.1, 1.8, -3]];
   volume([24, 0, -3], neck.map(([x, ry, rz, z]) => Array.from({ length: 10 }, (_, j) => {
     const angle = j * TAU / 10;
     return [x, Math.cos(angle) * ry, z + Math.sin(angle) * rz];
-  })), [53, 0, -2]);
-  nodes.push(point([46.2, 5.4, 1.2]), point([46.2, -5.4, 1.2]));
+  })), [56.4, 0, -5.3]);
+  nodes.push(point([44.7, 4.22, 1]), point([44.7, -4.22, 1]));
 
   function flipper(side, rear) {
     const origin = rear ? [-25, side * 15, -4] : [21, side * 18, -3];
@@ -79,16 +104,30 @@ const TURTLE = makeTurtle();
 
 // One unbroken loop, with both turns beyond the visible frame. The route
 // follows the open foreground corridor rather than the planted rear bank.
-export function turtlePose(time, compact = false) {
-  const rate = compact ? .018 : .0125, angle = -.30 + time * rate;
-  const span = compact ? 430 : 1080, depth = compact ? 14 : 8;
-  const vx = Math.cos(angle) * span * rate, vy = -Math.sin(angle) * depth * rate;
+export function turtlePose(time, compact = false, index = 0) {
+  const second = index === 1;
+  const rate = second ? (compact ? .0145 : .0098) : (compact ? .018 : .0125);
+  const angle = (second ? .32 : -.30) + time * rate;
+  const span = second ? (compact ? 290 : 820) : (compact ? 430 : 1080);
+  const depth = second ? (compact ? 20 : 28) : (compact ? 14 : 8);
+  const channelWidth = second ? .80 : (compact ? .23 : .55);
+  const q = Math.sin(angle) / channelWidth, open = Math.max(0, 1 - q * q);
+  const bend = open ** 3, bendRate = open ? -6 * q * Math.cos(angle) * rate / channelWidth * open * open : 0;
+  const wander = second ? (compact ? 16 : 24) : (compact ? 22 : 34);
+  const driftRate = second ? .041 : .055, phase = time * driftRate + (second ? 2.1 : .8);
+  const vx = Math.cos(angle) * span * rate;
+  const vy = -Math.sin(angle) * depth * rate + wander * (bendRate * Math.sin(phase) + bend * driftRate * Math.cos(phase));
+  const rise = second ? (compact ? 9 : 12) : (compact ? 11 : 14);
+  const riseRate = second ? .037 : .052, risePhase = time * riseRate + (second ? 2.4 : .6), vz = rise * riseRate * Math.cos(risePhase);
   const yaw = Math.atan2(vy, vx);
   return {
-    centre: [Math.sin(angle) * span, (compact ? -210 : -196) + Math.cos(angle) * depth,
-      (compact ? 355 : 420) + Math.sin(time * .075) * 3],
-    yaw, pitch: .025 + .015 * Math.sin(time * .075),
-    bank: .15 * Math.cos(yaw) + .025 * Math.sin(time * .083), size: compact ? 1.08 : 1.16,
+    // Depth excursions taper smoothly before the side banks of tall growth.
+    centre: [Math.sin(angle) * span, (second ? (compact ? -610 : -885) : (compact ? -210 : -196))
+      + Math.cos(angle) * depth + wander * bend * Math.sin(phase),
+      (second ? (compact ? 245 : 310) : (compact ? 355 : 420)) + rise * Math.sin(risePhase)],
+    yaw, pitch: Math.max(-.12, Math.min(.12, Math.atan2(vz, Math.max(4, Math.hypot(vx, vy))))),
+    bank: .15 * Math.cos(yaw) + .025 * Math.sin(time * .083 + index * 1.7),
+    size: second ? (compact ? .68 : .78) : (compact ? 1.08 : 1.16),
   };
 }
 
@@ -103,16 +142,19 @@ function stroke(time) {
   return glide;
 }
 
-export function movingTurtle(time, compact = false) {
-  const pose = turtlePose(time, compact), flap = stroke(time);
+export function movingTurtle(time, compact = false, index = 0) {
+  const strokeTime = index === 1 ? time * .93 + 4.1 : time;
+  const pose = turtlePose(time, compact, index), flap = stroke(strokeTime);
   const cy = Math.cos(pose.yaw), sy = Math.sin(pose.yaw), cp = Math.cos(pose.pitch), sp = Math.sin(pose.pitch);
   const cb = Math.cos(pose.bank), sb = Math.sin(pose.bank);
+  const rear = -.08 + .035 * Math.sin(strokeTime * .45);
+  const cf = Math.cos(flap), sf = Math.sin(flap), cr = Math.cos(rear), sr = Math.sin(rear);
   const vertices = TURTLE.vertices.map((point, i) => {
     let [x, y, z] = point;
     const joint = TURTLE.joints[i];
     if (joint) {
-      const [ox, oy, oz] = joint.origin, angle = joint.side * (joint.rear ? -.08 + .035 * Math.sin(time * .45) : flap);
-      const c = Math.cos(angle), s = Math.sin(angle), dy = y - oy, dz = z - oz;
+      const [ox, oy, oz] = joint.origin;
+      const c = joint.rear ? cr : cf, s = joint.side * (joint.rear ? sr : sf), dy = y - oy, dz = z - oz;
       y = oy + dy * c - dz * s; z = oz + dy * s + dz * c;
       // A slight backward sweep accompanies the power stroke; the shoulder
       // remains fixed and the shell stays rigid throughout the stroke.
@@ -123,6 +165,6 @@ export function movingTurtle(time, compact = false) {
     return [pose.centre[0] + (px * cy - by * sy) * pose.size,
       pose.centre[1] + (px * sy + by * cy) * pose.size, pose.centre[2] + pz * pose.size];
   });
-  return { name: 'Sea turtle', material: 'fish', vertices, faces: TURTLE.faces, nodes: TURTLE.nodes,
-    normals: TURTLE.faces.map(face => normal(...face.map(index => vertices[index]))) };
+  return { name: `Hawksbill turtle ${index + 1}`, material: 'fish', vertices, faces: TURTLE.faces, nodes: TURTLE.nodes,
+    normals: TURTLE.faces.map(face => normal(vertices[face[0]], vertices[face[1]], vertices[face[2]])) };
 }
