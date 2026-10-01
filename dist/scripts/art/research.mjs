@@ -1,5 +1,6 @@
 const TAU = Math.PI * 2;
-const COUNT = 1800;
+export const RESEARCH_PARTICLE_COUNT = 1800;
+const COUNT = RESEARCH_PARTICLE_COUNT;
 const DURATION = 16;
 const STEP = 1 / 240;
 const states = new WeakMap();
@@ -69,6 +70,28 @@ const shapes = [
     path([[.17, .24], [.24, .20], [.31, .22], [.40, .11], [.47, .13], [.53, .055]]);
   }),
   makeShape(({ line, path, box, circle }) => {
+    // Related records: three tables, connected through shared keys.
+    const table = (x, y, width, height, rows) => {
+      box(x, y, width, height);
+      line(x, y + .09, x + width, y + .09);
+      line(x + .045, y + .045, x + width * .69, y + .045);
+      for (let i = 0; i < rows; i++) {
+        const rowY = y + .09 + (height - .09) * (i + .5) / rows;
+        circle(x + .035, rowY, .008);
+        line(x + .075, rowY, x + width - .035, rowY);
+      }
+    };
+    table(-.60, -.29, .38, .57, 4);
+    table(.16, -.38, .44, .32, 2);
+    table(.16, .07, .44, .32, 2);
+    path([[-.22, -.10], [-.04, -.10], [-.04, -.22], [.16, -.22]]);
+    path([[-.22, .15], [.055, .15], [.055, .24], [.16, .24]]);
+    for (const y of [-.22, .24]) {
+      line(.10, y, .16, y - .035);
+      line(.10, y, .16, y + .035);
+    }
+  }),
+  makeShape(({ line, path, box, circle }) => {
     // Three agents pass work through a central decision to a shared output.
     for (const y of [-.29, 0, .29]) {
       box(-.61, y - .105, .24, .21);
@@ -82,16 +105,33 @@ const shapes = [
     box(.35, -.18, .26, .36);
     for (let i = 0; i < 3; i++) line(.40, -.09 + i * .09, .56, -.09 + i * .09);
   }),
-  makeShape(({ path, fill }) => {
-    // A broad claw head and long handle remain legible at small canvas sizes.
-    path([[-.43, -.30], [-.32, -.41], [.15, -.41], [.36, -.32], [.48, -.13],
-      [.31, -.22], [.19, -.24], [.15, -.14], [-.14, -.14], [-.19, -.22],
-      [-.30, -.22], [-.30, -.14], [-.43, -.14], [-.43, -.30]]);
-    fill(-.30, -.35, .42, .14);
-    fill(-.12, -.14, .14, .56);
-    path([[-.12, -.14], [-.15, .42], [.035, .42], [.02, -.14]]);
+  makeShape(({ line, path }) => {
+    const beam = (a, b, width) => {
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const nx = -(b[1] - a[1]) / length, ny = (b[0] - a[0]) / length;
+      const steps = Math.ceil(width / .008);
+      for (let i = 0; i <= steps; i++) {
+        const offset = width * (i / steps - .5);
+        line(a[0] + nx * offset, a[1] + ny * offset, b[0] + nx * offset, b[1] + ny * offset);
+      }
+    };
+    const outer = [], inner = [];
+    for (let i = 0; i <= 100; i++) {
+      const t = i / 100, angle = -1.48 + t * 4.20;
+      const thickness = .125 * Math.sin(Math.PI * t * .91) ** .72;
+      const point = radius => [.005 + Math.cos(angle) * radius, -.015 + Math.sin(angle) * radius];
+      const a = point(.46), b = point(.46 - thickness);
+      outer.push(a); inner.push(b);
+      line(...a, ...b);
+    }
+    path([...outer, ...inner.reverse(), outer[0]]);
+    beam([-.39, .17], [-.57, .43], .075);
+    beam([-.25, -.29], [.36, .39], .09);
+    beam([-.44, -.19], [-.06, -.48], .14);
   }),
 ];
+
+export const RESEARCH_FORM_COUNT = shapes.length;
 
 function constrain(p, bounds, dt) {
   const floor = bounds.bottom - p.r;
@@ -128,8 +168,19 @@ function setBounds(state, bounds) {
   state.supportQueue ||= new Int32Array(COUNT);
 }
 
-function createState(seconds, bounds) {
+/** Canvas geometry and particle coordinates use the same centred, normalised space. */
+export function researchBounds(width, height) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  const scale = Math.min(width / 1.50, height / 1.30);
+  const grainSize = clamp(scale / 320, .67, 1.32);
+  const edge = 1 / scale;
+  return { halfWidth: width / (2 * scale) - edge, top: -height / (2 * scale) + edge, bottom: height / (2 * scale) - edge, grainSize, scale };
+}
+
+/** New fields start immediately; callers decide whether to drop or suspend them. */
+export function createParticleField(bounds) {
   const particles = Array.from({ length: COUNT }, (_, i) => ({
+    id: i,
     x: (random(i * 7 + 13) - .5) * bounds.halfWidth * 1.05,
     y: bounds.top + (bounds.bottom - bounds.top) * (.05 + random(i * 7 + 83) * .48),
     vx: (random(i + 301) - .5) * .025,
@@ -138,8 +189,27 @@ function createState(seconds, bounds) {
     radius: .68 + random(i + 431) * .32,
     attraction: 0,
   }));
-  const state = { particles, time: Math.floor(seconds / DURATION) * DURATION, last: seconds, accumulator: 0 };
+  const state = { particles, time: 0, last: 0, accumulator: 0 };
   setBounds(state, bounds);
+  return state;
+}
+
+/** Resize the container without replacing grains or restarting their simulation. */
+export function resizeParticleField(state, bounds) {
+  setBounds(state, bounds);
+  return state;
+}
+
+/** Stable, shared targets. Treat the returned array and points as read-only. */
+export function researchTargets(index = 0) {
+  const i = Number.isFinite(index) ? Math.trunc(index) : 0;
+  return shapes[((i % shapes.length) + shapes.length) % shapes.length];
+}
+
+function createState(seconds, bounds) {
+  const state = createParticleField(bounds);
+  state.time = Math.floor(seconds / DURATION) * DURATION;
+  state.last = seconds;
   const warmup = seconds - state.time;
   const ticks = Math.floor(warmup / STEP);
   for (let i = 0; i < ticks; i++) step(state, STEP);
@@ -202,7 +272,7 @@ function settle(state, dt) {
   // A grain may sleep only when touching the floor through a chain of real contacts.
   const tolerance = .00015;
   state.particles.forEach((p, i) => {
-    if (p.attraction < .005 && state.bounds.bottom - p.y - p.r < tolerance) {
+    if (p.attraction === 0 && state.bounds.bottom - p.y - p.r < tolerance) {
       supported[i] = 1; queue[tail++] = i;
     }
   });
@@ -220,7 +290,7 @@ function settle(state, dt) {
     }
   }
   state.particles.forEach((p, i) => {
-    if (p.attraction >= .005 || !supported[i]) { p.sleepTime = 0; p.asleep = false; return; }
+    if (p.attraction > 0 || !supported[i]) { p.sleepTime = 0; p.asleep = false; return; }
     if (Math.hypot(p.vx, p.vy) < .014) p.sleepTime += dt;
     else p.sleepTime = 0;
     if (p.sleepTime > .35) { p.asleep = true; p.vx = 0; p.vy = 0; }
@@ -228,27 +298,28 @@ function settle(state, dt) {
   state.resting = maxOverlap < state.minRadius * .02 && state.particles.every(p => p.asleep);
 }
 
-function step(state, dt) {
-  state.time += dt;
-  const phase = state.time % DURATION;
-  if (state.resting && (phase < 3.3 || phase > 12.65)) return;
+function integrate(state, dt, { targets, attraction = 0, gravity = 1.8, damping, curl = 2.8 } = {}) {
+  let attracting = false;
+  state.particles.forEach((p, i) => {
+    const force = typeof attraction === 'function' ? attraction(p, i) : attraction;
+    p.attraction = targets?.[i] && Number.isFinite(force) ? clamp(force) : 0;
+    if (p.attraction > 0) attracting = true;
+  });
+  if (state.resting && !attracting && gravity >= 0) return;
   state.resting = false;
-  const shape = shapes[Math.floor(state.time / DURATION) % shapes.length];
   let freeGrains = false;
   state.particles.forEach((p, i) => {
-    const gathering = smooth((phase - 3.3 - p.delay) / 1.8);
-    const releasing = smooth((phase - 11.8 - p.delay * .5) / .65);
-    const attraction = gathering * (1 - releasing);
+    const attraction = p.attraction;
     const free = 1 - attraction;
-    p.attraction = attraction;
     if (attraction < .12) freeGrains = true;
-    if (attraction >= .005) { p.asleep = false; p.sleepTime = 0; }
+    if (attraction > 0 || gravity < 0) { p.asleep = false; p.sleepTime = 0; }
     if (p.asleep) return;
-    const target = shape[i];
+    const target = targets?.[i] || p;
     const dx = target.x - p.x, dy = target.y - p.y;
-    const curl = attraction * free * 2.8;
-    p.vx += (attraction * (32 * dx - 6.8 * p.vx) - dy * curl - free * p.vx * .18) * dt;
-    p.vy += (attraction * (32 * dy - 6.8 * p.vy) + dx * curl + free * (1.8 - p.vy * .18)) * dt;
+    const rotation = attraction * free * curl;
+    const drag = damping ?? attraction * 6.8 + free * .18;
+    p.vx += (attraction * 32 * dx - drag * p.vx - dy * rotation) * dt;
+    p.vy += (attraction * 32 * dy - drag * p.vy + dx * rotation + free * gravity) * dt;
     p.x += p.vx * dt; p.y += p.vy * dt;
     constrain(p, state.bounds, dt);
   });
@@ -261,6 +332,32 @@ function step(state, dt) {
   settle(state, dt);
 }
 
+/** Advance at the original fixed timestep; long suspended frames cannot cause jumps. */
+export function advanceParticleField(state, elapsed, options = {}) {
+  if (!Number.isFinite(elapsed) || elapsed <= 0) return state;
+  state.accumulator += Math.min(.1, elapsed);
+  while (state.accumulator >= STEP) {
+    state.time += STEP;
+    integrate(state, STEP, options);
+    state.accumulator -= STEP;
+  }
+  return state;
+}
+
+function step(state, dt) {
+  state.time += dt;
+  const phase = state.time % DURATION;
+  if (state.resting && (phase < 3.3 || phase > 12.65)) return;
+  integrate(state, dt, {
+    targets: researchTargets(Math.floor(state.time / DURATION)),
+    attraction: p => {
+      const gathering = smooth((phase - 3.3 - p.delay) / 1.8);
+      const releasing = smooth((phase - 11.8 - p.delay * .5) / .65);
+      return gathering * (1 - releasing);
+    },
+  });
+}
+
 /**
  * CSS-pixel painter. Caller owns the border, clearing, DPR and animation clock.
  * Physical disc radii equal painted radii. Only an active field suspends grains.
@@ -268,10 +365,8 @@ function step(state, dt) {
 export function drawResearch(ctx, width, height, seconds, { reducedMotion = false } = {}) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
   const time = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-  const scale = Math.min(width / 1.50, height / 1.30);
-  const grainSize = clamp(scale / 320, .67, 1.32);
-  const edge = 1 / scale;
-  const bounds = { halfWidth: width / (2 * scale) - edge, top: -height / (2 * scale) + edge, bottom: height / (2 * scale) - edge, grainSize, scale };
+  const bounds = researchBounds(width, height);
+  const { scale, grainSize } = bounds;
   let state = states.get(ctx);
   if (!state) { state = createState(reducedMotion ? 0 : time, bounds); states.set(ctx, state); }
   if (state.bounds.scale !== scale || state.bounds.bottom !== bounds.bottom || state.bounds.halfWidth !== bounds.halfWidth) setBounds(state, bounds);

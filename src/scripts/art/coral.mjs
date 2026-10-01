@@ -92,6 +92,26 @@ const STUDIES = [
   return { ...study, operators: new Set(study.operators), children, arrivals: arrivals.map((d) => d / longest) };
 });
 
+/**
+ * Fixed coral geometry for scenes that own their particle population. Coordinates
+ * are local: x spans roughly -0.6 to 0.6; y grows upward from the root at 1.
+ * Each node is [x, y, parentIndex]. Arrivals are path distances scaled to [0, 1].
+ * Plain, deeply frozen arrays keep consumers from changing the original studies.
+ */
+export const coralStudies = Object.freeze(STUDIES.map((study) => Object.freeze({
+  name: study.name,
+  nodes: Object.freeze(study.nodes.map((node) => Object.freeze([...node]))),
+  operators: Object.freeze([...study.operators]),
+  roles: Object.freeze(study.nodes.map((_, i) => study.operators.has(i) ? 'operator' : 'researcher')),
+  arrivals: Object.freeze([...study.arrivals]),
+  children: Object.freeze([...study.children]),
+})));
+
+export function getCoralStudy(index = 0) {
+  const selected = Number.isInteger(index) ? index : 0;
+  return coralStudies[((selected % coralStudies.length) + coralStudies.length) % coralStudies.length];
+}
+
 const TAU = Math.PI * 2;
 const clamp = (n, min = 0, max = 1) => Math.min(max, Math.max(min, n));
 const smooth = (n) => { const t = clamp(n); return t * t * (3 - 2 * t); };

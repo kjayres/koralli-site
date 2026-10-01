@@ -1,6 +1,8 @@
 import { drawWave } from './art/wave.mjs';
 import { drawCoralTrace, coralTraceState, CORAL_TRACE_CYCLE_SECONDS } from './art/coral.mjs';
 import { drawResearch } from './art/research.mjs';
+import { drawApproach } from './art/approach.mjs';
+import { initApproach } from './approach-view.mjs';
 import { updateBuilding } from './art/building.mjs';
 import { initTeam } from './team.mjs';
 import { initWorkflows } from './workflow-view.mjs';
@@ -45,6 +47,15 @@ function paint(state, dt = 0) {
   const options = { reducedMotion: motion.matches, pointer: state.pointer, variant: state.variant };
   if (kind === 'wave') drawWave(ctx, w, h, state.time, options);
   if (kind === 'research') drawResearch(ctx, w, h, state.time, options);
+  if (kind === 'approach') {
+    const presentation = drawApproach(ctx, w, h, state.time, { ...options, phase: state.phase || 0 });
+    if (presentation) {
+      for (const key of ['caption', 'detail']) {
+        const element = state[key];
+        if (element && element.textContent !== presentation[key]) element.textContent = presentation[key];
+      }
+    }
+  }
   if (kind === 'journal-water' && state.drawJournal) state.drawJournal(ctx, w, h, state.time, options);
   if (kind === 'coral') {
     drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
@@ -79,6 +90,11 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   const ctx = canvas.getContext('2d');
   if (!ctx) continue;
   const state = { ctx, kind: canvas.dataset.art, w: 0, h: 0, t: 0, time: 0, fraction: 0, visible: false };
+  if (state.kind === 'approach') {
+    const figure = canvas.closest('[data-approach-figure]');
+    state.caption = figure.querySelector('[data-approach-caption]');
+    state.detail = figure.querySelector('[data-approach-detail]');
+  }
   if (state.kind === 'reef') {
     const nearby = new IntersectionObserver(entries => {
       if (!entries[0].isIntersecting) return;
@@ -123,6 +139,14 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   canvasStates.push(state);
   resize();
 }
+
+const updateApproach = initApproach(phase => {
+  const state = canvasStates.find(item => item.kind === 'approach');
+  if (!state) return;
+  state.phase = phase;
+  paint(state);
+  schedule();
+});
 
 document.querySelector('[data-coral-next]')?.addEventListener('click', () => {
   const state = canvasStates.find(item => item.kind === 'coral');
@@ -212,6 +236,7 @@ function onScroll() {
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
     renderBuilding();
+    updateApproach();
     if (!gauge) return;
     const rect = building?.getBoundingClientRect();
     gauge.hidden = !rect || rect.top > 0;
