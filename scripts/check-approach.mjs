@@ -242,7 +242,61 @@ coralCtx.strokes.forEach((path, i) => {
 const nodeArcs = coralCtx.arcs.slice(-ids.length);
 nodeArcs.forEach((arc, i) => assert.ok(distance(arc, project(ids[i])) < 1e-9));
 
-console.log('Canvas sequence checked: radial magnification during travel and all five object reveals, stronger centre, smooth unchanged rim, no radial folds, central grain replacement, distinct dimensional objects, lens dwell and coral anchors.');
+// Follow the same population out of a dashboard and through every coral variant.
+const returningCtx = recorder(), returningScene = createApproachScene(400, 400);
+const returningParticles = [...returningScene.field.particles], checkedCorals = new Set();
+const currentPoint = id => {
+  const p = returningScene.field.particles[id], scale = returningScene.field.bounds.scale;
+  return { x: 200 + p.x * scale, y: 200 + p.y * scale };
+};
+const homePoint = id => {
+  const p = returningScene.homes[id], scale = returningScene.field.bounds.scale;
+  return { x: 200 + p.x * scale, y: 200 + p.y * scale };
+};
+const paintReturn = (time, options) => {
+  returningCtx.reset();
+  updateApproachScene(returningScene, 400, 400, time, options);
+  return drawApproach(returningCtx, 400, 400, time, options);
+};
+paintReturn(0, { phase: 1, reducedMotion: true });
+paintReturn(0, { phase: 2 });
+let movingBranchObserved = false;
+for (let frame = 1; frame <= 52 * 20; frame++) {
+  const presentation = paintReturn(frame / 20, { phase: 2 });
+  const { study: activeStudy, ids: activeIds } = returningScene.studies[presentation.index];
+  for (const id of activeIds) assert.equal(returningScene.field.particles[id], returningParticles[id], 'Every coral variant must reuse the original particles');
+  for (const path of returningCtx.strokes) {
+    const connected = activeStudy.nodes.slice(1).some((node, i) => {
+      const parentId = activeIds[node[2]], a = currentPoint(parentId), b = currentPoint(activeIds[i + 1]);
+      if (distance(path[0], a) > 1e-8) return false;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const progress = ((path[1].x - a.x) * dx + (path[1].y - a.y) * dy) / (dx * dx + dy * dy);
+      const onBranch = { x: a.x + progress * dx, y: a.y + progress * dy };
+      if (progress < -1e-9 || progress > 1 + 1e-9 || distance(path[1], onBranch) > 1e-8) return false;
+      if (distance(a, homePoint(parentId)) > 1e-6) movingBranchObserved = true;
+      return true;
+    });
+    assert.ok(connected, 'Growing edges must follow the current particle positions, including during their return');
+  }
+  const colouredNodes = returningCtx.arcs.slice(returningParticles.length).filter(arc => arc.radius !== 1.8);
+  for (const arc of colouredNodes) {
+    assert.ok(activeIds.some(id => distance(arc, currentPoint(id)) < 1e-8), 'Coloured coral nodes must coincide with actual returned grains');
+  }
+  if (presentation.growth === 1 && !checkedCorals.has(presentation.index)) {
+    assert.ok(returningScene.grey > .99, 'The coral must be drawn over the returned grey population');
+    assert.equal(returningCtx.strokes.length, activeIds.length - 1);
+    assert.equal(colouredNodes.length, activeIds.length);
+    returningCtx.strokes.forEach((path, i) => {
+      assert.ok(distance(path[0], currentPoint(activeIds[activeStudy.nodes[i + 1][2]])) < 1e-8);
+      assert.ok(distance(path[1], currentPoint(activeIds[i + 1])) < 1e-8);
+    });
+    checkedCorals.add(presentation.index);
+  }
+}
+assert.ok(movingBranchObserved, 'The transition check must observe a branch while its source grain is still returning');
+assert.equal(checkedCorals.size, returningScene.studies.length, 'Every coral variant must have all of its particle bindings checked');
+
+console.log('Canvas sequence checked: radial magnification, all five dimensional objects, lens dwell, and every coral node and edge attached to the same returning particles across all five variants.');
 if (costs.length) {
   costs.sort((a, b) => a - b);
   const percentile = p => costs[Math.floor((costs.length - 1) * p)].toFixed(2);

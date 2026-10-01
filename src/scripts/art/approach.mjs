@@ -157,10 +157,10 @@ function drawLens(ctx, scene) {
   if (!opacity) return;
   const lens = lensPosition(scene);
   const radius = clamp(scene.width * .102, 24, 43);
-  const rim = Math.max(1.8, radius * .062), depth = Math.max(1.7, radius * .075);
+  const rim = Math.max(1.5, radius * .05), depth = Math.max(.7, radius * .025);
   ctx.save(); ctx.globalAlpha = opacity;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#244eff'; ctx.lineWidth = .85;
+  ctx.strokeStyle = '#244eff'; ctx.lineWidth = .65;
   ctx.fillStyle = '#e8eaf0';
   lensHandle(ctx, lens.x, lens.y, radius, depth);
   // Two offset faces give the rim a shallow cylindrical edge.
@@ -188,9 +188,9 @@ function drawLens(ctx, scene) {
     drawInspectionObject(ctx, lens.x, lens.y, (radius - rim) * (.2 + .8 * lens.reveal), lens.current.label);
   }
   ctx.restore();
-  ctx.lineWidth = 1.05;
+  ctx.lineWidth = .85;
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius, 0, TAU); ctx.stroke();
-  ctx.lineWidth = .65;
+  ctx.lineWidth = .5;
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius - rim, 0, TAU); ctx.stroke();
   // Sparse cross-edges describe the thickness without turning the lens into a symbol.
   ctx.lineWidth = .5;
@@ -198,7 +198,7 @@ function drawLens(ctx, scene) {
     const x = lens.x + Math.cos(angle) * radius, y = lens.y + Math.sin(angle) * radius;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + depth * .6, y + depth); ctx.stroke();
   }
-  ctx.lineWidth = .9; ctx.fillStyle = '#f3f0e8';
+  ctx.lineWidth = .75; ctx.fillStyle = '#f3f0e8';
   lensHandle(ctx, lens.x, lens.y, radius);
   if (lens.settled) {
     ctx.globalAlpha = opacity * lens.reveal;

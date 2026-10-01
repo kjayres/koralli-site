@@ -1,0 +1,13 @@
+/* Fine internal mesh joins the surviving strokes of n and w in “answer”. */
+.construction-title .woven-word { white-space:nowrap; }
+.construction-title .woven-letter { display:inline-block; position:relative; color:transparent; }
+.construction-title .letter-art { position:absolute; inset:0; width:calc(100% + .05em); height:100%; overflow:visible; pointer-events:none; user-select:none; font:inherit; letter-spacing:inherit; }
+.construction-title .letter-art text { font:inherit; }
+.construction-title .ink { fill:var(--ink); }
+.construction-title .weave { fill:none; stroke:var(--blue); stroke-width:.35px; opacity:.86; stroke-linecap:round; }
+.construction-title .edge { fill:none; stroke:var(--blue); stroke-width:.4px; opacity:.62; }
+.construction-title .woven-letter::selection { color:var(--paper); background:var(--blue); }
+@media (forced-colors:active) {
+  .construction-title .woven-letter { color:CanvasText; }
+  .construction-title .letter-art { display:none; }
+}

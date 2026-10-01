@@ -5,9 +5,25 @@ export function initApproach(selectPhase) {
   const steps = [...section.querySelectorAll('[data-approach-step]')];
   const links = [...section.querySelectorAll('[data-approach-link]')];
   const figure = section.querySelector('[data-approach-figure]');
+  const frame = figure.querySelector('.approach-frame');
+  const copies = steps.map(step => step.querySelector('.approach-copy'));
+  const isStacked = () => innerWidth < 760 && !(innerWidth >= 600 && innerHeight <= 620);
   let selected = -1;
+  const align = () => {
+    const height = frame.getBoundingClientRect().height;
+    const offsets = copies.map(copy => isStacked() ? 0 : Math.max(0, (height - copy.getBoundingClientRect().height) / 2));
+    steps.forEach((step, i) => {
+      step.style.setProperty('--approach-copy-offset', `${offsets[i]}px`);
+      step.style.setProperty('--approach-next-offset', `${offsets[i + 1] || 0}px`);
+    });
+    // At the entrance the heading sits 40% down the square; sticky clearance is separate.
+    const heading = copies[0].querySelector('h3').getBoundingClientRect();
+    const headingCentre = heading.top + heading.height / 2 - copies[0].getBoundingClientRect().top;
+    const lift = innerWidth >= 760 ? Math.max(0, height * .4 - offsets[0] - headingCentre) : 0;
+    section.style.setProperty('--approach-entry-lift', `${lift}px`);
+  };
   const update = () => {
-    const mobile = innerWidth < 760 && !(innerWidth >= 600 && innerHeight <= 620);
+    const mobile = isStacked();
     const probe = mobile ? Math.min(innerHeight * .8, figure.getBoundingClientRect().bottom + 48) : innerHeight * .50;
     let next = 0;
     steps.forEach((step, i) => { if (step.getBoundingClientRect().top <= probe) next = i; });
@@ -25,6 +41,9 @@ export function initApproach(selectPhase) {
     selectPhase(next);
   };
   new ResizeObserver(update).observe(section);
+  const layout = new ResizeObserver(() => { align(); update(); });
+  [frame, ...copies].forEach(element => layout.observe(element));
+  align();
   update();
   return update;
 }
