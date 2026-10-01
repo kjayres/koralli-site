@@ -2,9 +2,9 @@
 .work-opening { max-width:1420px; margin:auto; padding:170px var(--gutter) 85px; }
 .work-opening-copy { display:grid; grid-template-columns:1fr 1fr; column-gap:clamp(45px,7vw,100px); row-gap:24px; align-items:start; margin-top:26px; }
 .work-opening h1 { grid-column:1 / -1; max-width:none; font-size:clamp(34px,4.8vw,68px); white-space:nowrap; }
-.work-opening-copy>div { grid-column:2; width:100%; max-width:500px; justify-self:start; }
-.work-opening .intro { font-size:18px; max-width:470px; }
-.work-opening-copy>div>p+p { color:#5c5b58; margin-top:18px; max-width:420px; }
+.work-opening-copy>div { grid-column:1 / -1; width:100%; max-width:650px; justify-self:start; }
+.work-opening .intro { font-size:18px; max-width:none; }
+.work-opening-copy>div>p+p { color:#5c5b58; margin-top:18px; }
 .work-opening .text-link { margin-top:28px; }
 .approach-section { --approach-reading-top:clamp(90px,12svh,130px); padding-top:24px; padding-bottom:24px; }
 .approach-section>h2 { margin-top:30px; max-width:none; }

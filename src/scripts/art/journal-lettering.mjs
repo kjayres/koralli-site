@@ -3,20 +3,19 @@ import { journalCoralContours } from './journal-coral-contours.mjs';
 
 // Font-space coordinates keep the roots inside the original letter strokes.
 const colonies = {
-  w: { x: 80, y: -500, blades: [
-    { length: 620, width: 13, lean: -.3, seed: 2 },
-    { length: 780, width: 17, lean: .06, seed: 4 },
-    { length: 510, width: 11, lean: .38, seed: 7 }
-  ] },
   f: { x: 253, y: -711, blades: [
     { length: 650, width: 15, lean: -.18, seed: 4 },
     { length: 470, width: 12, lean: .34, seed: 6.5 }
+  ] },
+  end: { x: 253, y: -711, blades: [
+    { length: 560, width: 14, lean: -.15, seed: 1.3 },
+    { length: 430, width: 12, lean: .3, seed: 5.5 }
   ] }
 };
 const point = ([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`;
 const coralPlacements = {
-  r: { x: 145, y: -708, rootX: 128, rootY: 342, scaleX: 1.7, scaleY: 1.85, phase: .6 },
-  f: { x: 253, y: -715, rootX: 118, rootY: 310, scaleX: -1.5, scaleY: 1.7, phase: 1.8 }
+  r: { x: 126, y: -715, rootX: 136, rootY: 210, scaleX: 1.8, scaleY: 1.4, phase: .6 },
+  w: { x: 60, y: -492, rootX: 154, rootY: 271, scaleX: 1.5, scaleY: 1.2, phase: 1.8 }
 };
 
 /** Rounded native coral contours bend above a fixed root buried in the glyph. */
@@ -29,7 +28,7 @@ export function journalCoralPath(kind, time = 0) {
     const coordinates = [];
     for (let i = 0; i < points.length; i += 2) {
       const height = Math.max(0, Math.min(1, (pose.rootY - points[i + 1] - 24) / (pose.rootY - 24)));
-      const bend = Math.pow(height, 1.6) * (current * 46 + 38 * Math.sin(seconds * .58 - height * 2 + pose.phase));
+      const bend = Math.pow(height, 1.6) * (current * 26 + 20 * Math.sin(seconds * .58 - height * 2 + pose.phase));
       coordinates.push((pose.x + (points[i] - pose.rootX) * pose.scaleX + bend).toFixed(2));
       coordinates.push((pose.y + (points[i + 1] - pose.rootY) * pose.scaleY).toFixed(2));
     }
