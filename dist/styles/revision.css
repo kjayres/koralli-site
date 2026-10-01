@@ -152,27 +152,6 @@
   .building-art { flex:auto; min-height:360px; }
 }
 
-/* Paper and faint botanical contours give the journal a quiet reading surface. */
-.journal-page { background:var(--paper); color:var(--ink); }
-.journal-page main { position:relative; isolation:isolate; }
-.journal-coral-field { position:absolute; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
-.journal-coral-field img { position:absolute; height:auto; }
-.journal-coral-field img:first-child { width:370px; right:3%; top:105px; opacity:.11; transform:rotate(13deg); }
-.journal-coral-field img:last-child { width:245px; left:-85px; top:650px; opacity:.085; transform:rotate(-16deg); }
-.journal-hero { max-width:1420px; margin:auto; padding:180px var(--gutter) 85px; }
-.journal-opening { display:grid; grid-template-columns:1.3fr 1fr; gap:90px; align-items:end; margin-top:32px; }
-.journal-opening h1 { font-size:clamp(76px,8.5vw,128px); }
-.journal-opening .lead { max-width:330px; padding-bottom:8px; color:#5c5b58; }
-.journal-waterline { margin-top:60px; }
-.journal-articles { padding-top:50px; padding-bottom:110px; }
-.journal-articles .section-label h2 { font-family:var(--mono); font-size:11px; letter-spacing:.14em; line-height:1.6; font-weight:400; }
-.journal-articles .article-list { margin-top:28px; border-color:var(--rule); }
-.journal-articles .article-row { padding:42px 0; grid-template-columns:80px 1fr; border-color:var(--rule); }
-.journal-articles .article-row>span { color:var(--blue); }
-.journal-articles .article-row h3 { font-size:clamp(28px,2.5vw,37px); max-width:900px; }
-.journal-articles .article-row p:last-child { color:#5c5b58; max-width:670px; font-size:16px; }
-.journal-articles .article-row a:hover { color:var(--blue); }
-
 /* The reef continues the building descent at its exact final water colour. */
 .reef-section { background:var(--deep); color:var(--paper); padding:65px 0 0; }
 .reef-heading { max-width:1420px; margin:auto; padding:0 var(--gutter); display:flex; justify-content:space-between; align-items:center; gap:24px; }
@@ -183,18 +162,6 @@
 .reef-section .reef-canvas { height:690px; margin-top:24px; }
 .reef-canvas canvas { position:absolute; inset:0; display:block; pointer-events:none; }
 @media(max-width:759px) {
-  .journal-hero { padding-top:164px; padding-bottom:60px; }
-  .journal-opening { grid-template-columns:1fr; gap:28px; margin-top:26px; }
-  .journal-opening h1 { font-size:clamp(60px,14vw,84px); }
-  .journal-opening .lead { font-size:22px; max-width:285px; }
-  .journal-waterline { margin-top:40px; }
-  .journal-coral-field img:first-child { width:230px; right:-65px; top:190px; opacity:.08; }
-  .journal-coral-field img:last-child { width:190px; left:-100px; top:850px; opacity:.07; }
-  .journal-articles { padding-top:30px; padding-bottom:65px; }
-  .journal-articles .section-label h2 { font-size:10px; }
-  .journal-articles .article-row { grid-template-columns:23px 1fr; gap:12px; padding:32px 0; }
-  .journal-articles .article-row h3 { font-size:27px; }
-  .journal-articles .article-row .eyebrow { font-size:10px; }
   .reef-section { padding-top:42px; }
   .reef-section .reef-canvas { height:570px; }
   .reef-heading { gap:14px; }

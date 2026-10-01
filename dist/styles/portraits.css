@@ -1,0 +1,28 @@
+.person-identity { min-width:0; }
+.person-identity--portrait {
+  display:grid;
+  grid-template-columns:128px minmax(0,1fr);
+  gap:22px;
+  align-items:center;
+}
+.person-portrait {
+  display:block;
+  width:128px;
+  height:auto;
+  aspect-ratio:5 / 6;
+  object-fit:contain;
+}
+@media (min-width:760px) and (max-width:1050px) {
+  .person-identity--portrait { grid-template-columns:104px minmax(0,1fr); gap:16px; }
+  .person-portrait { width:104px; }
+  .person-identity h3 { font-size:27px; }
+}
+@media (max-width:759px) {
+  .person-identity--portrait { grid-template-columns:96px minmax(0,1fr); gap:18px; }
+  .person-portrait { width:96px; }
+}
+@media (max-width:370px) {
+  .person-identity--portrait { grid-template-columns:90px minmax(0,1fr); gap:12px; }
+  .person-portrait { width:90px; }
+  .person-identity h3 { font-size:25px; }
+}

@@ -12,12 +12,21 @@ const coralName = document.querySelector('[data-coral-name]');
 let frame = 0;
 let lastTime = 0;
 let reefModule;
+let journalModule;
 
 async function prepareReef(state) {
   reefModule ||= import('./art/reef.mjs');
   const { Reef } = await reefModule;
   state.reef = new Reef();
   state.reef.seedReef(state);
+  paint(state);
+  schedule();
+}
+
+async function prepareJournal(state) {
+  journalModule ||= import('./art/journal-water.mjs');
+  const { drawJournalWater } = await journalModule;
+  state.drawJournal = drawJournalWater;
   paint(state);
   schedule();
 }
@@ -36,6 +45,7 @@ function paint(state, dt = 0) {
   const options = { reducedMotion: motion.matches, pointer: state.pointer, variant: state.variant };
   if (kind === 'wave') drawWave(ctx, w, h, state.time, options);
   if (kind === 'research') drawResearch(ctx, w, h, state.time, options);
+  if (kind === 'journal-water' && state.drawJournal) state.drawJournal(ctx, w, h, state.time, options);
   if (kind === 'coral') {
     drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
     const study = coralTraceState(state.time, options);
@@ -77,6 +87,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
     }, { rootMargin: '600px' });
     nearby.observe(canvas);
   }
+  if (state.kind === 'journal-water') prepareJournal(state).catch(error => console.error('Unable to load journal artwork:', error));
   if (state.kind === 'wave') {
     state.pointer = { x: 0, y: 0, strength: 0 };
     state.pointerTarget = { x: 0, y: 0, strength: 0 };
@@ -93,7 +104,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
     const rect = canvas.parentElement.getBoundingClientRect();
     state.w = rect.width;
     state.h = rect.height;
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : 2);
     canvas.width = Math.max(1, Math.round(rect.width * dpr));
     canvas.height = Math.max(1, Math.round(rect.height * dpr));
     canvas.style.width = `${rect.width}px`;

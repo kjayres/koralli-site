@@ -8,18 +8,20 @@
   <title>Views from the Reef · Koralli</title>
   <link rel="stylesheet" href="/styles/site.css">
   <link rel="stylesheet" href="/styles/revision.css">
+  <link rel="stylesheet" href="/styles/journal.css">
   <script type="module" src="/scripts/site.js"></script>
 </head>
 <body class="journal-page">
   <!-- include: sections/nav.html -->
   <main id="main">
+    <div class="journal-ocean" aria-hidden="true"><canvas data-art="journal-water"></canvas></div>
     <header class="journal-hero">
-      <p class="eyebrow"><span class="coral-square"></span>THINKING</p>
+      <p class="eyebrow"><span class="coral-square"></span>THE KORALLI JOURNAL</p>
       <div class="journal-opening">
-        <h1>Views from<br>the Reef.</h1>
-        <p class="lead">Research, practice and the questions between them.</p>
+        <h1 aria-label="Views from the Reef."><span class="journal-title-line" aria-hidden="true">Views fr<span class="letter-habitat habitat-urchin">o<img src="/assets/artwork/journal-urchin.svg" alt="" width="100" height="70"></span>m</span><span class="journal-title-line" aria-hidden="true">the <span class="letter-habitat habitat-coral">R<img src="/assets/artwork/journal-coral.svg" alt="" width="72" height="92"></span>ee<span class="letter-habitat habitat-fronds">f<img src="/assets/artwork/journal-fronds.svg" alt="" width="60" height="100"></span>.</span></h1>
+        <p class="lead">Research and perspectives on technology and how organisations are changing.</p>
       </div>
-      <div class="journal-waterline"><a class="text-link" href="#views">ESSAYS &amp; NOTES ↓</a></div>
+      <div class="journal-waterline"><a class="text-link" href="#views">EXPLORE THE ESSAYS <span aria-hidden="true">↓</span></a><span class="journal-field-note mono">RESEARCH · TECHNOLOGY · ORGANISATIONS</span></div>
     </header>
     <!-- include: sections/views.html -->
   </main>

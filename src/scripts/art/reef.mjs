@@ -18,24 +18,51 @@ function normal(a, b, c) {
 }
 
 function makeFish() {
-  // The original fish silhouette now has a narrow, genuinely three-dimensional body.
-  const vertices = [[30, 0, 0]], faces = [];
-  const rings = [[19.8, 2.4, 7.2], [7.2, 4.5, 9.6], [-9.6, 3.6, 7.2], [-20.4, .9, 1.5]];
+  const vertices = [[29, 0, .3]], faces = [], segments = 12;
+  const rings = [[26, 1.8, 2.5], [22, 3.2, 5.1], [16, 4.8, 8.0], [8, 5.8, 10.0],
+    [0, 5.3, 10.2], [-8, 4.1, 8.5], [-15, 2.2, 5.7], [-21, 1.1, 2.4], [-24, .6, 1.6]];
   for (const [x, width, height] of rings) {
-    for (let i=0;i<6;i++) {
-      const angle=Math.PI/6+i*TAU/6;
-      vertices.push([x,width*Math.cos(angle),height*Math.sin(angle)]);
+    for (let i=0;i<segments;i++) {
+      const angle=i*TAU/segments;
+      vertices.push([x,width*Math.cos(angle),height*Math.sin(angle)*(Math.sin(angle)<0?.88:1)]);
     }
   }
-  for(let i=0;i<6;i++) faces.push([0,1+i,1+(i+1)%6]);
-  for(let row=0;row<rings.length-1;row++) for(let i=0;i<6;i++) {
-    const a=1+row*6+i,b=1+row*6+(i+1)%6;
-    faces.push([a,a+6,b],[b,a+6,b+6]);
+  for(let i=0;i<segments;i++) faces.push([0,1+i,1+(i+1)%segments]);
+  for(let row=0;row<rings.length-1;row++) for(let i=0;i<segments;i++) {
+    const a=1+row*segments+i,b=1+row*segments+(i+1)%segments;
+    faces.push([a,a+segments,b],[b,a+segments,b+segments]);
   }
-  vertices.push([-30,0,10.2],[-30,0,-8.4],[0,0,18],[3.6,0,-16.2],[22.8,-3.2,2.4],[-20.4,0,0]);
-  for (let i=0;i<6;i++) faces.push([19+i,19+(i+1)%6,30]);
-  faces.push([20,25,23],[25,26,23],[8,27,14],[11,17,28]);
-  return {vertices,faces,nodes:[0,25,26,27,28,29],material:'fish'};
+  const cap=vertices.push([-24.7,0,0])-1;
+  for(let i=0;i<segments;i++)faces.push([1+(rings.length-1)*segments+i,
+    1+(rings.length-1)*segments+(i+1)%segments,cap]);
+
+  // Fin rays form shallow, swept surfaces instead of large triangular spikes.
+  function fin(rays) {
+    const first=vertices.length,steps=3;
+    for(const [root,edge] of rays)for(let j=0;j<steps;j++) {
+      const t=j/(steps-1);
+      vertices.push(root.map((v,k)=>v+(edge[k]-v)*t));
+    }
+    for(let i=0;i<rays.length-1;i++)for(let j=0;j<steps-1;j++) {
+      const a=first+i*steps+j,b=a+steps;
+      faces.push([a,b,a+1],[a+1,b,b+1]);
+    }
+  }
+  fin([[13,8.8,9.0],[8,10,13],[2,10.3,14.3],[-4,9.5,13.6],[-10,7.8,11.5],[-16,5,7.0],[-20,3,3.4]]
+    .map(([x,z,top])=>[[x,0,z],[x-1.8,0,top]]));
+  fin([[1,-8.8,-9.0],[-4,-8.4,-12.0],[-9,-7.1,-12.5],[-14,-5.4,-10.5],[-19,-2.8,-4.2]]
+    .map(([x,z,bottom])=>[[x,0,z],[x-2,0,bottom]]));
+  fin(Array.from({length:9},(_,i)=>{
+    const u=(i-4)/4;
+    return [[-23.7,0,u*1.6],[-28.2-7.2*Math.abs(u)**1.35,0,u*11.2]];
+  }));
+  for(const side of [-1,1])fin(Array.from({length:5},(_,i)=>{
+    const t=i/4;
+    return [[12-5*t,side*(4.7+.7*t),1-3*t],
+      [9-13*Math.sin(t*Math.PI/2),side*(5.4+5*Math.sin(t*Math.PI)),1-4.8*t]];
+  }));
+  const eyes=[vertices.push([22,3.02,1.5])-1,vertices.push([22,-3.02,1.5])-1];
+  return {vertices,faces,nodes:eyes,material:'fish'};
 }
 const FISH = makeFish();
 
@@ -198,10 +225,10 @@ function movingFish(time, index, compact) {
   const cy = Math.cos(pose.yaw), sy = Math.sin(pose.yaw), cp = Math.cos(pose.pitch), sp = Math.sin(pose.pitch);
   const cb = Math.cos(pose.bank), sb = Math.sin(pose.bank);
   const vertices = FISH.vertices.map(([x, y, z]) => {
-    const tail = .5 - x / 60;
-    const wave = time * (5.1 + index * .4) + index * 1.7 + x / 60 * 4;
-    y += Math.sin(wave) * tail * 9.6;
-    z += Math.sin(wave + .7) * tail * 1.4;
+    const tail = clamp((19-x)/54),amplitude=.12+7.2*tail**1.8;
+    const wave = time * (5.1 + index * .4) + index * 1.7 + x / 60 * 3.3;
+    y += Math.sin(wave) * amplitude;
+    z += Math.sin(wave + .7) * tail * .42;
     const by = y * cb - z * sb, bz = y * sb + z * cb;
     const px = x * cp - bz * sp, pz = x * sp + bz * cp;
     return [pose.centre[0] + (px * cy - by * sy) * pose.size,
@@ -277,7 +304,7 @@ function style(material, faceNormal, depth, distance) {
   let fill, edge, width;
   if (material === 'terrain') { fill = 0.006 + (1 - light) * 0.013; edge = 0.11; width = 0.28; }
   else if (material === 'rock') { fill = 0.012 + (1 - light) * 0.025; edge = 0.27; width = 0.37; }
-  else if (material === 'fish') { fill = 0.012 + (1 - light) * 0.016; edge = 0.55; width = 0.54; }
+  else if (material === 'fish') { fill = 0.012 + (1 - light) * 0.016; edge = 0.55; width = 0.28; }
   else { fill = 0.016 + (1 - light) * 0.028; edge = material === 'coral' ? 0.64 : 0.61; width = 0.20; }
   // Opaque blends hide the rear surface while retaining very light shading.
   const stroke = material === 'fish' ? `rgb(${Array(3).fill(Math.round(183 * fog * 0.78)).join(',')})` : mix(WATER, colour, edge * fog);

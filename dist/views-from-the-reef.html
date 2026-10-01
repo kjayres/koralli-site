@@ -8,6 +8,7 @@
   <title>Views from the Reef · Koralli</title>
   <link rel="stylesheet" href="./styles/site.css">
   <link rel="stylesheet" href="./styles/revision.css">
+  <link rel="stylesheet" href="./styles/journal.css">
   <script type="module" src="./scripts/site.js"></script>
 </head>
 <body class="journal-page">
@@ -27,23 +28,24 @@
 </header>
 
   <main id="main">
+    <div class="journal-ocean" aria-hidden="true"><canvas data-art="journal-water"></canvas></div>
     <header class="journal-hero">
-      <p class="eyebrow"><span class="coral-square"></span>THINKING</p>
+      <p class="eyebrow"><span class="coral-square"></span>THE KORALLI JOURNAL</p>
       <div class="journal-opening">
-        <h1>Views from<br>the Reef.</h1>
-        <p class="lead">Research, practice and the questions between them.</p>
+        <h1 aria-label="Views from the Reef."><span class="journal-title-line" aria-hidden="true">Views fr<span class="letter-habitat habitat-urchin">o<img src="./assets/artwork/journal-urchin.svg" alt="" width="100" height="70"></span>m</span><span class="journal-title-line" aria-hidden="true">the <span class="letter-habitat habitat-coral">R<img src="./assets/artwork/journal-coral.svg" alt="" width="72" height="92"></span>ee<span class="letter-habitat habitat-fronds">f<img src="./assets/artwork/journal-fronds.svg" alt="" width="60" height="100"></span>.</span></h1>
+        <p class="lead">Research and perspectives on technology and how organisations are changing.</p>
       </div>
-      <div class="journal-waterline"><a class="text-link" href="#views">ESSAYS &amp; NOTES ↓</a></div>
+      <div class="journal-waterline"><a class="text-link" href="#views">EXPLORE THE ESSAYS <span aria-hidden="true">↓</span></a><span class="journal-field-note mono">RESEARCH · TECHNOLOGY · ORGANISATIONS</span></div>
     </header>
     <section class="section journal-articles" id="views" aria-labelledby="articles-title">
   <div class="section-label"><h2 id="articles-title">ESSAYS &amp; NOTES</h2><i></i></div>
-  <div class="article-list"><article class="article-row"><span class="mono">01</span><div><p class="eyebrow">10 JUNE 2026 / ANTONY TURNER</p><h3><a href="./a-coherent-picture-comes-from-more-judgement-not-more-data.html">A coherent picture comes from more judgement, not more data ↗</a></h3><p>How shared definitions, careful measurement and work across disciplines gave a global bank a coherent view of delivery.</p></div></article><article class="article-row"><span class="mono">02</span><div><p class="eyebrow">8 MAY 2026 / ANTONY TURNER</p><h3><a href="./who-owns-the-human-machine-boundary.html">Who owns the human-machine boundary? ↗</a></h3><p>Where human judgement meets machine autonomy, who decides how work should be organised?</p></div></article><article class="article-row"><span class="mono">03</span><div><p class="eyebrow">23 JANUARY 2026 / ANTONY TURNER</p><h3><a href="./the-transformation-ceiling-is-organisational-not-technical.html">The “Transformation Ceiling” is Organisational, Not Technical ↗</a></h3><p>How organisational design, data ownership and decision-making shape the adoption of AI.</p></div></article></div>
+  <div class="article-list"><article class="article-row"><span class="mono">01</span><div><div class="article-meta"><p class="eyebrow article-topic">EVIDENCE &amp; JUDGEMENT</p><p class="eyebrow article-date">10 JUNE 2026 / ANTONY TURNER</p></div><h3><a href="./a-coherent-picture-comes-from-more-judgement-not-more-data.html">A coherent picture comes from more judgement, not more data<span class="article-arrow" aria-hidden="true">↗</span></a></h3><p>How shared definitions, careful measurement and work across disciplines gave a global bank a coherent view of delivery.</p></div></article><article class="article-row"><span class="mono">02</span><div><div class="article-meta"><p class="eyebrow article-topic">PEOPLE &amp; MACHINES</p><p class="eyebrow article-date">8 MAY 2026 / ANTONY TURNER</p></div><h3><a href="./who-owns-the-human-machine-boundary.html">Who owns the human-machine boundary?<span class="article-arrow" aria-hidden="true">↗</span></a></h3><p>Where human judgement meets machine autonomy, who decides how work should be organised?</p></div></article><article class="article-row"><span class="mono">03</span><div><div class="article-meta"><p class="eyebrow article-topic">ORGANISATIONAL CHANGE</p><p class="eyebrow article-date">23 JANUARY 2026 / ANTONY TURNER</p></div><h3><a href="./the-transformation-ceiling-is-organisational-not-technical.html">The “Transformation Ceiling” is Organisational, Not Technical<span class="article-arrow" aria-hidden="true">↗</span></a></h3><p>How organisational design, data ownership and decision-making shape the adoption of AI.</p></div></article></div>
 </section>
 
   </main>
   <footer id="contact" class="site-footer">
-  <div class="footer-main"><div><p class="eyebrow">A FIRST CONVERSATION</p><h2>What are you<br>working through?</h2><p class="footer-invitation">Bring a question, a difficult decision or a piece of work you would like to improve.</p><a class="contact-email" href="mailto:contact@koralli.io">contact@koralli.io <span aria-hidden="true">↗</span></a></div><div class="footer-index"><a href="./">KORALLI / HOME</a><a href="./our-work.html">OUR WORK</a><a href="./who-we-are.html">WHO WE ARE</a><a href="./views-from-the-reef.html">VIEWS FROM THE REEF</a><span>OXFORD, UNITED KINGDOM</span></div></div>
-  <div class="footer-bottom mono"><span>© 2026 KORALLI</span><span>LOCAL DESIGN STUDY · COPY FOR REVIEW</span><span>51.7520° N · 1.2577° W</span></div>
+  <div class="footer-main"><div><p class="eyebrow">A FIRST CONVERSATION</p><h2>What are you<br>working through?</h2><p class="footer-invitation">Bring a question or a difficult decision. We’ll discuss what you already know and where research and practical work could help.</p><a class="contact-email" href="mailto:contact@koralli.io">contact@koralli.io <span aria-hidden="true">↗</span></a></div><div class="footer-index"><a href="./">KORALLI / HOME</a><a href="./our-work.html">OUR WORK</a><a href="./who-we-are.html">WHO WE ARE</a><a href="./views-from-the-reef.html">VIEWS FROM THE REEF</a><span>OXFORD, UNITED KINGDOM</span></div></div>
+  <div class="footer-bottom mono"><span>© 2026 KORALLI</span><span>DESIGN REVIEW · COPY FOR REVIEW</span><span>51.7520° N · 1.2577° W</span></div>
 </footer>
 
 </body>

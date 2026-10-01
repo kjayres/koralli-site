@@ -1,6 +1,6 @@
 # Koralli website
 
-The website design review is shared at https://kjayres.github.io/koralli-site/. It includes the revised copy and structure, four-level building, mesh reef and three complete journal essays.
+The website design review is shared at https://kjayres.github.io/koralli-site/. It includes the revised copy and structure, four-level building, mesh reef and an underwater journal with three complete essays. Individual essays use a paper-coloured reading layout.
 
 The previous published site is preserved in the `archive/pre-redesign-2026-09-15` branch. This is a design review: draft copy labels and search-engine exclusion remain in place.
 
@@ -19,7 +19,7 @@ npm run build
 npm run check
 ```
 
-The development server opens at http://127.0.0.1:4173. Build before committing changes to `src` so `dist` stays in sync. Relative asset URLs make the same build work on localhost and GitHub Pages. `npm run artwork:building` refreshes the downloadable building SVGs after changes to the building geometry.
+The development server opens at http://127.0.0.1:4173. Build before committing changes to `src` so `dist` stays in sync. Relative asset URLs make the same build work on localhost and GitHub Pages. `npm run artwork:building` refreshes the downloadable building SVGs after changes to the building geometry. `node scripts/export-journal-lettering.mjs` regenerates the small SVG organisms attached to the journal title. The journal's canvas scene is in `src/scripts/art/journal-water.mjs`; motion follows the visitor's reduced-motion setting and stops when the page is hidden.
 
 On Kieran's Mac, double-click `Open Koralli.app` inside the `new_site` folder to start the server and open a browser. The launcher and internal notes remain local.
 

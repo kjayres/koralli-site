@@ -7,6 +7,7 @@
 .proof-section h2 { margin-top:20px; }
 .client-quote { margin:35px 0 0; padding:0 0 0 20px; border-left:2px solid var(--coral); max-width:365px; }
 .client-quote p { font-size:22px; line-height:1.45; letter-spacing:-.02em; }
+.proof-section .quote-attribution { margin:12px 0 0 22px; max-width:340px; color:#68655f; font:10px/1.6 var(--mono); }
 .organisation-section { padding-bottom:65px; }
 .capabilities { margin-top:45px; }
 .capability-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:clamp(30px,6vw,90px); list-style:none; margin:18px 0 0; padding:0; }

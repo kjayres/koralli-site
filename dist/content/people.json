@@ -3,37 +3,43 @@
     "name": "Antony Turner",
     "field": "OPERATIONS & TRANSFORMATION",
     "kind": "operator",
-    "bio": "Antony has spent 30 years working with major financial institutions, including Morgan Grenfell, UBS, Barclays Wealth, Credit Suisse, ABN Amro, BNP Paribas, HSBC and Bank of America. He has worked independently since 2006 and co-founded an AI start-up focused on market design.\n\nHis work spans mergers and acquisitions integration, IT infrastructure and security, organisational transformation, insourcing, and building and deploying platforms. He has also held senior roles in risk management and digital banking."
+    "bio": "Antony has spent 30 years working with major financial institutions, including Morgan Grenfell, UBS, Barclays Wealth, Credit Suisse, ABN Amro, BNP Paribas, HSBC and Bank of America. He has worked independently since 2006 and co-founded an AI start-up focused on market design.\n\nHis work spans mergers and acquisitions integration, IT infrastructure and security, organisational transformation, insourcing, and building and deploying platforms. He has also held senior roles in risk management and digital banking.",
+    "portrait": "/assets/images/portraits/antony.webp"
   },
   {
     "name": "Kieran Ayres",
     "field": "STATISTICS",
     "kind": "researcher",
-    "bio": "Kieran is completing a DPhil in Statistics at Oxford, developing Bayesian inference methods for epidemiology and computational biology. He holds an MSc in Health Data Analytics and Machine Learning from Imperial and previously worked as a Data Science Analyst at Accenture on database design and business analytics.\n\nHis expertise is in statistical modelling, machine learning and applied analysis of noisy, complex and high-dimensional data."
+    "bio": "Kieran is completing a DPhil in Statistics at Oxford, developing Bayesian inference methods for epidemiology and computational biology. He holds an MSc in Health Data Analytics and Machine Learning from Imperial and previously worked as a Data Science Analyst at Accenture on database design and business analytics.\n\nHis expertise is in statistical modelling, machine learning and applied analysis of noisy, complex and high-dimensional data.",
+    "portrait": "/assets/images/portraits/kieran.webp"
   },
   {
     "name": "Sophie Fischer",
     "field": "COMPUTER SCIENCE",
     "kind": "researcher",
-    "bio": "Sophie is completing a DPhil in Computer Science at Oxford, where she also completed her master’s degree. She has presented at CVPR and ICCV and has collaborated with the Oxford Law Faculty on AI in trade mark law.\n\nShe co-founded the carbon capture start-up Cequestre, which won StEP Ignite."
+    "bio": "Sophie is completing a DPhil in Computer Science at Oxford, where she also completed her master’s degree. She has presented at CVPR and ICCV and has collaborated with the Oxford Law Faculty on AI in trade mark law.\n\nShe co-founded the carbon capture start-up Cequestre, which won StEP Ignite.",
+    "portrait": "/assets/images/portraits/sophie.webp"
   },
   {
     "name": "Bella Raja",
     "field": "AI & SOCIETY",
     "kind": "researcher",
-    "bio": "Bella is completing a DPhil at the Oxford Internet Institute, examining the social and environmental implications of AI hardware and infrastructure. She studied Science, Technology and Society at Stanford and holds an MSc in Social Science of the Internet from Oxford.\n\nHer experience includes a Tech Ethics and Policy Fellowship at Stanford HAI and go-to-market work for a Y Combinator-backed start-up."
+    "bio": "Bella is completing a DPhil at the Oxford Internet Institute, examining the social and environmental implications of AI hardware and infrastructure. She studied Science, Technology and Society at Stanford and holds an MSc in Social Science of the Internet from Oxford.\n\nHer experience includes a Tech Ethics and Policy Fellowship at Stanford HAI and go-to-market work for a Y Combinator-backed start-up.",
+    "portrait": "/assets/images/portraits/bella.webp"
   },
   {
     "name": "Orla Hogan",
     "field": "HISTORY & INSTITUTIONS",
     "kind": "researcher",
-    "bio": "Orla is completing a DPhil in History at Oxford, following a BA and MPhil in History at Cambridge. She has worked in strategic communications and crisis management in financial services.\n\nAs a researcher at CCLA Investment Management, she examined FTSE 100 and FTSE 250 companies’ compliance with the Modern Slavery Act 2015. She is currently Editor-in-Chief of the Oxford Review of Books."
+    "bio": "Orla is completing a DPhil in History at Oxford, following a BA and MPhil in History at Cambridge. She has worked in strategic communications and crisis management in financial services.\n\nAs a researcher at CCLA Investment Management, she examined FTSE 100 and FTSE 250 companies’ compliance with the Modern Slavery Act 2015. She is currently Editor-in-Chief of the Oxford Review of Books.",
+    "portrait": "/assets/images/portraits/orla.webp"
   },
   {
     "name": "Emilie Ouwerx",
     "field": "TECHNOLOGY & GOVERNANCE",
     "kind": "researcher",
-    "bio": "Emilie holds an MSc in Social Science of the Internet from the Oxford Internet Institute, where she studied AI regulation, algorithmic bias, digital sovereignty and the political economy of digital markets. She also holds a BASc in Arts and Sciences from UCL.\n\nShe supported the launch of ThreeFold’s decentralised cloud infrastructure in Tanzania and worked on sustainable risk pool design at Allianz Reinsurance."
+    "bio": "Emilie holds an MSc in Social Science of the Internet from the Oxford Internet Institute, where she studied AI regulation, algorithmic bias, digital sovereignty and the political economy of digital markets. She also holds a BASc in Arts and Sciences from UCL.\n\nShe supported the launch of ThreeFold’s decentralised cloud infrastructure in Tanzania and worked on sustainable risk pool design at Allianz Reinsurance.",
+    "portrait": "/assets/images/portraits/emilie.webp"
   },
   {
     "name": "Oakem Kyne",

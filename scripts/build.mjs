@@ -29,7 +29,7 @@ function articlesMarkup() {
   if (!articles.length) return '<p class="article-pending mono">ARTICLES TO BE ADDED</p>';
   return articles.map((article, i) => {
     if (!article.title || !article.href || !/^(https:\/\/|\/(?!\/))/.test(article.href)) throw new Error('Each article needs a title and a local or HTTPS link.');
-    return `<article class="article-row"><span class="mono">${String(i+1).padStart(2,'0')}</span><div><p class="eyebrow">${escape(article.date || '')}</p><h3><a href="${escape(article.href)}">${escape(article.title)} ↗</a></h3><p>${escape(article.summary || '')}</p></div></article>`;
+    return `<article class="article-row"><span class="mono">${String(i+1).padStart(2,'0')}</span><div><div class="article-meta"><p class="eyebrow article-topic">${escape(article.topic || 'ESSAY')}</p><p class="eyebrow article-date">${escape(article.date || '')}</p></div><h3><a href="${escape(article.href)}">${escape(article.title)}<span class="article-arrow" aria-hidden="true">↗</span></a></h3><p>${escape(article.summary || '')}</p></div></article>`;
   }).join('');
 }
 
@@ -52,7 +52,10 @@ export function renderSite(basePath = './') {
   checkedBasePath(basePath);
   const files = new Map();
   const people = JSON.parse(readFileSync(resolve(sourceDir, 'content/people.json'), 'utf8'));
-  const profiles = people.map((person, i) => `<article class="person"><div class="person-index mono"><span>${String(i+1).padStart(2,'0')}</span><i class="${escapeHTML(person.kind)}"></i></div><div><p class="eyebrow">${escapeHTML(person.field)}</p><h3>${escapeHTML(person.name)}</h3></div><div class="person-bio">${person.bio.split(/\n\n/).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join('')}</div></article>`).join('\n');
+  const profiles = people.map((person, i) => {
+    const portrait = person.portrait ? `<img class="person-portrait" src="${escapeHTML(person.portrait)}" alt="Portrait of ${escapeHTML(person.name)}" width="320" height="384" loading="lazy" decoding="async">` : '';
+    return `<article class="person"><div class="person-index mono"><span>${String(i+1).padStart(2,'0')}</span><i class="${escapeHTML(person.kind)}"></i></div><div class="person-identity${person.portrait ? ' person-identity--portrait' : ''}">${portrait}<div><p class="eyebrow">${escapeHTML(person.field)}</p><h3>${escapeHTML(person.name)}</h3></div></div><div class="person-bio">${person.bio.split(/\n\n/).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join('')}</div></article>`;
+  }).join('\n');
   for (const name of pages) files.set(name, Buffer.from(expand(name)
     .replace('<!-- content: articles -->', articlesMarkup())
     .replace('<!-- content: workbench -->', workbenchMarkup())
