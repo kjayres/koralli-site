@@ -80,7 +80,8 @@
 .person h3 { margin-top:12px; font-size:31px; }
 .person-bio { font-size:15px; color:#5c5b58; max-width:520px; }
 @media (min-width:760px) and (max-width:1050px) {
-  .site-header nav { gap:14px; font-size:11px; letter-spacing:.04em; }
+  .site-header nav { gap:12px; font-size:10px; letter-spacing:.04em; }
+  .site-header nav .nav-home { display:none; }
   .site-header nav a { min-height:44px; min-width:44px; }
   .site-header .nav-views { display:flex; }
   .building-copy { padding-left:20px; }
@@ -94,10 +95,10 @@
   .site-header { align-items:flex-start; flex-wrap:wrap; gap:6px; padding-bottom:16px; }
   .wordmark img { width:26px; }
   .wordmark-definition { margin-left:34px; font-size:10px; }
-  .site-header nav { display:grid; grid-template-columns:.9fr 1fr 1.6fr; gap:8px; font-size:12px; letter-spacing:.025em; line-height:1.35; width:100%; }
+  .site-header nav { display:grid; grid-template-columns:.85fr 1fr .95fr 1.3fr; gap:8px; font-size:11px; letter-spacing:.025em; line-height:1.35; width:100%; }
   .site-header nav a { min-height:44px; min-width:0; }
   .site-header nav a.nav-work { display:flex; }
-  .site-header nav .nav-team { justify-content:center; }
+  .site-header nav .nav-team,.site-header nav .nav-agents { justify-content:center; }
   .site-header nav .nav-views { justify-content:flex-end; text-align:right; }
   .site-header nav .nav-home { display:none; }
   .site-header nav .nav-contact { position:absolute; top:20px; right:var(--gutter); gap:6px; justify-content:flex-end; }

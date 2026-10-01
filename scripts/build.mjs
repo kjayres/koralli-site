@@ -10,7 +10,7 @@ export const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const sourceDir = resolve(projectDir, 'src');
 export const outputDir = resolve(projectDir, 'dist');
 const pages = [
-  'index.html', 'our-work.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html', 'artwork.html',
+  'index.html', 'our-work.html', 'agent-systems.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html', 'artwork.html',
   'a-coherent-picture-comes-from-more-judgement-not-more-data.html',
   'who-owns-the-human-machine-boundary.html',
   'the-transformation-ceiling-is-organisational-not-technical.html'

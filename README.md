@@ -30,6 +30,6 @@ Our Work uses one shared particle scene across its three scroll-selected phases.
 
 On Kieran's Mac, double-click `Open Koralli.app` inside the `new_site` folder to start the server and open a browser. The launcher and internal notes remain local.
 
-Local supporting material is in `docs/` and `artwork-source/`, both excluded from GitHub. `Open Koralli.webloc` opens the published design directly. The parent `Internal` folder contains only `old_site` and `new_site`.
+Local supporting material is in `docs/` and `artwork-source/`, both excluded from GitHub. `Open Koralli.webloc` opens the published design directly. The sibling `agent_workspace` project has its own Git repository and shareable demo at https://kjayres.github.io/koralli-workspace/. The Agent Systems page introduces that prototype; agent execution is not connected.
 
 Unused earlier animations, lettering, building studies and asset variants are preserved locally in `artwork-source/site-archive/2026-10-01/`, with their original paths and a manifest of reasons, sizes and SHA-256 hashes. Current gallery studies remain available in `artwork.html`. To reuse an archived study, restore its native source and review its dependencies before rebuilding. Git history also retains the previously tracked versions.

@@ -1,5 +1,5 @@
-import { journalCurrent } from './journal-water.mjs?v=67f7e6ecd4c5';
-import { journalCoralContours } from './journal-coral-contours.mjs?v=67f7e6ecd4c5';
+import { journalCurrent } from './journal-water.mjs?v=aded922bb8fd';
+import { journalCoralContours } from './journal-coral-contours.mjs?v=aded922bb8fd';
 
 // Font-space coordinates keep the roots inside the original letter strokes.
 const colonies = {
