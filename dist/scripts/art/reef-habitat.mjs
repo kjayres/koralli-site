@@ -34,7 +34,7 @@ export function reefHabitat(compact = false) {
     { kinds: ['soft_tuft', 'soft_tuft_open'], count: compact ? 4 : 7, low: 46, high: 69, flex: .07 },
     { kinds: ['foliose_coral'], count: compact ? 14 : 30, low: 25, high: 42 },
     { kinds: ['cauliflower_small', 'brain_lobes'], count: compact ? 10 : 24, low: 36, high: 61 },
-    { kinds: ['encrusting_coral'], count: compact ? 25 : 55, low: 17, high: 32 },
+    { kinds: ['young_encrusting'], count: compact ? 8 : 18, low: 10, high: 19 },
   ];
   let serial = 0;
   for (const [groupIndex, group] of groups.entries()) {
@@ -73,6 +73,45 @@ export function reefHabitat(compact = false) {
         width, depth, material: group.flex ? 'blue' : colourField > .40 ? 'coral' : 'blue',
         motion: Boolean(group.flex), flex: group.flex || 0, envelope, burial: compact ? 4.5 : 1.5, bank: true });
       placed++;
+    }
+  }
+  // Recruitment gathers unevenly around established colonies. Keep the sand
+  // channels and reserve each neighbour's full envelope, including its sway.
+  const mature = colonies.filter(colony => !colony.motion && colony.height > 30);
+  const youngKinds = ['young_lobed', 'young_encrusting', 'young_fingers', 'young_fingers_2'];
+  const target = compact ? 40 : 124;
+  let added = 0;
+  for (let index = 0; index < mature.length && added < target; index++) {
+    const parent = mature[index], seed = 11003 + index * 193;
+    if (random(seed) < .20) continue;
+    const count = 1 + Math.floor(random(seed + 1) * 4), side = random(seed + 2) * Math.PI * 2;
+    let placed = 0;
+    for (let attempt = 0; attempt < 48 && placed < count && added < target; attempt++) {
+      const key = seed + attempt * 31;
+      const kind = youngKinds[Math.floor(random(key + 3) * youngKinds.length)];
+      const height = (kind === 'young_encrusting' ? 6 + random(key + 4) * 6 : 10 + random(key + 4) * 15)
+        * (compact ? .82 : 1);
+      const yaw = random(key + 5) * Math.PI * 2;
+      const width = .88 + random(key + 6) * .30, depth = .85 + random(key + 7) * .24;
+      const envelope = footprint(kind, height, width, depth, yaw);
+      const angle = side + (random(key + 8) - .5) * 2.2;
+      // Rectangular envelopes are conservative: grow off one clear side rather
+      // than placing a circular skirt through a neighbour's branches.
+      const c = Math.cos(angle), s = Math.sin(angle);
+      const reach = Math.min((parent.envelope.rx + envelope.rx + 3) / Math.max(.001, Math.abs(c)),
+        (parent.envelope.ry + envelope.ry + 3) / Math.max(.001, Math.abs(s))) * (1.025 + random(key + 9) * .20);
+      const x = parent.origin[0] + c * reach, y = parent.origin[1] + s * reach / 3.1;
+      const depthPosition = (y / depthScale + 390) / 735;
+      const nx = x / (halfWidth * (distance + y * 3.1) / distance);
+      if (depthPosition < 0 || depthPosition > 1 || Math.abs(nx) > 1.09) continue;
+      if (Math.abs(nx - (-.07 + .19 * Math.sin(depthPosition * 3.6))) < .042 && depthPosition < .78) continue;
+      if (colonies.some(other => Math.abs(x - other.origin[0]) < (envelope.rx + other.envelope.rx) * 1.015 + 2
+        && Math.abs(y - other.origin[1]) * 3.1 < (envelope.ry + other.envelope.ry) * 1.015 + 2)) continue;
+      colonies.push({ name: `Young colony ${added + 1}`, kind, height,
+        origin: [x, y, reefFloorHeight(x, y, compact)], yaw: yaw * 180 / Math.PI,
+        width, depth, material: random(key + 10) < .78 ? parent.material : parent.material === 'blue' ? 'coral' : 'blue',
+        motion: false, flex: 0, envelope, burial: compact ? 3 : 1.5, bank: true });
+      placed++; added++;
     }
   }
   return colonies;

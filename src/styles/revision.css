@@ -16,6 +16,7 @@
 .building-instruction,.building-skip,.building-sticky .reference { color:var(--depth-muted); }
 .building-sticky .blue,.building-instruction span { color:var(--depth-accent); }
 .depth-choice { color:var(--depth-muted); }
+.depth-choice-label { display:none; }
 .depth-choice[aria-current=step] { color:var(--depth-accent); border-color:var(--depth-accent); }
 .building-sticky .depth-choice:focus-visible { outline-color:var(--depth-accent); }
 .footer-invitation { max-width:390px; margin-top:24px; color:#b7bac3; font-size:15px; }
@@ -79,7 +80,8 @@
 .person h3 { margin-top:12px; font-size:31px; }
 .person-bio { font-size:15px; color:#5c5b58; max-width:520px; }
 @media (min-width:760px) and (max-width:1050px) {
-  .site-header nav { gap:18px; font-size:8px; }
+  .site-header nav { gap:14px; font-size:11px; letter-spacing:.04em; }
+  .site-header nav a { min-height:44px; min-width:44px; }
   .site-header .nav-views { display:flex; }
   .building-copy { padding-left:20px; }
   .work-picker button { font-size:14px; padding:18px 12px; }
@@ -89,12 +91,16 @@
   .person { grid-template-columns:40px 1fr 1.25fr; gap:24px; }
 }
 @media(max-width:759px) {
-  .site-header { align-items:flex-start; flex-wrap:wrap; }
+  .site-header { align-items:flex-start; flex-wrap:wrap; gap:6px; padding-bottom:16px; }
   .wordmark img { width:26px; }
   .wordmark-definition { margin-left:34px; font-size:10px; }
-  .site-header nav { gap:12px; font-size:8px; width:100%; justify-content:space-between; }
-  .site-header nav a:nth-child(2) { display:flex; }
-  .site-header nav .nav-home,.site-header nav .nav-contact { display:none; }
+  .site-header nav { display:grid; grid-template-columns:.9fr 1fr 1.6fr; gap:8px; font-size:12px; letter-spacing:.025em; line-height:1.35; width:100%; }
+  .site-header nav a { min-height:44px; min-width:0; }
+  .site-header nav a.nav-work { display:flex; }
+  .site-header nav .nav-team { justify-content:center; }
+  .site-header nav .nav-views { justify-content:flex-end; text-align:right; }
+  .site-header nav .nav-home { display:none; }
+  .site-header nav .nav-contact { position:absolute; top:20px; right:var(--gutter); gap:6px; justify-content:flex-end; }
   .hero { height:900px; }
   .hero-copy { bottom:72px; }
   .wave-legend { top:128px; }
@@ -102,6 +108,13 @@
   .building-layout { flex-direction:column; }
   .building-copy { order:0; padding:20px 0 0; }
   .building-art { order:1; }
+  .depth-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; max-width:none; margin:0 0 16px; }
+  .depth-choice { min-height:44px; padding:8px 10px; gap:8px; border:1px solid currentColor; opacity:1; text-align:left; }
+  .depth-choice svg { display:none; }
+  .depth-choice .depth-choice-number { flex:none; width:17px; font-size:11px; letter-spacing:0; }
+  .depth-choice .depth-choice-label { display:block; font-family:inherit; font-size:13px; line-height:1.25; letter-spacing:0; }
+  .depth-choice.visited { opacity:1; }
+  .depth-choice[aria-current=step] { background:var(--depth-accent); border-color:var(--depth-accent); color:var(--building-paper,var(--paper)); }
   .case-detail p { font-size:14px; }
   .project-introduction { grid-template-columns:1fr; gap:24px; margin:30px 0; }
   .project-introduction p { font-size:14px; }
@@ -142,6 +155,16 @@
   .depth-panel h3 { font-size:23px; margin-top:12px; }
   .depth-choices { margin-top:10px; }
   .depth-choice svg { height:27px; margin-bottom:4px; }
+}
+@media(max-height:680px) and (max-width:759px) {
+  .building-enhanced .building-sticky { padding-top:18px; }
+  .building-enhanced .building-heading h2 { font-size:23px; }
+  .building-enhanced .building-instruction { display:none; }
+  .building-enhanced .building-layout { height:calc(100% - 82px); margin-top:14px; }
+  .building-enhanced .building-copy { padding-top:0; }
+  .building-enhanced .depth-panels { min-height:112px; }
+  .building-enhanced .depth-panel h3 { font-size:22px; margin-top:9px; }
+  .building-enhanced .depth-choices { margin-bottom:12px; }
 }
 @media(prefers-reduced-motion:reduce) {
   .building-layout { height:570px; }

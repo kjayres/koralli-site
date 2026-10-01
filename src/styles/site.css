@@ -1739,3 +1739,29 @@ h3 {
 .building-layout { grid-template-rows: minmax(0, 1fr); }
 .building-art { min-height: 0; }
 .building-art .company-building { width: 100%; height: 100%; min-height: 0; }
+
+/* Static artwork and complete copy remain available until enhancement succeeds. */
+canvas[data-art] { visibility:hidden; }
+.art-ready > canvas[data-art] { visibility:visible; }
+.reef-section .reef-canvas.art-ready > .reef-still,
+.approach-frame.art-ready > .approach-fallback { visibility:hidden; }
+.hero.art-failed {
+  background-image:url('../assets/artwork/wave.svg');
+  background-size:cover;
+  background-position:center;
+}
+.home-page .building-section:not(.building-enhanced) { height:auto; }
+.building-section:not(.building-enhanced) .building-sticky {
+  position:relative; height:auto; min-height:0; overflow:visible; padding-bottom:65px;
+}
+.building-section:not(.building-enhanced) .building-layout { height:auto; min-height:0; margin-top:38px; }
+.building-section:not(.building-enhanced) .depth-panels { display:grid; gap:28px; min-height:0; }
+.building-section:not(.building-enhanced) .depth-panel { position:static; opacity:1; visibility:visible; transform:none; }
+.building-section:not(.building-enhanced) .depth-panel h3 { font-size:clamp(22px,2vw,28px); margin-top:12px; }
+.building-section:not(.building-enhanced) .depth-choices,
+.building-section:not(.building-enhanced) .building-instruction { display:none; }
+.building-section:not(.building-enhanced) .building-art { height:560px; min-height:0; align-self:stretch; }
+@media (max-width:759px) {
+  .building-section:not(.building-enhanced) .building-art { height:400px; flex:none; }
+  .building-section:not(.building-enhanced) .building-copy { padding-top:0; }
+}

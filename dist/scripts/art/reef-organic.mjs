@@ -496,8 +496,8 @@ function compactBranches(seed, spreading = false) {
   return finish(m);
 }
 
-function roundedColony(seed, mode = 'massive') {
-  const m = mesh(), { directions, triangles } = hemisphere(4);
+function roundedColony(seed, mode = 'massive', detail = 4) {
+  const m = mesh(), { directions, triangles } = hemisphere(detail);
   const low = mode === 'encrusting', lobed = mode === 'lobed';
   const bulges = Array.from({ length: lobed ? 5 : 3 }, (_, i) => {
     const angle = i * 2.399963 + seed;
@@ -519,6 +519,20 @@ function roundedColony(seed, mode = 'massive') {
   const rim = directions.map((p, i) => ({ p, i })).filter(({ p }) => p[2] === 0)
     .sort((a, b) => Math.atan2(a.p[1], a.p[0]) - Math.atan2(b.p[1], b.p[0])).map(({ i }) => i);
   m.cap(rim, [0, 0, 0], true);
+  return finish(m);
+}
+
+function youngColony(seed) {
+  const m = mesh();
+  // A few unequal buds on a shared low base, used at the edges of mature colonies.
+  for (let i = 0; i < 4; i++) {
+    const key = seed + i * 37, angle = i * 2.399963 + random(key) * .8;
+    const r = .07 + random(key + 1) * .10, height = .18 + random(key + 2) * .23;
+    const root = [Math.cos(angle) * r, Math.sin(angle) * r, 0];
+    const lean = [.09 * Math.cos(angle), .09 * Math.sin(angle), height];
+    m.tube([root, add(root, scale(lean, .43)), add(root, scale(lean, .78)), add(root, lean)],
+      [.058, .047, .049, .031], { sides: 5, rounded: true });
+  }
   return finish(m);
 }
 
@@ -649,6 +663,10 @@ export const ORGANIC_CORALS = {
   massive_lobed: roundedColony(71, 'lobed'),
   massive_lobed_2: roundedColony(193, 'lobed'),
   encrusting_coral: roundedColony(109, 'encrusting'),
+  young_lobed: roundedColony(239, 'lobed', 3),
+  young_encrusting: roundedColony(263, 'encrusting', 3),
+  young_fingers: youngColony(281),
+  young_fingers_2: youngColony(313),
   foliose_coral: folioseColony(43),
   soft_tuft: softTuft(89),
   soft_tuft_open: softTuft(149, true),
