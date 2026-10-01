@@ -1,6 +1,6 @@
-import { projects } from '../content/projects.mjs?v=8c680b372195';
-import { stones, loops } from '../content/workflow-art.mjs?v=8c680b372195';
-import { botanicalConnectorMarkup } from './art/botanical-seaweed.mjs?v=8c680b372195';
+import { projects } from '../content/projects.mjs?v=f0590c49520f';
+import { stones, loops } from '../content/workflow-art.mjs?v=f0590c49520f';
+import { botanicalConnectorMarkup } from './art/botanical-seaweed.mjs?v=f0590c49520f';
 
 export const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const point = ([x,y]) => `${x.toFixed(2)} ${y.toFixed(2)}`;
