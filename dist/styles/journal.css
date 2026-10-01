@@ -16,11 +16,10 @@
 .journal-page main { position:relative; isolation:isolate; overflow:hidden; overflow:clip; background:linear-gradient(150deg,#142a49 0%,#10203e 38%,#0c1630 85%); }
 .journal-ocean { position:absolute; inset:0; z-index:-1; pointer-events:none; }
 .journal-ocean canvas { display:block; width:100%; height:100%; }
-.journal-hero { max-width:1420px; margin:auto; padding:210px clamp(60px,12vw,180px) 100px; }
+.journal-hero { max-width:1420px; margin:auto; padding:210px var(--gutter) 100px; }
 .journal-hero>.eyebrow { color:var(--water-muted); }
 .journal-opening { display:block; margin-top:68px; }
-.journal-opening h1 { position:relative; width:max-content; max-width:100%; font-size:clamp(74px,9.1vw,132px); font-weight:400; line-height:1.04; letter-spacing:-.053em; }
-.journal-title-line { display:block; white-space:nowrap; }
+.journal-opening h1 { position:relative; width:max-content; max-width:100%; white-space:nowrap; font-size:clamp(26px,9.2vw,132px); font-weight:400; line-height:1.04; letter-spacing:-.053em; }
 .journal-growing-letter { display:inline-block; vertical-align:baseline; overflow:visible; fill:currentColor; }
 .journal-growing-letter text { font-family:inherit; letter-spacing:normal; fill:currentColor; }
 .journal-seaweed { fill:currentColor; }
@@ -49,11 +48,10 @@
 .journal-articles .article-row a:hover { color:#c9d4ff; }
 .journal-articles .article-row:hover .article-arrow { transform:translate(3px,-3px); }
 .journal-page .site-footer { position:relative; background:#0c1630; border-top:1px solid var(--rule); }
-@media(min-width:1600px) { .journal-hero,.journal-articles { padding-left:140px; padding-right:140px; } }
+@media(min-width:1600px) { .journal-articles { padding-left:140px; padding-right:140px; } }
 @media(max-width:759px) {
-  .journal-hero { padding:210px 32px 66px; }
+  .journal-hero { padding:210px var(--gutter) 66px; }
   .journal-opening { margin-top:53px; }
-  .journal-opening h1 { font-size:clamp(50px,15.4vw,84px); }
   .journal-opening .lead { margin-top:30px; max-width:290px; font-size:18px; }
   .journal-waterline { margin-top:40px; display:block; }
   .journal-field-note { display:none; }

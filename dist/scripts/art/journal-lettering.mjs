@@ -1,6 +1,6 @@
 import { journalCurrent } from './journal-water.mjs';
 
-// Font-space coordinates keep the roots inside the original w and f strokes.
+// Font-space coordinates keep the roots inside the original letter strokes.
 const colonies = {
   w: { x: 80, y: -500, blades: [
     { length: 620, width: 13, lean: -.3, seed: 2 },
@@ -10,6 +10,10 @@ const colonies = {
   f: { x: 253, y: -711, blades: [
     { length: 650, width: 15, lean: -.18, seed: 4 },
     { length: 470, width: 12, lean: .34, seed: 6.5 }
+  ] },
+  r: { x: 145, y: -688, blades: [
+    { length: 590, width: 18, lean: -.21, seed: 2.7 },
+    { length: 410, width: 13, lean: .32, seed: 6 }
   ] }
 };
 const point = ([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`;
