@@ -1,4 +1,4 @@
-import { figureDefinitions } from './figures.mjs?v=aded922bb8fd';
+import { figureDefinitions } from './figures.mjs?v=8c680b372195';
 
 const INK = '#244eff';
 const PAPER = '#f3f0e8';

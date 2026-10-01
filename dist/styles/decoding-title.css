@@ -1,0 +1,14 @@
+.decoding-title { position:relative; }
+.decoding-title.is-decoding .decode-text { opacity:0; }
+.decode-overlay { position:absolute; inset:0; pointer-events:none; user-select:none; }
+.decode-glyph { position:absolute; white-space:pre; color:var(--blue); opacity:0; transition:opacity .12s ease, color .18s ease; }
+.decode-glyph.is-settled { color:var(--ink); }
+
+@media (prefers-reduced-motion:reduce), (forced-colors:active) {
+  .decoding-title.is-decoding .decode-text { opacity:1; }
+  .decode-overlay { display:none; }
+}
+@media print {
+  .decoding-title.is-decoding .decode-text { opacity:1; }
+  .decode-overlay { display:none; }
+}
