@@ -139,12 +139,25 @@ export function writeSite(files, directory = outputDir) {
   }
 }
 
+export function checkOutputFiles(files, directory = outputDir) {
+  const destination = checkedOutputDir(directory);
+  function visit(folder = '') {
+    for (const entry of readdirSync(resolve(destination, folder), { withFileTypes: true })) {
+      const name = folder ? `${folder}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) visit(name);
+      else if (!files.has(name)) throw new Error(`Unexpected build file: ${name}. Archive or remove this stale output explicitly.`);
+    }
+  }
+  visit();
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try {
     const basePath = process.argv.find(arg => arg.startsWith('--base='))?.slice(7) ?? './';
     const destination = checkedOutputDir(process.argv.find(arg => arg.startsWith('--out='))?.slice(6) ?? outputDir);
     const files = renderSite(basePath);
     if (process.argv.includes('--check')) {
+      checkOutputFiles(files, destination);
       for (const [name, bytes] of files) {
         if (!existsSync(resolve(destination, name)) || !readFileSync(resolve(destination, name)).equals(bytes)) throw new Error(`Build is out of date: ${name}`);
         if (/\.m?js$/.test(name)) {

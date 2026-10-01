@@ -187,6 +187,8 @@ function drawFrond(ctx, frond, time, current, compact) {
  * Transparent marine scenery. Call with CSS-pixel dimensions after setting the
  * context's DPR transform. time is elapsed seconds; no wall-clock state is kept.
  * reducedMotion freezes the same composed scene. scrollProgress (0..1) is optional.
+ * viewport, when supplied, is an expanded {top, bottom} band in canvas CSS pixels;
+ * only whole objects outside that band are skipped. Omit it for a complete still.
  */
 export function drawJournalWater(ctx, width, height, time = 0, options = {}) {
   if (!ctx || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
@@ -195,24 +197,33 @@ export function drawJournalWater(ctx, width, height, time = 0, options = {}) {
   const seconds = options.reducedMotion || !Number.isFinite(elapsed) ? 0 : Math.max(0, elapsed);
   const scroll = options.reducedMotion ? 0 : clamp(Number(options.scrollProgress) || 0, 0, 1);
   const current = journalCurrent(seconds);
+  const viewport = options.viewport;
+  const visible = (top, bottom) => !viewport || bottom >= viewport.top && top <= viewport.bottom;
+  const stoneVisible = stone => visible(stone.floor - stone.height * 1.1 - stone.radius * .15 - 2,
+    stone.floor + stone.radius * .15 + 2);
   ctx.clearRect(0, 0, width, height);
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (const p of scene.particles) {
     const x = wrap(p.x + seconds * p.speed * .25 + noise(seconds * .05, p.seed) * 11, width + 20) - 10;
     const y = wrap(p.y + seconds * p.speed + noise(seconds * .03, p.seed + 9) * 7, height + 20) - 10;
+    if (!visible(y - p.size - 1, y + p.size + 1)) continue;
     ctx.globalAlpha = p.alpha;
     ctx.fillStyle = '#A8BDF7';
     ctx.beginPath(); ctx.arc(x, y, p.size, 0, TAU); ctx.fill();
   }
-  drawJournalJelly(ctx, width, height, seconds, { compact: scene.compact, reducedMotion: options.reducedMotion, current });
-  drawJournalSquid(ctx, width, height, seconds, { compact: scene.compact, reducedMotion: options.reducedMotion, scrollProgress: scroll });
-  drawDeepFish(ctx, scene, seconds, current, scroll);
-  for (const habitat of scene.habitats) drawHabitatStone(ctx, habitat.stone, scene.compact);
-  for (const frond of scene.fronds) drawFrond(ctx, frond, seconds, current, scene.compact);
+  drawJournalJelly(ctx, width, height, seconds, { compact: scene.compact, reducedMotion: options.reducedMotion, current, viewport });
+  drawJournalSquid(ctx, width, height, seconds, { compact: scene.compact, reducedMotion: options.reducedMotion, scrollProgress: scroll, viewport });
+  drawDeepFish(ctx, scene, seconds, current, scroll, viewport);
+  for (const habitat of scene.habitats) if (stoneVisible(habitat.stone)) drawHabitatStone(ctx, habitat.stone, scene.compact);
+  for (const frond of scene.fronds) {
+    // Arc length bounds every bent spine; the extra width covers both leaf edges.
+    const reach = frond.length + (frond.width + .2) / .89 + 2;
+    if (visible(frond.rootY - reach, frond.rootY + reach)) drawFrond(ctx, frond, seconds, current, scene.compact);
+  }
   for (const habitat of scene.habitats) {
-    drawHoldfast(ctx, habitat, scene.compact);
-    for (const stone of habitat.cover) drawHabitatStone(ctx, stone, scene.compact);
+    if (visible(habitat.rootY - 2, habitat.stone.floor + 2)) drawHoldfast(ctx, habitat, scene.compact);
+    for (const stone of habitat.cover) if (stoneVisible(stone)) drawHabitatStone(ctx, stone, scene.compact);
   }
   ctx.restore();
 }

@@ -8,6 +8,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "check": "node scripts/build.mjs --check",
+    "check:artwork": "node --experimental-vm-modules --test scripts/check-*.mjs",
     "dev": "node scripts/dev.mjs",
     "artwork:building": "node scripts/export-building.mjs"
   }

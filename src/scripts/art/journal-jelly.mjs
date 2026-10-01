@@ -90,6 +90,10 @@ export function jellyGeometry(time = 0, compact = false, current = 0) {
 export function drawJournalJelly(ctx, width, height, time = 0, options = {}) {
   if (!ctx || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
   const pose = jellyPose(width, height, time, options);
+  // The longest fixed-length filament is 6.8 bell radii; its root and projection
+  // fit within nine radii for every pulse, tilt and current.
+  const reach = pose.radius * 9 + 2;
+  if (options.viewport && (pose.y + reach < options.viewport.top || pose.y - reach > options.viewport.bottom)) return;
   const current = options.reducedMotion ? 0 : Number(options.current) || 0;
   const geometry = jellyGeometry(pose.seconds, pose.compact, current);
   const cos = Math.cos(pose.tilt), sin = Math.sin(pose.tilt);

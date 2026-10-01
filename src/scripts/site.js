@@ -5,6 +5,8 @@ const coralName = document.querySelector('[data-coral-name]');
 let frame = 0;
 let lastTime = 0;
 let updateApproach = () => {};
+let journalState;
+let journalViewportDirty = true;
 const artworkLoaders = {
   wave: () => import('./art/wave.mjs'),
   research: () => import('./art/research.mjs'),
@@ -20,6 +22,16 @@ function artworkFailed(state, error) {
   state.host.classList.remove('art-ready');
   state.host.classList.add('art-failed');
   console.error(`Unable to display ${state.kind} artwork:`, error);
+}
+
+function updateJournalViewport() {
+  if (!journalState || !journalViewportDirty) return;
+  journalViewportDirty = false;
+  const rect = journalState.canvas.getBoundingClientRect();
+  const margin = Math.max(180, innerHeight * .3);
+  journalState.viewport = { top: -rect.top - margin, bottom: innerHeight - rect.top + margin };
+  const heading = journalState.heading?.getBoundingClientRect();
+  journalState.headingVisible = !heading || heading.bottom >= -120 && heading.top <= innerHeight + 120;
 }
 
 async function warmReefArtwork(state) {
@@ -63,7 +75,8 @@ function paint(state, dt = 0) {
   if (!state.loaded || state.failed || !w || !h) return;
   if (kind === 'reef' && !state.reefReady) return;
   try {
-    ctx.clearRect(0, 0, w, h);
+    // The reef and journal renderers own their clear, including direct gallery use.
+    if (kind !== 'reef' && kind !== 'journal-water') ctx.clearRect(0, 0, w, h);
     if (!motion.matches) state.time += dt;
     if (state.pointer) {
       const blend = 1 - Math.exp(-dt * 9);
@@ -84,8 +97,10 @@ function paint(state, dt = 0) {
       }
     }
     if (kind === 'journal-water') {
-      state.art.drawJournalWater(ctx, w, h, state.time, options);
-      state.updateJournalLettering(state.time, options);
+      updateJournalViewport();
+      // A reduced-motion canvas is a complete still, so scrolling needs no repaint.
+      state.art.drawJournalWater(ctx, w, h, state.time, { ...options, viewport: motion.matches ? undefined : state.viewport });
+      if (state.headingVisible || motion.matches) state.updateJournalLettering(state.time, options);
     }
     if (kind === 'coral') {
       state.art.drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
@@ -131,6 +146,10 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   try { ctx = canvas.getContext('2d'); } catch (error) { artworkFailed(state, error); continue; }
   if (!ctx) { artworkFailed(state, new Error('Canvas is unavailable.')); continue; }
   state.ctx = ctx;
+  if (state.kind === 'journal-water') {
+    journalState = state;
+    state.heading = document.querySelector('.journal-opening h1');
+  }
   canvas.addEventListener('contextlost', () => artworkFailed(state, new Error('Canvas context was lost.')));
   if (state.kind === 'approach') {
     const figure = canvas.closest('[data-approach-figure]');
@@ -165,6 +184,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (state.kind === 'journal-water') journalViewportDirty = true;
       if (state.kind === 'reef' && state.loaded) warmReefArtwork(state);
       else paint(state);
     } catch (error) { artworkFailed(state, error); }
@@ -172,6 +192,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(entries => {
     state.visible = entries[0].isIntersecting;
+    if (state.kind === 'journal-water') journalViewportDirty = true;
     lastTime = 0;
     if (state.visible && state.kind !== 'reef') paint(state);
     schedule();
@@ -335,9 +356,11 @@ if (building && svg) import('./art/building.mjs').then(module => {
 
 const gauge = document.querySelector('.depth-gauge');
 function onScroll() {
+  journalViewportDirty = true;
   if (scrollFrame) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
+    updateJournalViewport();
     renderBuilding();
     updateApproach();
     if (!gauge) return;
@@ -349,8 +372,11 @@ function onScroll() {
     gauge.style.color = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
   });
 }
-addEventListener('scroll', onScroll, { passive: true });
-addEventListener('resize', onScroll);
+const tracksScroll = Boolean(building || gauge || journalState || document.querySelector('[data-approach]'));
+if (tracksScroll) {
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll);
+}
 motion.addEventListener('change', () => {
   cancelAnimationFrame(frame);
   frame = 0;
@@ -369,6 +395,7 @@ document.addEventListener('visibilitychange', () => {
     canvasStates.filter(state => state.kind === 'reef' && !state.reefReady).forEach(state => state.reefRevision = (state.reefRevision || 0) + 1);
   } else {
     lastTime = 0;
+    journalViewportDirty = true;
     canvasStates.filter(state => state.kind === 'reef' && state.loaded && !state.reefReady).forEach(warmReefArtwork);
     schedule();
   }
@@ -382,4 +409,4 @@ if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs')
 if (document.querySelector('#team-question')) import('./team.mjs')
   .then(({ initTeam }) => initTeam())
   .catch(error => console.error('Unable to initialise the team examples:', error));
-onScroll();
+if (tracksScroll) onScroll();

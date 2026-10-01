@@ -69,7 +69,8 @@ function fishMesh(grenadier) {
   const eyeLine = add(eyeRing);
   const photophores = grenadier ? [] : [
     [.31,.088,.058],[.23,.109,.056],[.12,.12,.052],[.02,.11,.048],[-.08,.098,.042],[-.19,.077,.035],[-.29,.043,.025]];
-  return {vertices,lines,outline,eyeLine,eye,photophores,grenadier};
+  const bounds = [0, 1, 2].map(axis => Math.max(...vertices.map(point => Math.abs(point[axis]))));
+  return {vertices,lines,outline,eyeLine,eye,photophores,grenadier,bounds};
 }
 const LANTERNFISH = fishMesh(false), GRENADIER = fishMesh(true);
 const FISH = [
@@ -80,7 +81,7 @@ const FISH = [
 ];
 
 /** Three lanternfish and a bottom-associated rattail; two lanternfish on phones. */
-export function drawDeepFish(ctx, scene, time = 0, current = 0, scroll = 0) {
+export function drawDeepFish(ctx, scene, time = 0, current = 0, scroll = 0, viewport) {
   const {width,height,compact,size} = scene;
   ctx.save(); ctx.strokeStyle='#B5C4DF'; ctx.fillStyle='#C5D7EF';
   for (const [index,item] of FISH.entries()) {
@@ -96,6 +97,9 @@ export function drawDeepFish(ctx, scene, time = 0, current = 0, scroll = 0) {
     const alpha=item.opacity*quiet;
     const yaw=.28+.12*Math.sin(time*.07+item.phase),cy=Math.cos(yaw),sy=Math.sin(yaw);
     const pitch=.02*current+.025*Math.cos(time*.12+item.phase),cp=Math.cos(pitch),sp=Math.sin(pitch);
+    const [bx,by,bz]=item.mesh.bounds,depth=bz+.075;
+    const reach=((bx*Math.abs(cy)+depth*Math.abs(sy))*Math.abs(sp)+(by+depth*.24)*Math.abs(cp))*length+2;
+    if(viewport && (y+reach<viewport.top || y-reach>viewport.bottom)) continue;
     const project=([px,py,pz])=>{
       const tail=clamp((.23-px)/(item.mesh.grenadier?1.25:.85),0,1)**1.8;
       pz+=tail*(item.mesh.grenadier?.075:.07)*Math.sin(time*(item.mesh.grenadier?1.8:3.1)+px*5+item.phase);

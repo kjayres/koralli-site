@@ -179,9 +179,17 @@ export function drawJournalSquid(ctx, width, height, seconds = 0, options = {}) 
   if (!ctx || !Number.isFinite(width + height) || width <= 0 || height <= 0) return;
   const pose = squidPose(width, height, seconds, options);
   if (!pose.active) return;
-  const compact = options.compact ?? false, geometry = squidGeometry(pose.time, compact);
+  const compact = options.compact ?? false;
   const cy = Math.cos(pose.yaw), sy = Math.sin(pose.yaw), cr = Math.cos(pose.roll), sr = Math.sin(pose.roll);
   const cp = Math.cos(pose.pitch), sp = Math.sin(pose.pitch);
+  // Local bounds include the longest feeding tentacle, fixed-length curled arms,
+  // tube radii and suckers. Project the box before constructing any live geometry.
+  const vertical = [cy * sp - sy * .26 * cp,
+    sr * sy * sp + (cr * .965 + sr * cy * .26) * cp,
+    cr * sy * sp + (-sr * .965 + cr * cy * .26) * cp];
+  const reach = (1.94 * Math.abs(vertical[0]) + .92 * Math.abs(vertical[1]) + .92 * Math.abs(vertical[2])) * pose.scale + 2;
+  if (options.viewport && (pose.y + reach < options.viewport.top || pose.y - reach > options.viewport.bottom)) return;
+  const geometry = squidGeometry(pose.time, compact);
   const project = ([x, y, z]) => {
     const ry = y * cr - z * sr, rz = y * sr + z * cr;
     const px = x * cy + rz * sy, py = ry * .965 + (rz * cy - x * sy) * .26;
