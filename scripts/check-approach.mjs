@@ -4,6 +4,7 @@ import { createApproachScene, updateApproachScene, approachPresentation, drawApp
 import { researchTargets, RESEARCH_FORM_COUNT } from '../src/scripts/art/research.mjs';
 
 const costs = [];
+const sizes = process.argv.includes('--visual-only') ? [] : [400, 240, 418, 224, 260];
 const positions = scene => scene.field.particles.map(({ x, y }) => [x, y]);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -26,7 +27,7 @@ function groundedPile(scene) {
   assert.ok(scene.field.supported.every(Boolean), 'Resting particles must connect to the floor through contacts');
 }
 
-for (const size of [400, 240]) {
+for (const size of sizes) {
   const scene = createApproachScene(size, size);
   const originals = [...scene.field.particles];
   const originalHomes = scene.homes.map(p => ({ ...p }));
@@ -51,7 +52,13 @@ for (const size of [400, 240]) {
   assert.deepEqual(positions(scene), originalHomes.map(({ x, y }) => [x, y]));
   changePhase(1);
   advance(3.3);
+  for (let frame = 0; !scene.field.resting && frame < 8 * 60; frame++) {
+    assert.ok(scene.field.particles.every(p => p.attraction === 0), 'The initial pile must settle before attraction begins');
+    advance(1 / 60);
+  }
   groundedPile(scene);
+  assert.ok(scene.age >= 3.3 - .00001, 'The initial fall must retain its minimum settling interval');
+  const initialSettledAt = clock - 1, rollovers = [];
 
   for (let form = 0; form < RESEARCH_FORM_COUNT; form++) {
     advance(5.8);
@@ -67,6 +74,7 @@ for (const size of [400, 240]) {
       if (scene.field.resting) { groundedPile(scene); settled = true; }
       if (approachPresentation(scene).form !== form) {
         assert.ok(released && settled && wasResting, 'Each tool must fall into a settled pile before the next one forms');
+        rollovers.push((clock - 1).toFixed(2));
         changed = true;
         break;
       }
@@ -105,13 +113,21 @@ for (const size of [400, 240]) {
     assert.equal(scene.age, age);
     finiteAndContained(scene, originals);
   }
+  console.log(`${size}px: initial settled pile at ${initialSettledAt.toFixed(2)}s; four rollovers at ${rollovers.join(', ')}s.`);
 }
 
 // Record canvas geometry to check the visible lens dwell and coral connections.
 function recorder() {
   const ctx = {
-    strokes: [], arcs: [], labels: [], path: [],
-    save() {}, restore() {}, clip() {}, fill() {}, closePath() {},
+    strokes: [], arcs: [], labels: [], path: [], fills: [], stack: [],
+    fillStyle: '#000000', strokeStyle: '#000000', globalAlpha: 1, clipPath: null,
+    save() {
+      this.stack.push({ fillStyle: this.fillStyle, strokeStyle: this.strokeStyle, globalAlpha: this.globalAlpha, clipPath: this.clipPath });
+    },
+    restore() { assert.ok(this.stack.length, 'Canvas restores must match saves'); Object.assign(this, this.stack.pop()); },
+    clip() { this.clipPath = this.path; },
+    fill() { this.fills.push({ path: this.path, style: this.fillStyle, alpha: this.globalAlpha, clip: this.clipPath }); },
+    closePath() {},
     beginPath() { this.path = []; },
     arc(x, y, radius, start, end) {
       assert.ok([x, y, radius, start, end].every(Number.isFinite) && radius > 0);
@@ -120,28 +136,74 @@ function recorder() {
     },
     moveTo(x, y) { assert.ok(Number.isFinite(x) && Number.isFinite(y)); this.path.push({ x, y }); },
     lineTo(x, y) { assert.ok(Number.isFinite(x) && Number.isFinite(y)); this.path.push({ x, y }); },
+    bezierCurveTo(x1, y1, x2, y2, x, y) {
+      assert.ok([x1, y1, x2, y2, x, y].every(Number.isFinite));
+      this.path.push({ x, y, curve: [x1, y1, x2, y2] });
+    },
     fillRect(...values) { assert.ok(values.every(Number.isFinite)); },
     measureText(text) { return { width: text.length * 5 }; },
     fillText(text) { this.labels.push(text); },
     stroke() { this.strokes.push(this.path); },
-    reset() { this.strokes = []; this.arcs = []; this.labels = []; this.path = []; },
+    reset() {
+      assert.equal(this.stack.length, 0, 'Drawing must restore its canvas state');
+      this.strokes = []; this.arcs = []; this.labels = []; this.path = []; this.fills = [];
+    },
   };
   return ctx;
 }
 
-const lensCtx = recorder(), lensSamples = [];
-for (let frame = 0; frame <= 408; frame++) {
+function checkMagnification(ctx, lens, reference, selected, revealed) {
+  const grains = ctx.fills.filter(fill => fill.clip && fill.path.length === 1 && fill.path[0].arc && /^rgba\(36,78,255,/.test(fill.style));
+  assert.ok(grains.length > 5, 'The lens must continue to show the surrounding grain field');
+  const magnification = 1.55;
+  const expected = reference.field.particles.map(p => ({
+    id: p.id,
+    x: lens.x + (200 + p.x * reference.field.bounds.scale - lens.x) * magnification,
+    y: lens.y + (200 + p.y * reference.field.bounds.scale - lens.y) * magnification,
+    radius: p.radius * reference.field.bounds.grainSize * magnification,
+  })).filter(p => distance(p, lens) <= lens.radius + 1e-9);
+  assert.equal(grains.length, expected.length, 'The object reveal must preserve every surrounding magnified grain');
+  for (const grain of grains) {
+    const point = grain.path[0].arc;
+    const source = expected.find(p => distance(p, point) < 1e-8);
+    assert.ok(source, 'Magnified positions must derive from the original field');
+    assert.ok(Math.abs(point.radius - source.radius) < 1e-9, 'The lens must enlarge grain radii as well as their spacing');
+    const opacity = Number(grain.style.match(/^rgba\(36,78,255,([^)]*)\)$/)[1]) * grain.alpha;
+    const expectedOpacity = source.id === selected && revealed ? 0 : reference.opacity;
+    assert.ok(Math.abs(opacity - expectedOpacity) < 1e-9, 'Only the selected central grain may fade during the object reveal');
+  }
+  if (revealed) assert.ok(expected.some(p => p.id === selected && distance(p, lens) < 1e-8), 'The dimensional object must replace the selected central grain');
+}
+
+const lensCtx = recorder(), lensSamples = [], iconSamples = [];
+const referenceField = createApproachScene(400, 400);
+const dwellFrames = [168, 294, 408], objectFrames = [192, 432, 672, 912, 1152], travelFrames = [120, 153];
+for (let frame = 0; frame <= 1152; frame++) {
   lensCtx.reset();
   drawApproach(lensCtx, 400, 400, frame / 60, { phase: 0 });
-  if ([168, 294, 408].includes(frame)) {
-    const lens = lensCtx.strokes.find(path => path.length === 1 && path[0].arc)?.[0].arc;
+  if ([...dwellFrames, ...objectFrames, ...travelFrames].includes(frame)) {
+    const lensPath = lensCtx.strokes.filter(path => path.length === 1 && path[0].arc)
+      .reduce((largest, path) => !largest || path[0].arc.radius >= largest[0].arc.radius ? path : largest, null);
+    const lens = lensPath?.[0].arc;
     assert.ok(lens, 'Go & See must show a magnifying glass');
-    lensSamples.push({ ...lens, label: lensCtx.labels.at(-1) });
+    if (dwellFrames.includes(frame)) lensSamples.push({ ...lens, label: lensCtx.labels.at(-1) });
+    if (objectFrames.includes(frame)) {
+      const paths = lensCtx.strokes.filter(path => path !== lensPath).map(path => path.map(point => {
+        const p = point.arc || point;
+        return [(p.x - lens.x).toFixed(2), (p.y - lens.y).toFixed(2), p.radius?.toFixed(2)];
+      }));
+      iconSamples.push({ label: lensCtx.labels.at(-1), paths: JSON.stringify(paths) });
+      const selected = referenceField.inspections[objectFrames.indexOf(frame)].id;
+      checkMagnification(lensCtx, lens, referenceField, selected, true);
+    }
+    if (travelFrames.includes(frame)) checkMagnification(lensCtx, lens, referenceField, referenceField.inspections[0].id, false);
   }
 }
 assert.ok(distance(lensSamples[0], lensSamples[1]) < 1e-9, 'The lens must pause on one dot for at least two seconds');
 assert.notEqual(lensSamples[0].label, lensSamples[2].label, 'The lens must move on to another inspection');
 assert.ok(distance(lensSamples[1], lensSamples[2]) > 20);
+assert.deepEqual(iconSamples.map(sample => sample.label), ['People', 'Processes', 'Decisions', 'Records', 'Relationships']);
+assert.equal(new Set(iconSamples.map(sample => sample.paths)).size, 5, 'Every lens inspection must reveal distinct icon geometry');
 
 const coralCtx = recorder(), coralScene = createApproachScene(400, 400);
 drawApproach(coralCtx, 400, 400, 0, { phase: 2, reducedMotion: true });
@@ -158,7 +220,10 @@ coralCtx.strokes.forEach((path, i) => {
 const nodeArcs = coralCtx.arcs.slice(-ids.length);
 nodeArcs.forEach((arc, i) => assert.ok(distance(arc, project(ids[i])) < 1e-9));
 
-costs.sort((a, b) => a - b);
-const percentile = p => costs[Math.floor((costs.length - 1) * p)].toFixed(2);
-console.log(`Our Work checked at 400px and 240px: one particle population, grounded releases, ${RESEARCH_FORM_COUNT} tool forms, grey return, coral anchors, reversing, resizing, lens dwell and reduced motion.`);
-console.log(`Update CPU time: median ${percentile(.5)}ms; 95th percentile ${percentile(.95)}ms; maximum ${costs.at(-1).toFixed(2)}ms. Canvas rasterisation is not included.`);
+console.log('Canvas sequence checked: magnified grain field during travel and all five object reveals, central grain replacement, distinct dimensional objects, lens dwell and coral anchors.');
+if (costs.length) {
+  costs.sort((a, b) => a - b);
+  const percentile = p => costs[Math.floor((costs.length - 1) * p)].toFixed(2);
+  console.log(`Our Work checked at ${sizes.join('/')}px: one particle population, grounded releases, ${RESEARCH_FORM_COUNT} tool forms, grey return, reversing, resizing and reduced motion.`);
+  console.log(`Update CPU time: median ${percentile(.5)}ms; 95th percentile ${percentile(.95)}ms; maximum ${costs.at(-1).toFixed(2)}ms. Canvas rasterisation is not included.`);
+}

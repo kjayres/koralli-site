@@ -1,5 +1,6 @@
 import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs';
 import { coralStudies } from './coral.mjs';
+import { drawInspectionObject } from './inspection-objects.mjs';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));
@@ -15,6 +16,12 @@ const INSPECTIONS = [
   { u: .50, v: .45, label: 'Relationships' },
 ];
 
+function approachBounds(width, height) {
+  const bounds = researchBounds(width, height);
+  bounds.grainSize = Math.max(1, bounds.grainSize * 1.35);
+  return bounds;
+}
+
 function placeHomes(scene, bounds) {
   scene.homes = scene.locations.map(({ u, v }) => ({
     x: (u - .5) * bounds.halfWidth * 2,
@@ -24,7 +31,7 @@ function placeHomes(scene, bounds) {
 
 /** One population, with permanent homes shared by the suspended field and coral. */
 export function createApproachScene(width, height) {
-  const field = createParticleField(researchBounds(width, height));
+  const field = createParticleField(approachBounds(width, height));
   const locations = [], anchorMap = new Map();
   const studies = coralStudies.map(study => ({
     study,
@@ -46,7 +53,7 @@ export function createApproachScene(width, height) {
     const i = locations.length;
     locations.push({ u: .06 + random(i + 73) * .88, v: .07 + random(i + 421) * .85 });
   }
-  const scene = { field, locations, studies, inspections, width, height, phase: 0, age: 0, elapsed: 0, last: null, grey: 0, opacity: .36, reducedMotion: false };
+  const scene = { field, locations, studies, inspections, width, height, phase: 0, age: 0, elapsed: 0, last: null, grey: 0, opacity: .48, reducedMotion: false };
   placeHomes(scene, field.bounds);
   field.particles.forEach((p, i) => Object.assign(p, scene.homes[i], { vx: 0, vy: 0 }));
   return scene;
@@ -75,7 +82,7 @@ export function updateApproachScene(scene, width, height, seconds, { phase = 0, 
   const dt = scene.last === null ? 0 : clamp(time - scene.last, 0, .1);
   scene.last = time;
   if (scene.width !== width || scene.height !== height) {
-    const bounds = researchBounds(width, height);
+    const bounds = approachBounds(width, height);
     resizeParticleField(scene.field, bounds);
     placeHomes(scene, bounds);
     scene.width = width;
@@ -99,12 +106,12 @@ export function updateApproachScene(scene, width, height, seconds, { phase = 0, 
     scene.field.particles.forEach((p, i) => Object.assign(p, points[i], { vx: 0, vy: 0, asleep: false, sleepTime: 0 }));
     scene.field.resting = false;
     scene.grey = scene.phase === 2 ? 1 : 0;
-    scene.opacity = scene.phase === 1 ? 1 : scene.phase === 2 ? .25 : .36;
+    scene.opacity = scene.phase === 1 ? 1 : scene.phase === 2 ? .30 : .48;
     return scene;
   }
   const blend = 1 - Math.exp(-dt * 3);
   scene.grey += ((scene.phase === 2 ? 1 : 0) - scene.grey) * blend;
-  scene.opacity += ((scene.phase === 1 ? 1 : scene.phase === 2 ? .25 : .36) - scene.opacity) * blend;
+  scene.opacity += ((scene.phase === 1 ? 1 : scene.phase === 2 ? .30 : .48) - scene.opacity) * blend;
   if (scene.phase === 1) {
     const { form, cycle } = approachPresentation(scene);
     const age = cycle % 11;
@@ -129,49 +136,71 @@ function lensPosition(scene) {
   const b = project(scene, scene.field.particles[current.id]);
   const a = cycle === 0 ? { x: scene.width * .12, y: scene.height * .17 } : project(scene, scene.field.particles[previous.id]);
   const progress = scene.reducedMotion ? 1 : smooth(local / 1.4);
-  return { x: a.x + (b.x - a.x) * progress, y: a.y + (b.y - a.y) * progress, current, settled: local >= 1.4 || scene.reducedMotion };
+  const reveal = scene.reducedMotion ? 1 : smooth((local - 1.4) / .28) * (1 - smooth((local - 3.7) / .3));
+  return { x: a.x + (b.x - a.x) * progress, y: a.y + (b.y - a.y) * progress, current, reveal, settled: local >= 1.4 || scene.reducedMotion };
+}
+
+function lensHandle(ctx, x, y, radius, depth = 0) {
+  const d = Math.SQRT1_2, half = Math.max(2.5, radius * .085);
+  const a = { x: x + (radius + half) * d + depth * .6, y: y + (radius + half) * d + depth };
+  const b = { x: x + radius * 1.70 * d + depth * .6, y: y + radius * 1.70 * d + depth };
+  const nx = -d * half, ny = d * half;
+  ctx.beginPath(); ctx.moveTo(a.x + nx, a.y + ny); ctx.lineTo(b.x + nx, b.y + ny);
+  ctx.arc(b.x, b.y, half, Math.PI * .75, -Math.PI * .25, true);
+  ctx.lineTo(a.x - nx, a.y - ny);
+  ctx.arc(a.x, a.y, half, -Math.PI * .25, Math.PI * .75, true);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
 }
 
 function drawLens(ctx, scene) {
   const opacity = scene.reducedMotion ? 1 : smooth((scene.age - .9) / .4);
   if (!opacity) return;
   const lens = lensPosition(scene);
-  const radius = clamp(scene.width * .087, 20, 37);
+  const radius = clamp(scene.width * .102, 24, 43);
+  const rim = Math.max(1.8, radius * .062), depth = Math.max(1.7, radius * .075);
+  ctx.save(); ctx.globalAlpha = opacity;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#244eff'; ctx.lineWidth = .85;
+  ctx.fillStyle = '#e8eaf0';
+  lensHandle(ctx, lens.x, lens.y, radius, depth);
+  // Two offset faces give the rim a shallow cylindrical edge.
+  ctx.beginPath(); ctx.arc(lens.x + depth * .6, lens.y + depth, radius, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#f3f0e8';
+  ctx.beginPath(); ctx.arc(lens.x, lens.y, radius, 0, TAU); ctx.fill();
   ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.beginPath(); ctx.arc(lens.x, lens.y, radius, 0, TAU); ctx.clip();
-  ctx.fillStyle = '#f3f0e8'; ctx.fillRect(lens.x - radius, lens.y - radius, radius * 2, radius * 2);
-  const neighbours = [];
+  ctx.beginPath(); ctx.arc(lens.x, lens.y, radius - rim, 0, TAU); ctx.clip();
+  const magnification = 1.55;
   for (const p of scene.field.particles) {
     const point = project(scene, p);
-    const dx = point.x - lens.x, dy = point.y - lens.y;
+    const dx = (point.x - lens.x) * magnification, dy = (point.y - lens.y) * magnification;
     if (Math.hypot(dx, dy) > radius) continue;
-    const x = lens.x + dx * 1.45, y = lens.y + dy * 1.45;
-    ctx.fillStyle = 'rgba(36,78,255,.68)';
-    dot(ctx, x, y, p.radius * scene.field.bounds.grainSize * 1.35);
-    if (p.id % 9 === 0) neighbours.push({ x, y });
+    // The field stays magnified throughout. Only the inspected grain becomes an object.
+    const alpha = scene.opacity * (p.id === lens.current.id ? 1 - lens.reveal : 1);
+    ctx.fillStyle = `rgba(36,78,255,${alpha})`;
+    dot(ctx, lens.x + dx, lens.y + dy, p.radius * scene.field.bounds.grainSize * magnification);
   }
-  ctx.strokeStyle = 'rgba(36,78,255,.24)'; ctx.lineWidth = .55;
-  for (const p of neighbours.slice(0, 5)) { ctx.beginPath(); ctx.moveTo(lens.x, lens.y); ctx.lineTo(p.x, p.y); ctx.stroke(); }
-  if (lens.settled) { ctx.fillStyle = '#244eff'; dot(ctx, lens.x, lens.y, 2.2); }
+  if (lens.reveal > 0) {
+    ctx.globalAlpha = opacity * lens.reveal;
+    drawInspectionObject(ctx, lens.x, lens.y, (radius - rim) * (.2 + .8 * lens.reveal), lens.current.label);
+  }
   ctx.restore();
-  ctx.save(); ctx.globalAlpha = opacity;
-  ctx.strokeStyle = '#244eff'; ctx.lineWidth = 1.25; ctx.lineCap = 'round';
+  ctx.lineWidth = 1.05;
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius, 0, TAU); ctx.stroke();
-  const diagonal = Math.SQRT1_2, half = Math.max(2.2, radius * .075);
-  const a = { x: lens.x + (radius + half) * diagonal, y: lens.y + (radius + half) * diagonal };
-  const b = { x: lens.x + radius * 1.68 * diagonal, y: lens.y + radius * 1.68 * diagonal };
-  const nx = -diagonal * half, ny = diagonal * half;
-  ctx.lineWidth = 1.05; ctx.fillStyle = '#f3f0e8';
-  ctx.beginPath(); ctx.moveTo(a.x + nx, a.y + ny); ctx.lineTo(b.x + nx, b.y + ny);
-  ctx.arc(b.x, b.y, half, Math.PI * .75, -Math.PI * .25, true);
-  ctx.lineTo(a.x - nx, a.y - ny);
-  ctx.arc(a.x, a.y, half, -Math.PI * .25, Math.PI * .75, true);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.lineWidth = .65;
+  ctx.beginPath(); ctx.arc(lens.x, lens.y, radius - rim, 0, TAU); ctx.stroke();
+  // Sparse cross-edges describe the thickness without turning the lens into a symbol.
+  ctx.lineWidth = .5;
+  for (const angle of [0, Math.PI / 4, Math.PI / 2]) {
+    const x = lens.x + Math.cos(angle) * radius, y = lens.y + Math.sin(angle) * radius;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + depth * .6, y + depth); ctx.stroke();
+  }
+  ctx.lineWidth = .9; ctx.fillStyle = '#f3f0e8';
+  lensHandle(ctx, lens.x, lens.y, radius);
   if (lens.settled) {
+    ctx.globalAlpha = opacity * lens.reveal;
     ctx.font = '400 9px "IBM Plex Mono", monospace';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    const labelX = clamp(lens.x, 48, scene.width - 48), labelY = lens.y + radius + 14;
+    const labelX = clamp(lens.x, 48, scene.width - 48), labelY = lens.y + radius + depth + 13;
     const labelWidth = ctx.measureText(lens.current.label).width + 12;
     ctx.fillStyle = '#f3f0e8'; ctx.fillRect(labelX - labelWidth / 2, labelY - 3, labelWidth, 15);
     ctx.fillStyle = '#244eff'; ctx.fillText(lens.current.label, labelX, labelY);

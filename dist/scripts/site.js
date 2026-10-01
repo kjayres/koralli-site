@@ -117,7 +117,9 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
     hero.addEventListener('pointerleave', () => { state.pointerTarget.strength = 0; });
   }
   const resize = () => {
-    const rect = canvas.parentElement.getBoundingClientRect();
+    const rect = state.kind === 'approach'
+      ? { width: canvas.parentElement.clientWidth, height: canvas.parentElement.clientHeight }
+      : canvas.parentElement.getBoundingClientRect();
     state.w = rect.width;
     state.h = rect.height;
     const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : 2);

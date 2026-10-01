@@ -9,7 +9,7 @@
 .approach-section>h2 { margin-top:30px; max-width:650px; }
 .approach-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,420px); column-gap:clamp(45px,8vw,115px); align-items:start; margin-top:65px; }
 .approach-figure { grid-column:2; grid-row:1; position:sticky; top:clamp(55px,14svh,150px); width:100%; margin:0; align-self:start; }
-.approach-frame { position:relative; width:100%; aspect-ratio:1; overflow:hidden; border:1px solid #b1b5c0; border-bottom-color:#6f7b9c; background:var(--paper); }
+.approach-frame { position:relative; width:100%; aspect-ratio:1; overflow:hidden; border:1.5px solid #909bb4; border-bottom-color:#667494; background:var(--paper); }
 .approach-frame canvas { display:block; position:absolute; inset:0; width:100%; height:100%; }
 .approach-figure figcaption { display:flex; flex-direction:column; gap:7px; min-height:49px; padding-top:15px; }
 .approach-figure .figure-caption { color:var(--blue); font-size:9px; letter-spacing:.11em; }
@@ -24,7 +24,7 @@
 .approach-step:last-child { min-height:max(530px,65svh); padding-bottom:85px; }
 .approach-number { position:absolute; left:0; top:0; display:flex; justify-content:center; align-items:center; width:34px; height:34px; border:1px solid #899cd8; border-radius:50%; background:var(--paper); color:var(--blue); font:11px/1 var(--mono); transition:background-color .25s,color .25s,border-color .25s; }
 .approach-number[aria-current=step] { border-color:var(--blue); background:var(--blue); color:var(--paper); }
-.approach-number[aria-current=step]::after { content:''; position:absolute; top:14px; right:-16px; width:7px; height:4px; border-top:1px solid var(--blue); border-right:1px solid var(--blue); transform:rotate(45deg); }
+.approach-number[aria-current=step]::after { content:''; position:absolute; top:50%; right:-16px; width:7px; height:7px; border-top:1.25px solid var(--blue); border-right:1.25px solid var(--blue); transform:translateY(-50%) rotate(45deg); }
 .approach-copy .eyebrow { font-size:9px; letter-spacing:.12em; color:#696861; padding-top:2px; }
 .approach-copy h3 { margin:14px 0 19px; font-size:clamp(31px,3.1vw,44px); }
 .approach-copy p { max-width:435px; font-size:15px; color:#5c5b58; }
