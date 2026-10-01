@@ -231,17 +231,33 @@ function colourDepth(progress) {
   for (const [name, [start,end]] of Object.entries(colours)) chamber.style.setProperty(`--building-${name}`, mixColour(start,end,text));
 }
 
+function preserveReadingPosition(change) {
+  // Enhancing the building changes its height. Keep downstream reading/hash targets in place.
+  const following = building.getBoundingClientRect().bottom <= 0 ? building.nextElementSibling : null;
+  const before = following?.getBoundingClientRect().top;
+  try { return change(); }
+  finally {
+    if (following) {
+      // Measuring again accounts for any scroll anchoring the browser has already applied.
+      const delta = following.getBoundingClientRect().top - before;
+      if (Math.abs(delta) > .5) scrollTo({ top: scrollY + delta, behavior: 'instant' });
+    }
+  }
+}
+
 function buildingFailed(error) {
-  updateBuilding = undefined;
-  building.classList.remove('building-enhanced');
-  chamber.removeAttribute('style');
-  svg.innerHTML = buildingOriginal.content;
-  svg.setAttribute('viewBox', buildingOriginal.viewBox);
-  panels.forEach(panel => {
-    for (const name of ['opacity', 'visibility', 'transform']) panel.style.removeProperty(name);
-    panel.removeAttribute('aria-hidden');
+  preserveReadingPosition(() => {
+    updateBuilding = undefined;
+    building.classList.remove('building-enhanced');
+    chamber.removeAttribute('style');
+    svg.innerHTML = buildingOriginal.content;
+    svg.setAttribute('viewBox', buildingOriginal.viewBox);
+    panels.forEach(panel => {
+      for (const name of ['opacity', 'visibility', 'transform']) panel.style.removeProperty(name);
+      panel.removeAttribute('aria-hidden');
+    });
+    depths.forEach(button => { button.removeAttribute('aria-current'); button.classList.remove('visited'); });
   });
-  depths.forEach(button => { button.removeAttribute('aria-current'); button.classList.remove('visited'); });
   console.error('Unable to initialise the building artwork:', error);
 }
 
@@ -286,11 +302,13 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
 }));
 
 if (building && svg) import('./art/building.mjs').then(module => {
-  // First prove the renderer works while the complete static copy is still present.
-  module.updateBuilding(svg, 0, motion.matches);
-  updateBuilding = module.updateBuilding;
-  building.classList.add('building-enhanced');
-  renderBuilding(true);
+  preserveReadingPosition(() => {
+    // First prove the renderer works while the complete static copy is still present.
+    module.updateBuilding(svg, 0, motion.matches);
+    updateBuilding = module.updateBuilding;
+    building.classList.add('building-enhanced');
+    renderBuilding(true);
+  });
 }).catch(buildingFailed);
 
 const gauge = document.querySelector('.depth-gauge');
