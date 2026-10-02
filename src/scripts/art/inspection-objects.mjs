@@ -223,82 +223,44 @@ function human(ctx, x, y, scale) {
   drawVolume(ctx, x, y + 2 * scale, scale * .88, 'People');
 }
 
-/** Compact, shallow hand volumes. Scale uses the main icon family's 47-unit radius. */
+/*
+ * Handshake contours adapted from Lucide's handshake.svg with uniform scaling.
+ * https://github.com/lucide-icons/lucide/blob/main/icons/handshake.svg
+ * ISC License
+ *
+ * Copyright (c) 2026 Lucide Icons and Contributors
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+const handshakeLines = [[["M",-2.65,13.25],["L",2.65,18.55],["C",4.845,20.745,8.405,20.745,10.6,18.55],["C",12.795,16.355,12.795,12.795,10.6,10.6]],[["M",5.3,5.3],["L",11.925,11.925],["C",14.12,14.12,17.68,14.12,19.875,11.925],["C",22.07,9.73,22.07,6.17,19.875,3.975],["L",9.593,-6.307],["C",6.489,-9.407,1.461,-9.407,-1.643,-6.307],["L",-3.975,-3.975],["C",-6.17,-1.78,-9.73,-1.78,-11.925,-3.975],["C",-14.12,-6.17,-14.12,-9.73,-11.925,-11.925],["L",-4.478,-19.371],["C",0.495,-24.332,8.202,-25.282,14.231,-21.677],["L",15.476,-20.935],["C",16.604,-20.254,17.946,-20.018,19.239,-20.272],["L",23.85,-21.2]],[["M",23.85,-23.85],["L",26.5,5.3],["L",21.2,5.3]],[["M",-23.85,-23.85],["L",-26.5,5.3],["L",-9.275,22.525],["C",-7.08,24.72,-3.52,24.72,-1.325,22.525],["C",0.87,20.33,0.87,16.77,-1.325,14.575]],[["M",-23.85,-21.2],["L",-2.65,-21.2]]];
+const handshakeFaces = [[["M",-23.85,-21.2],["L",-2.65,-21.2],["L",-4.478,-19.371],["L",-11.925,-11.925],["C",-14.12,-9.73,-14.12,-6.17,-11.925,-3.975],["C",-9.73,-1.78,-6.17,-1.78,-3.975,-3.975],["L",-1.643,-6.307],["C",1.461,-9.407,6.489,-9.407,9.593,-6.307],["L",19.875,3.975],["C",22.07,6.17,22.07,9.73,19.875,11.925],["C",17.68,14.12,14.12,14.12,11.925,11.925],["L",10.6,10.6],["C",12.795,12.795,12.795,16.355,10.6,18.55],["C",8.405,20.745,4.845,20.745,2.65,18.55],["L",-1.325,14.575],["C",0.87,16.77,0.87,20.33,-1.325,22.525],["C",-3.52,24.72,-7.08,24.72,-9.275,22.525],["L",-26.5,5.3],["Z"]],[["M",23.85,-21.2],["L",19.239,-20.272],["C",17.946,-20.018,16.604,-20.254,15.476,-20.935],["L",14.231,-21.677],["C",8.202,-25.282,0.495,-24.332,-4.478,-19.371],["L",-11.925,-11.925],["C",-14.12,-9.73,-14.12,-6.17,-11.925,-3.975],["C",-9.73,-1.78,-6.17,-1.78,-3.975,-3.975],["L",-1.643,-6.307],["C",1.461,-9.407,6.489,-9.407,9.593,-6.307],["L",21.2,5.3],["L",26.5,5.3],["Z"]]];
+
 function handshake(ctx, x, y, scale) {
-  const alpha = ctx.globalAlpha;
-  const project = (u, v, z) => [x + (.94 * u + .2 * v) * scale, y + (.13 * u + .8 * v - z) * scale];
-  const path = (commands, z = 0) => {
-    ctx.beginPath();
-    for (const [op, ...coordinates] of commands) {
-      const points = [];
-      for (let i = 0; i < coordinates.length; i += 2) points.push(...project(coordinates[i], coordinates[i + 1], z));
-      if (op === 'M') ctx.moveTo(...points);
-      if (op === 'L') ctx.lineTo(...points);
-      if (op === 'C') ctx.bezierCurveTo(...points);
-      if (op === 'Z') ctx.closePath();
+  const p = pen(ctx, x, y, scale), alpha = ctx.globalAlpha;
+  ctx.save();
+  for (const [index, face] of handshakeFaces.entries()) {
+    p.path(face); ctx.fillStyle = index ? '#e8ecf7' : PAPER; ctx.fill();
+    if (!p.tiny) {
+      ctx.save(); ctx.clip(); ctx.fillStyle = INK;
+      for (const grain of grainShade) {
+        if (grain.y < 1 || grain.x < -18) continue;
+        ctx.globalAlpha = alpha * .10;
+        ctx.beginPath(); ctx.arc(x + grain.x * scale, y + grain.y * scale, Math.max(.12, grain.radius * scale), 0, TAU); ctx.fill();
+      }
+      ctx.restore();
     }
-  };
-  const line = (commands, z = 0, opacity = .82, weight = 1) => {
-    path(commands, z); ctx.strokeStyle = INK; ctx.globalAlpha = alpha * opacity;
-    ctx.lineWidth = (scale < .18 ? .22 : Math.max(.35, Math.min(.62, scale * .76))) * weight;
-    ctx.stroke(); ctx.globalAlpha = alpha;
-  };
-  const shape = (commands, z = 0, colour = PAPER) => {
-    path(commands, z); ctx.fillStyle = colour; ctx.fill(); line(commands, z);
-  };
-  const polygon = points => points.map((point, i) => [i ? 'L' : 'M', ...point]).concat([['Z']]);
-  const depthFace = (edge, height = 2.4) => {
-    const upper = edge.map(([u, v]) => project(u, v, height));
-    const lower = edge.map(([u, v]) => project(u, v, 0));
-    ctx.beginPath(); ctx.moveTo(...upper[0]);
-    for (const point of upper.slice(1)) ctx.lineTo(...point);
-    for (const point of lower.slice().reverse()) ctx.lineTo(...point);
-    ctx.closePath(); ctx.fillStyle = '#e3e9f7'; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(...upper[0]);
-    for (const point of lower) ctx.lineTo(...point);
-    ctx.lineTo(...upper.at(-1)); ctx.strokeStyle = INK;
-    ctx.globalAlpha = alpha * .64;
-    ctx.lineWidth = scale < .18 ? .18 : Math.max(.3, Math.min(.5, scale * .62));
-    ctx.stroke(); ctx.globalAlpha = alpha;
-  };
-  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-
-  // The rear hand joins its wrist and stays visible above the other palm.
-  shape([
-    ['M', 24, -8], ['L', 15, -13], ['L', 6, -13], ['L', -3, -8],
-    ['L', -9, -2], ['L', -9, 2], ['L', -5, 5], ['L', -1, 3],
-    ['L', 4, -1], ['L', 10, 3], ['L', 20, 11], ['L', 27, 4], ['Z'],
-  ], 1, '#edf0f8');
-
-  // One shallow side face joins the compact palm and stepped knuckles.
-  depthFace([[18, 12], [16, 14], [13, 14], [13, 17], [10, 19], [7, 19],
-    [7, 21], [4, 23], [1, 22], [-18, 8], [-24, 7]]);
-  const nearPalm = [
-    ['M', -25, -6], ['L', -17, -10], ['L', -11, -10], ['L', 16, 9],
-    ['C', 18, 10.5, 18.5, 12.2, 17, 13.4], ['L', 16, 14],
-    ['L', 13, 14], ['L', 13, 16.2], ['C', 13, 17.5, 11, 19, 10, 19],
-    ['L', 7, 19], ['L', 7, 20.5], ['C', 7, 22, 5, 23.5, 4, 23],
-    ['L', 1, 22], ['L', -18, 8], ['L', -24, 7], ['Z'],
-  ];
-  shape(nearPalm, 2.4);
-
-  // One overlapping thumb explains the clasp; its base remains part of the rear hand.
-  const thumb = [
-    ['M', 14, -10], ['L', 5, -11], ['L', -3, -6], ['L', -7.5, -1.5],
-    ['C', -10, 1, -7, 5, -4, 3], ['L', 1, -.4], ['C', 2.5, -1.4, 4, -.6, 5, .3],
-    ['L', 14.5, 7.4], ['C', 16, 8.5, 18, 7.8, 20, 7], ['L', 23, 3], ['Z'],
-  ];
-  shape(thumb, 3.5);
-  if (scale >= .18) {
-    line([['M', 13, 14], ['L', 5, 8.5]], 2.4, .64, .8);
-    line([['M', 7, 19], ['L', -1, 13]], 2.4, .64, .8);
   }
-
-  // Small chamfered wrists, with a single join across each palm.
-  depthFace([[-25, 1], [-22, 0], [-17, -9]]);
-  shape(polygon([[-32, -11], [-27, -17], [-17, -9], [-22, 0], [-25, 1], [-34, -7]]), 2.4);
-  depthFace([[24, 3], [30, 1], [33, -3]]);
-  shape(polygon([[23, -12], [28, -15], [33, -3], [30, 1], [24, 3], [19, -9]]), 2.4);
+  for (const line of handshakeLines) p.line(line, 1, .84);
   ctx.restore();
 }
 
