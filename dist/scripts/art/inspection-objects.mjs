@@ -66,115 +66,159 @@ function oval(cx, cy, rx, ry) {
   ];
 }
 
-const HUMAN_BODY = [
-  ['M', -1, -21], ['C', -5, -21, -9, -18, -10, -13], ['L', -13, 8],
-  ['C', -13.5, 11, -9.8, 12, -9.2, 8.5], ['L', -6.8, -6],
-  ['C', -6.1, -1, -6.2, 4, -6.2, 9], ['L', -6.5, 30.5],
-  ['C', -6.5, 34, -1.5, 34, -1.3, 30.5], ['L', -.6, 12],
-  ['C', -.5, 9, 1.2, 9, 1.4, 12], ['L', 1.9, 27],
-  ['C', 2, 30.5, 7, 30, 7, 26.5], ['L', 6.5, 5],
-  ['C', 6.4, 0, 6.5, -5, 7, -11], ['L', 9.5, 2.5],
-  ['C', 10, 6, 13.6, 5, 13.1, 1.7], ['L', 10.7, -18],
-  ['C', 10.2, -22, 7, -24, 4, -23], ['C', 2, -22.5, 1, -21, -1, -21], ['Z'],
-];
-
-// A continuous human contour with rounded limb and head shading, facing south-east.
+// Rounded volumes share the isometric ground plane; nearer limbs overlap the torso.
 function human(ctx, x, y, scale) {
-  const originY = y, p = pen(ctx, x, originY, scale);
+  const p = pen(ctx, x, y, scale), alpha = ctx.globalAlpha;
   const position = point => { const [px, py] = iso(point); return [px, py + 32]; };
-  const body = HUMAN_BODY, [hx, hy] = position([1.5, 0, 61]);
-  const head = oval(hx, hy, 6.1, 6.5);
   const paint = (commands, fill) => { p.path(commands); ctx.fillStyle = fill; ctx.fill(); };
-  const shade = (a, b, radius, sphere = false) => {
+  const gradient = (centre, radius, sphere = false) => {
+    if (p.tiny) return PAPER;
+    const [cx, cy] = centre;
     let fill = TINT;
     if (sphere && typeof ctx.createRadialGradient === 'function') {
-      fill = ctx.createRadialGradient(x + (a[0] - radius * .3) * scale, originY + (a[1] - radius * .35) * scale, 0, x + a[0] * scale, originY + a[1] * scale, radius * 1.2 * scale);
+      fill = ctx.createRadialGradient(x + (cx - radius * .35) * scale, y + (cy - radius * .4) * scale, 0, x + cx * scale, y + cy * scale, radius * 1.2 * scale);
     } else if (typeof ctx.createLinearGradient === 'function') {
-      fill = ctx.createLinearGradient(x + (a[0] - radius) * scale, originY + a[1] * scale, x + (a[0] + radius) * scale, originY + a[1] * scale);
+      fill = ctx.createLinearGradient(x + (cx - radius) * scale, y + cy * scale, x + (cx + radius) * scale, y + cy * scale);
     }
     if (typeof fill !== 'string') {
-      fill.addColorStop(0, PAPER); fill.addColorStop(.35, PAPER);
-      fill.addColorStop(.72, '#e8edfc'); fill.addColorStop(1, '#c9d5fb');
+      fill.addColorStop(0, sphere ? PAPER : '#dce5fc'); fill.addColorStop(.28, PAPER);
+      fill.addColorStop(.5, '#edf0f8'); fill.addColorStop(.8, '#d5e0fa'); fill.addColorStop(1, '#b5c8f5');
     }
-    if (sphere) { paint(head, fill); return; }
-    const dx = b[0] - a[0], dy = b[1] - a[1], length = Math.hypot(dx, dy);
-    const nx = -dy / length * radius, ny = dx / length * radius, k = 1.3333333;
-    paint([
+    return fill;
+  };
+  const texture = commands => {
+    if (p.tiny) return;
+    ctx.save(); p.path(commands); ctx.clip(); ctx.fillStyle = INK;
+    for (let i = 0; i < 130; i++) {
+      const u = -19 + random(i + 40) * 38, v = -39 + random(i + 293) * 79;
+      ctx.globalAlpha = alpha * (.09 + random(i + 1837) * .14);
+      ctx.beginPath(); ctx.arc(x + u * scale, y + v * scale, Math.max(.12, scale * .25), 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  };
+  const capsule = (from, to, radius, openShoulder = false) => {
+    const a = position(from), b = position(to), dx = b[0] - a[0], dy = b[1] - a[1];
+    const length = Math.hypot(dx, dy), nx = -dy / length * radius, ny = dx / length * radius, k = 1.3333333;
+    const commands = [
       ['M', a[0] + nx, a[1] + ny], ['L', b[0] + nx, b[1] + ny],
       ['C', b[0] + nx + dx / length * radius * k, b[1] + ny + dy / length * radius * k, b[0] - nx + dx / length * radius * k, b[1] - ny + dy / length * radius * k, b[0] - nx, b[1] - ny],
       ['L', a[0] - nx, a[1] - ny],
       ['C', a[0] - nx - dx / length * radius * k, a[1] - ny - dy / length * radius * k, a[0] + nx - dx / length * radius * k, a[1] + ny - dy / length * radius * k, a[0] + nx, a[1] + ny], ['Z'],
-    ], fill);
+    ];
+    paint(commands, gradient(a, radius)); texture(commands);
+    p.line(openShoulder ? commands.slice(0, 4) : commands, .9, .76);
   };
-  const texture = () => {
-    const alpha = ctx.globalAlpha;
-    ctx.fillStyle = INK;
-    for (let i = 0; i < 180; i++) {
-      const u = -18 + random(i + 40) * 36, v = -38 + random(i + 293) * 78;
-      ctx.globalAlpha = alpha * (.1 + random(i + 1837) * .13);
-      ctx.beginPath(); ctx.arc(x + u * scale, originY + v * scale, Math.max(.12, scale * .26), 0, TAU); ctx.fill();
-    }
-    ctx.globalAlpha = alpha;
+  const ellipsoid = (centre, radii) => {
+    const [cx, cy] = position(centre), [rx, ry, rz] = radii;
+    const xx = .75 * (rx * rx + ry * ry), xy = Math.sqrt(3) / 4 * (rx * rx - ry * ry);
+    const yy = .25 * (rx * rx + ry * ry) + rz * rz;
+    const a = Math.sqrt(xx), b = xy / a, c = Math.sqrt(yy - b * b);
+    const transform = ([u, v]) => [cx + a * u, cy + b * u + c * v];
+    const commands = oval(0, 0, 1, 1).map(([op, ...coordinates]) => {
+      const output = [op];
+      for (let i = 0; i < coordinates.length; i += 2) output.push(...transform(coordinates.slice(i, i + 2)));
+      return output;
+    });
+    return { commands, centre: [cx, cy], width: a, point: angle => transform([Math.cos(angle), Math.sin(angle)]) };
   };
-  p.shape(body, false);
-  if (!p.tiny) {
-    ctx.save(); p.path(body); ctx.clip();
-    shade(position([1.5, 0, 46]), position([1.5, 0, 27]), 6.4);
-    for (const sign of [-1, 1]) {
-      shade(position([1.5, sign * 10, 44]), position([1.5, sign * 12, 22]), 2.2);
-      shade(position([1.5, sign * 4.5, 25]), position([1.5, sign * 4.5, 3]), 2.8);
-    }
-    texture(); ctx.restore(); p.line(body);
-  }
-  p.shape(head, false);
-  if (!p.tiny) {
-    ctx.save(); p.path(head); ctx.clip(); shade([hx, hy], [hx, hy], 6.5, true);
-    texture(); ctx.restore(); p.line(head);
-  }
+  capsule([-1, -9.4, 44], [1, -12, 22], 2.5);
+  capsule([0, -4.5, 26], [1.4, -4.7, 1], 2.9);
+  capsule([0, 4.5, 26], [1.4, 4.7, 1], 2.9);
+  capsule([0, 0, 46], [1, 0, 54], 2.6);
+  const torso = ellipsoid([0, 0, 35], [5.3, 8.8, 13.6]);
+  paint(torso.commands, gradient(torso.centre, torso.width)); texture(torso.commands);
+  const contour = Array.from({ length: 33 }, (_, i) => [i ? 'L' : 'M', ...torso.point(.65 - (Math.PI + 1.3) * i / 32)]);
+  p.line(contour, .95, .8);
+  capsule([1.8, 9.2, 44], [3, 12, 22], 2.5, true);
+  const head = ellipsoid([1.2, 0, 61], [5.7, 5.7, 6.1]);
+  paint(head.commands, gradient(head.centre, head.width, true)); texture(head.commands);
+  p.line(head.commands);
 }
 
-function handshake(p) {
-  const leftPalm = [
-    ['M', -22, -8], ['L', -14, -13], ['C', -10, -15, -7, -14, -3, -11],
-    ['L', 16, 5], ['C', 19, 7, 19, 10, 16, 12],
-    ['C', 18, 14, 15, 18, 12, 17], ['C', 12, 21, 8, 23, 5, 20],
-    ['C', 3, 24, -1, 24, -4, 21], ['L', -19, 8], ['L', -27, 0], ['Z'],
-  ];
-  const rightPalm = [
-    ['M', 24, -9], ['L', 16, -14], ['C', 12, -17, 8, -17, 5, -14],
-    ['L', -4, -7], ['C', -7, -5, -10, -2, -8, 1],
-    ['C', -6, 4, -3, 3, -1, 1], ['L', 4, -3], ['C', 6, -4, 8, -3, 10, -1],
-    ['L', 20, 8], ['L', 29, 0], ['Z'],
-  ];
-  const leftCuff = [
-    ['M', -35, -20], ['L', -21, -11], ['C', -20, -10, -20, -9, -21, -7],
-    ['L', -29, 6], ['C', -30, 7, -31, 7, -32, 6], ['L', -44, -2], ['Z'],
-  ];
-  const rightCuff = [
-    ['M', 35, -22], ['L', 22, -13], ['C', 20, -12, 20, -10, 21, -8],
-    ['L', 29, 6], ['C', 30, 8, 31, 8, 33, 7], ['L', 45, -2], ['Z'],
-  ];
-  const face = (commands, depth) => commands.map(([op, ...coordinates]) => {
+function handshake(ctx, x, y, scale) {
+  const p = pen(ctx, x, y, scale), alpha = ctx.globalAlpha;
+  const project = (u, v, height = 0) => iso([.702 * u + .54 * v, -.315 * u + .9 * v, height]);
+  const surface = (commands, height = 0) => commands.map(([op, ...coordinates]) => {
     const output = [op];
-    for (let i = 0; i < coordinates.length; i += 2) {
-      const u = coordinates[i], v = coordinates[i + 1];
-      output.push(...iso([u * .72 + depth, -u * .36, -v]));
-    }
+    for (let i = 0; i < coordinates.length; i += 2) output.push(...project(coordinates[i], coordinates[i + 1], height));
     return output;
   });
-  const parts = [leftPalm, rightPalm, leftCuff, rightCuff];
-  for (const part of parts) p.shape(face(part, -1.2), false, TINT);
-  for (const part of parts) p.shape(face(part, 1.2));
+  const paint = (commands, fill, outline = commands) => {
+    p.path(commands); ctx.fillStyle = fill; ctx.fill();
+    if (!p.tiny) {
+      ctx.save(); p.path(commands); ctx.clip(); ctx.fillStyle = INK;
+      for (const grain of grainShade) {
+        ctx.globalAlpha = alpha * grain.alpha * .75;
+        ctx.beginPath(); ctx.arc(x + grain.x * scale, y + grain.y * scale, Math.max(.12, grain.radius * scale), 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+    if (outline) p.line(outline, .9, .8);
+  };
+  const shade = (a, b, width, dome = false) => {
+    if (p.tiny) return PAPER;
+    let fill = TINT;
+    if (dome && typeof ctx.createRadialGradient === 'function') {
+      fill = ctx.createRadialGradient(x + (a[0] - width * .25) * scale, y + (a[1] - width * .3) * scale, 0, x + a[0] * scale, y + a[1] * scale, width * scale);
+    } else if (typeof ctx.createLinearGradient === 'function') {
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const nx = -(b[1] - a[1]) / length * width, ny = (b[0] - a[0]) / length * width;
+      fill = ctx.createLinearGradient(x + (a[0] - nx) * scale, y + (a[1] - ny) * scale, x + (a[0] + nx) * scale, y + (a[1] + ny) * scale);
+    }
+    if (typeof fill !== 'string') {
+      fill.addColorStop(0, dome ? PAPER : '#dbe4fa'); fill.addColorStop(.3, PAPER);
+      fill.addColorStop(.58, '#edf0f9'); fill.addColorStop(.82, '#d6e0f7'); fill.addColorStop(1, '#b8caf0');
+    }
+    return fill;
+  };
+  const leftWrist = surface([
+    ['M', -40, -22], ['C', -35, -25, -27, -19, -22, -13], ['L', -28, 3],
+    ['C', -35, -1, -41, -6, -44, -10], ['C', -46, -13, -43, -20, -40, -22], ['Z'],
+  ], 3);
+  const rightWrist = surface([
+    ['M', 31, -21], ['C', 37, -24, 43, -19, 46, -10], ['L', 34, 3],
+    ['C', 29, -1, 27, -6, 24, -11], ['C', 24, -14, 27, -19, 31, -21], ['Z'],
+  ], 4);
+  paint(leftWrist, shade(project(-39, -17, 3), project(-26, -6, 3), 7.5));
+  paint(rightWrist, shade(project(39, -15, 4), project(27, -5, 4), 7.5));
+  const farPalm = surface([
+    ['M', 27, -11], ['C', 20, -16, 13, -17, 7, -15], ['L', -8, -11],
+    ['C', -13, -9, -14, -5, -11, 0], ['L', -16, 8],
+    ['C', -13, 14, -7, 18, -2, 19], ['L', 18, 12],
+    ['C', 24, 9, 29, 4, 31, -2], ['Z'],
+  ], 3.4);
+  paint(farPalm, shade(project(12, -3, 3.4), null, 22, true));
+  // Only the tips of the far hand show beneath the nearer palm.
+  for (const [u, v] of [[-11, 15], [-5, 20], [1, 24]]) {
+    const centre = project(u, v, 1.2), tip = oval(centre[0], centre[1], 2.7, 3.1);
+    paint(tip, shade(centre, null, 3.2, true));
+  }
+  const nearPalm = surface([
+    ['M', -25, -10], ['C', -20, -13, -14, -13, -9, -10],
+    ['C', -1, -7, 8, 0, 20, 10], ['C', 25, 14, 21, 19, 17, 15],
+    ['C', 21, 20, 16, 24, 12, 20], ['C', 15, 25, 10, 29, 6, 24],
+    ['C', 8, 29, 2, 31, -3, 26], ['L', -21, 11],
+    ['C', -25, 7, -28, 3, -29, -1], ['Z'],
+  ], 4.5);
+  paint(nearPalm, shade(project(-5, 7, 4.5), null, 24, true));
   if (!p.tiny) {
-    for (const [x, y] of [[-9, 9], [-4, 5], [1, 1]]) {
-      p.line(face([['M', x, y], ['C', x + 4, y + 2, x + 8, y + 7, x + 13, y + 10]], 1.2), .75, .65);
+    for (const [u, v, endU, endV] of [[17, 15, 3, 4], [12, 20, -2, 9], [6, 24, -7, 14]]) {
+      p.line(surface([['M', u, v], ['C', u - 3, v - 2, endU + 3, endV + 3, endU, endV]], 4.5), .7, .56);
     }
   }
+  // The upper hand's long thumb lies across the back of the lower hand.
+  const thumb = surface([
+    ['M', -8, -8], ['C', -2, -9, 4, -3, 11, 2], ['L', 19, 6],
+    ['C', 24, 8, 22, 13, 18, 12], ['C', 14, 11, 5, 5, -1, 2],
+    ['C', -5, 0, -8, 1, -11, 1], ['C', -14, -2, -13, -7, -8, -8], ['Z'],
+  ], 7);
+  paint(thumb, shade(project(-8, -6, 7), project(19, 8, 7), 4), thumb.slice(0, 6));
 }
 
 function tile(p, cx, cy, width = 17, depth = 13, height = 3) {
   const x0 = cx - width / 2, x1 = cx + width / 2, y0 = cy - depth / 2, y1 = cy + depth / 2;
-  p.shape(plane([[x0, y0, 0], [x1, y0, 0], [x1, y1, 0], [x0, y1, 0]]), false, TINT);
+  p.shape(plane([[x1, y0, 0], [x1, y1, 0], [x1, y1, height], [x1, y0, height]]), false, '#dae3fb');
+  p.shape(plane([[x0, y1, 0], [x1, y1, 0], [x1, y1, height], [x0, y1, height]]), false, TINT);
   p.shape(plane([[x0, y0, height], [x1, y0, height], [x1, y1, height], [x0, y1, height]]));
   if (!p.tiny) {
     for (const inset of [-2, 2]) p.line(path3([['M', x0 + 4, cy + inset, height], ['L', x1 - 4, cy + inset, height]]), .6, .43);
@@ -224,7 +268,7 @@ export function drawInspectionObject(ctx, x, y, radius, kind, useCache = true) {
   if (kind === 'People') {
     human(ctx, x, y, scale);
   } else if (kind === 'Relationships') {
-    handshake(p);
+    handshake(ctx, x, y, scale);
   } else if (kind === 'Records') {
     book(p);
   } else if (kind === 'Processes') {
