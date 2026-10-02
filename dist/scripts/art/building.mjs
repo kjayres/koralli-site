@@ -1,4 +1,4 @@
-import { figureDefinitions, figureMarkup } from './figures.mjs?v=4272aaa1c2e4';
+import { figureDefinitions, figureMarkup } from './figures.mjs?v=8d60495602f6';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';

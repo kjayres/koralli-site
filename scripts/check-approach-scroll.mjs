@@ -29,9 +29,10 @@ function element() {
   };
 }
 
-async function setup({ reduced = false, width = 1440, height = 900, panelHeight = 490, hash = '', present = true } = {}) {
+async function setup({ reduced = false, width = 1440, height = 900, panelHeight = 690, hash = '', present = true } = {}) {
   const events = new Map(), observed = [], resizers = [], phases = [], scrolls = [];
   const section = element(), track = element(), stage = element(), figure = element(), frame = element();
+  const heading = element(), continuation = element();
   const ids = ['go-and-see', 'build-and-learn', 'adapt-and-grow'];
   const copies = ids.map(element);
   const headings = ids.map(element);
@@ -60,11 +61,13 @@ async function setup({ reduced = false, width = 1440, height = 900, panelHeight 
     '[data-approach-scroll]': track,
     '[data-approach-stage]': stage,
     '[data-approach-figure]': figure,
+    '.approach-heading': heading,
+    '.approach-continuation': continuation,
   };
   section.querySelector = selector => nodes[selector] ?? null;
   section.querySelectorAll = selector => selector === '[data-approach-step]' ? steps : selector === '[data-approach-link]' ? [links[0], nextLinks[0], links[1], nextLinks[1], links[2]] : [];
   track.getBoundingClientRect = () => ({ top: trackTop - context.scrollY });
-  stage.getBoundingClientRect = () => ({ height: measuredHeight });
+  stage.getBoundingClientRect = () => ({ height: section.classList.contains('approach-enhanced') ? Math.max(measuredHeight, Number.parseFloat(section.style['--approach-stage-height']) || 0) : measuredHeight });
   figure.querySelector = selector => selector === '.approach-frame' ? frame : null;
   figure.getBoundingClientRect = () => ({ bottom: trackTop + 290 - context.scrollY });
   steps.forEach((step, index) => {
@@ -80,9 +83,9 @@ async function setup({ reduced = false, width = 1440, height = 900, panelHeight 
   await module.evaluate();
   const update = module.namespace.initApproach(phase => phases.push(phase));
   return {
-    section, track, stage, figure, frame, copies, headings, steps, links, nextLinks, motion, context, events, observed, phases, scrolls, update,
+    section, track, stage, figure, frame, heading, continuation, copies, headings, steps, links, nextLinks, motion, context, events, observed, phases, scrolls, update,
     scrollToPosition(position) {
-      const travel = Number.parseFloat(track.style.height) - measuredHeight;
+      const travel = Number.parseFloat(track.style.height) - stage.getBoundingClientRect().height;
       assert.ok(travel > 0, 'This helper requires a pinned scroll track');
       context.scrollY = trackTop - Number.parseFloat(section.style['--approach-pin-top']) + travel * position;
       update();
@@ -120,6 +123,22 @@ function assertFlow(t) {
   assert.equal(t.track.style.height, undefined, 'Fallbacks must remove the long scroll spacer');
   assert.ok(t.steps.every(step => !step.inert && step.getAttribute('aria-hidden') === null), 'Every phase remains available in fallback mode');
 }
+
+test('the pinned frame contains the title, particle scene and working case link', async () => {
+  const html = await fs.readFile(new URL('../src/our-work.html', import.meta.url), 'utf8');
+  const ancestors = [], framed = [];
+  const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
+  for (const [, closing, name, attributes] of html.matchAll(/<(\/?)([a-z][a-z0-9]*)\b([^>]*)>/gi)) {
+    if (closing) { ancestors.pop(); continue; }
+    if (/\bid="approach-title"|\bdata-art="approach"|\bclass="[^"]*approach-continuation/.test(attributes)) {
+      assert.ok(ancestors.some(parent => /\bdata-approach-stage\b/.test(parent)), 'The heading, shared scene and following boundary must move as one frame');
+      framed.push(name);
+      if (name === 'a') assert.match(attributes, /\bhref="#bank-case"/, 'The bottom cue must lead to the actual case study');
+    }
+    if (!voidTags.has(name.toLowerCase()) && !attributes.endsWith('/')) ancestors.push(attributes);
+  }
+  assert.deepEqual(framed, ['h2', 'canvas', 'a']);
+});
 
 test('scrolling forwards and backwards selects each phase once and preserves readable endpoints', async () => {
   const t = await setup();
@@ -160,6 +179,27 @@ test('every phase has a fully readable interval and its emphasis develops during
   });
 });
 
+test('fades develop over a generous scroll interval while the reading position remains fixed', async () => {
+  const t = await setup();
+  const pinTop = t.section.style['--approach-pin-top'];
+  const travel = Number.parseFloat(t.track.style.height) - t.stage.getBoundingClientRect().height;
+  assert.ok(travel >= t.context.innerHeight * 2.7, 'Each phase needs close to a viewport of ordinary scrolling');
+  const fading = [0, 0, 0];
+  for (let sample = 0; sample <= 600; sample++) {
+    t.scrollToPosition(sample / 600);
+    const phase = Number(t.section.dataset.phase);
+    const opacity = Number(t.steps[phase].style['--approach-opacity']);
+    if (opacity > .02 && opacity < .98) fading[phase]++;
+    assert.equal(t.section.style['--approach-pin-top'], pinTop, 'Cycling copy must not move the shared reading position');
+  }
+  assert.ok(fading[0] >= 42 && fading[2] >= 42, 'An entering or leaving fade must span at least a fifth of a phase');
+  assert.ok(fading[1] >= 84, 'The middle phase must have equally gradual entry and exit');
+  assert.equal(t.scrolls.length, 0, 'Ordinary scrolling must never be intercepted or corrected programmatically');
+  const bottomOfStage = Number.parseFloat(pinTop) + t.stage.getBoundingClientRect().height;
+  assert.equal(bottomOfStage, t.context.innerHeight - Number.parseFloat(pinTop), 'The frame must extend to the bottom cue, without a blank exit spacer');
+  assert.equal(t.section.style['--approach-exit-space'], undefined);
+});
+
 test('layout notifications keep the selected scene stable and observe content rather than the spacer', async () => {
   const t = await setup();
   t.scrollToPosition(.5);
@@ -168,7 +208,7 @@ test('layout notifications keep the selected scene stable and observe content ra
   assertPinnedPhase(t, 1);
   assert.deepEqual(t.phases, selected, 'Repeated measurement must not restart the current phase');
   assert.equal(t.track.style.height, spacer);
-  assert.deepEqual(t.observed, [...t.copies, t.frame], 'Only changing content should trigger remeasurement');
+  assert.deepEqual(t.observed, [...t.copies, t.frame, t.heading, t.continuation], 'Content, heading and bottom cue should trigger remeasurement, not the scroll spacer');
 });
 
 test('short viewports and later content growth expose all copy and recover when the scene fits', async () => {

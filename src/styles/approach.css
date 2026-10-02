@@ -7,7 +7,7 @@
 .work-opening-copy>div>p+p { color:#5c5b58; margin-top:18px; }
 .work-opening .text-link { margin-top:28px; }
 .approach-section { --approach-reading-top:clamp(90px,12svh,130px); padding-top:24px; padding-bottom:24px; }
-.approach-section>h2 { margin-top:30px; max-width:none; }
+.approach-heading h2 { margin-top:30px; max-width:none; }
 .approach-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,420px); column-gap:clamp(40px,6vw,85px); align-items:start; margin-top:30px; }
 .approach-figure { grid-column:2; grid-row:1; position:sticky; top:var(--approach-reading-top); width:100%; margin:calc(-1 * var(--approach-entry-lift,0px)) 0 0; align-self:start; }
 .approach-frame { --frame-rule:#9aa9c4; position:relative; width:100%; aspect-ratio:1; background:var(--paper); }
@@ -54,7 +54,7 @@
   .work-opening-copy>div>p+p { font-size:15px; }
   .work-opening .text-link { margin-top:22px; }
   .approach-section { padding-top:15px; }
-  .approach-section>h2 { margin-top:26px; font-size:34px; }
+  .approach-heading h2 { margin-top:26px; font-size:34px; }
   .approach-layout { display:block; margin-top:30px; }
   .approach-figure { display:grid; grid-template-columns:50px minmax(0,435px); z-index:2; top:24px; padding:16px 0 13px; background:var(--paper); }
   .approach-frame { grid-column:2; width:clamp(220px,58vw,250px); margin:0 auto; }
@@ -97,12 +97,16 @@
   .approach-number { transition:none; }
 }
 
-/* A single reading position, with the three panels sharing the same grid cell. */
-.approach-scroll { margin-top:36px; }
+/* The heading and following section boundary frame one fixed reading position. */
+.approach-scroll { margin-top:0; }
+.approach-continuation { display:none; }
 .approach-next { display:none; }
 .approach-enhanced .approach-next { display:inline-block; }
-.approach-scroll .approach-layout { margin-top:0; }
-.approach-enhanced .approach-layout { position:sticky; top:var(--approach-pin-top,90px); align-items:center; }
+.approach-enhanced .approach-stage { position:sticky; top:var(--approach-pin-top,24px); min-height:var(--approach-stage-height,calc(100svh - 48px)); display:grid; grid-template-rows:auto 1fr auto; row-gap:24px; }
+.approach-enhanced .approach-heading h2 { margin-top:20px; }
+.approach-enhanced .approach-layout { margin-top:0; align-items:center; align-self:center; }
+.approach-enhanced .approach-continuation { display:flex; padding-top:18px; border-top:1px solid var(--rule); }
+.approach-continuation>span:last-child { color:var(--blue); font-size:16px; line-height:1; }
 .approach-enhanced .approach-figure { position:relative; top:auto; margin:0; align-self:center; }
 .approach-enhanced .approach-steps { display:grid; align-items:start; }
 .approach-enhanced .approach-step { grid-area:1 / 1; min-height:0; padding:0 0 0 66px; opacity:0; visibility:hidden; pointer-events:none; }
@@ -114,7 +118,10 @@
   .approach-enhanced .approach-step { padding-left:54px; }
 }
 @media (max-width:759px) {
-  .approach-enhanced .approach-layout { display:grid; grid-template-columns:1fr; row-gap:24px; }
+  .approach-enhanced .approach-stage { row-gap:16px; }
+  .approach-enhanced .approach-heading h2 { margin-top:12px; font-size:clamp(27px,7vw,34px); }
+  .approach-enhanced .approach-continuation { padding-top:12px; font-size:9px; }
+  .approach-enhanced .approach-layout { display:grid; grid-template-columns:1fr; row-gap:18px; }
   .approach-enhanced .approach-figure { display:block; grid-column:1; grid-row:1; padding:0; background:none; }
   .approach-enhanced .approach-frame,.approach-enhanced .approach-figure figcaption { width:clamp(180px,53vw,220px); margin-left:auto; margin-right:auto; }
   .approach-enhanced .approach-steps { grid-column:1; grid-row:2; margin:0; }

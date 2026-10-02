@@ -15,6 +15,38 @@ const INSPECTIONS = [
   { u: .68, v: .70, label: 'Records' },
   { u: .50, v: .45, label: 'Relationships' },
 ];
+// Each plan is one tree: [offset across, offset down, parent index], rooted at 0.
+const INSPECTION_TREES = {
+  People: [
+    [.105, 0, 0], [.21, -.12, 1], [.22, 0, 1], [.21, .12, 1],
+    [.32, -.18, 2], [.34, -.09, 2], [.35, -.025, 3], [.35, .05, 3], [.32, .12, 4], [.31, .21, 4],
+    [.42, -.19, 5], [.43, -.10, 6], [.45, .005, 7], [.44, .085, 8], [.42, .15, 9], [.41, .24, 10],
+  ],
+  Processes: [
+    [-.105, 0, 0], [-.21, 0, 1], [-.315, .015, 2], [-.42, .015, 3], [-.52, -.01, 4],
+    [-.11, -.10, 1], [-.19, -.17, 6], [-.055, -.18, 6],
+    [-.215, .11, 2], [-.29, .19, 9], [-.15, .20, 9],
+    [-.325, -.095, 3], [-.40, -.18, 12], [-.27, -.18, 12], [-.43, .12, 4], [-.52, .20, 15],
+  ],
+  Decisions: [
+    [0, -.10, 0], [-.14, -.20, 1], [.14, -.20, 1],
+    [-.21, -.30, 2], [-.07, -.30, 2], [.07, -.30, 3], [.21, -.30, 3],
+    [-.25, -.40, 4], [-.18, -.40, 4], [-.105, -.40, 5], [-.035, -.40, 5],
+    [.035, -.40, 6], [.105, -.40, 6], [.18, -.40, 7], [.25, -.40, 7],
+  ],
+  Records: [
+    [-.105, 0, 0], [-.105, -.11, 1], [-.105, -.22, 2], [-.105, -.33, 3],
+    [-.23, 0, 1], [-.23, -.11, 2], [-.23, -.22, 3], [-.23, -.33, 4],
+    [-.34, -.035, 5], [-.34, .035, 5], [-.34, -.145, 6], [-.34, -.075, 6],
+    [-.34, -.255, 7], [-.34, -.185, 7], [-.34, -.365, 8], [-.34, -.295, 8],
+  ],
+  Relationships: [
+    [0, .105, 0], [-.14, .18, 1], [.14, .18, 1],
+    [-.25, .10, 2], [-.23, .28, 2], [.27, .10, 3], [.23, .29, 3],
+    [-.33, .02, 4], [-.34, .16, 4], [-.34, .32, 5], [-.13, .37, 5],
+    [.34, -.005, 6], [.35, .16, 6], [.34, .36, 7], [.15, .39, 7], [.075, .28, 3],
+  ],
+};
 
 function approachBounds(width, height) {
   const bounds = researchBounds(width, height);
@@ -29,32 +61,23 @@ function placeHomes(scene, bounds) {
   }));
 }
 
-function inspectionNetwork(locations, root) {
-  const origin = locations[root], ids = [root];
-  const distance = (a, b) => Math.hypot(locations[a].u - locations[b].u, locations[a].v - locations[b].v);
-  const candidates = locations.map((point, id) => ({ id, radius: Math.hypot(point.u - origin.u, point.v - origin.v) }))
-    .filter(point => point.radius > .06 && point.radius < .36)
-    .sort((a, b) => random(a.id + root) - random(b.id + root));
-  for (const { id } of candidates) {
-    if (ids.every(other => distance(id, other) > .06)) ids.push(id);
-    if (ids.length === 35) break;
+function inspectionNetwork(locations, { id: root, label }) {
+  const origin = locations[root], ids = [root], arrivals = [0], edges = [];
+  for (const [du, dv, parent] of INSPECTION_TREES[label]) {
+    let nearest = -1, nearestDistance = Infinity;
+    locations.forEach((point, id) => {
+      if (point.kind && point.kind !== label) return;
+      const distance = Math.hypot(point.u - origin.u - du, point.v - origin.v - dv);
+      if (!ids.includes(id) && distance < nearestDistance) { nearest = id; nearestDistance = distance; }
+    });
+    const from = ids[parent], a = locations[from], b = locations[nearest];
+    const arrival = arrivals[parent] + Math.hypot(b.u - a.u, b.v - a.v);
+    b.kind = label;
+    edges.push({ from, to: nearest, start: arrivals[parent], end: arrival });
+    ids.push(nearest); arrivals.push(arrival);
   }
-  // A small spanning tree selects relationships between the existing grains once.
-  const reached = new Map([[root, 0]]), edges = [];
-  while (reached.size < ids.length) {
-    let nearest = null;
-    for (const [from, arrival] of reached) {
-      for (const to of ids) {
-        if (reached.has(to)) continue;
-        const length = distance(from, to);
-        if (!nearest || length < nearest.length) nearest = { from, to, arrival, length };
-      }
-    }
-    edges.push(nearest);
-    reached.set(nearest.to, nearest.arrival + nearest.length);
-  }
-  const longest = Math.max(...reached.values());
-  return edges.map(({ from, to, arrival }) => ({ from, to, delay: arrival / longest * .75 }));
+  const longest = Math.max(...arrivals);
+  return edges.map(edge => ({ ...edge, start: edge.start / longest, end: edge.end / longest }));
 }
 
 /** One population, with permanent homes shared by the suspended field and coral. */
@@ -74,14 +97,14 @@ export function createApproachScene(width, height) {
   }));
   const inspections = INSPECTIONS.map(item => {
     const id = locations.length;
-    locations.push({ u: item.u, v: item.v });
+    locations.push({ u: item.u, v: item.v, kind: item.label });
     return { ...item, id };
   });
   while (locations.length < field.particles.length) {
     const i = locations.length;
     locations.push({ u: .06 + random(i + 73) * .88, v: .07 + random(i + 421) * .85 });
   }
-  inspections.forEach(inspection => { inspection.edges = inspectionNetwork(locations, inspection.id); });
+  inspections.forEach(inspection => { inspection.edges = inspectionNetwork(locations, inspection); });
   const scene = { field, locations, studies, inspections, width, height, phase: 0, age: 0, elapsed: 0, last: null, grey: 0, opacity: .48, reducedMotion: false };
   placeHomes(scene, field.bounds);
   field.particles.forEach((p, i) => Object.assign(p, scene.homes[i], { vx: 0, vy: 0 }));
@@ -154,6 +177,8 @@ export function updateApproachScene(scene, width, height, seconds, { phase = 0, 
   return scene;
 }
 
+function markRadius(scene) { return clamp(scene.width * .006, 1.8, 2.6); }
+
 function dot(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); }
 function project(scene, point) { return { x: scene.width / 2 + point.x * scene.field.bounds.scale, y: scene.height / 2 + point.y * scene.field.bounds.scale }; }
 
@@ -171,20 +196,44 @@ function lensPosition(scene) {
   return { x: a.x + (b.x - a.x) * progress, y: a.y + (b.y - a.y) * progress, current, reveal, networkProgress, networkFade, settled: local >= 1.4 || scene.reducedMotion };
 }
 
-function drawInspectionNetwork(ctx, scene, lens) {
+function magnify(point, lens, aperture) {
+  const dx = point.x - lens.x, dy = point.y - lens.y;
+  const magnification = 1 + 1.65 * (1 - clamp(Math.hypot(dx, dy) / aperture)) ** 2;
+  return { x: lens.x + dx * magnification, y: lens.y + dy * magnification, magnification };
+}
+
+function drawInspectionNetwork(ctx, scene, lens, aperture = 0) {
   if (!lens.networkProgress || !lens.networkFade) return;
-  ctx.save(); ctx.lineWidth = .45; ctx.lineCap = 'round';
+  ctx.save(); ctx.lineWidth = .45; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.strokeStyle = '#707783'; ctx.fillStyle = '#707783';
-  for (const { from, to, delay } of lens.current.edges) {
-    const reveal = smooth((lens.networkProgress - delay) / .25) * lens.networkFade;
-    if (!reveal || [from, to].some(id => Math.hypot(scene.field.particles[id].x - scene.homes[id].x, scene.field.particles[id].y - scene.homes[id].y) >= .018)) continue;
+  for (const { from, to, start, end } of lens.current.edges) {
+    const growth = clamp((lens.networkProgress - start) / (end - start));
+    if (!growth || [from, to].some(id => Math.hypot(scene.field.particles[id].x - scene.homes[id].x, scene.field.particles[id].y - scene.homes[id].y) >= .018)) continue;
     const a = project(scene, scene.field.particles[from]), b = project(scene, scene.field.particles[to]);
-    // Reveal whole anchored edges, with the discovery travelling out from the lens.
-    ctx.globalAlpha = .52 * reveal;
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    const p = scene.field.particles[to];
-    ctx.globalAlpha = .7 * reveal;
-    dot(ctx, b.x, b.y, p.radius * scene.field.bounds.grainSize);
+    const tip = { x: a.x + (b.x - a.x) * growth, y: a.y + (b.y - a.y) * growth };
+    if (aperture) {
+      const dx = tip.x - a.x, dy = tip.y - a.y;
+      const closest = clamp(((lens.x - a.x) * dx + (lens.y - a.y) * dy) / (dx * dx + dy * dy));
+      if (Math.hypot(a.x + dx * closest - lens.x, a.y + dy * closest - lens.y) >= aperture) continue;
+    }
+    ctx.globalAlpha = .52 * lens.networkFade;
+    ctx.beginPath();
+    if (aperture) {
+      // Sample the same convex mapping as the grains; the line meets itself at the rim.
+      const steps = Math.max(2, Math.ceil(Math.hypot(tip.x - a.x, tip.y - a.y) / 3));
+      for (let step = 0; step <= steps; step++) {
+        const p = magnify({ x: a.x + (tip.x - a.x) * step / steps, y: a.y + (tip.y - a.y) * step / steps }, lens, aperture);
+        if (step === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+    } else {
+      ctx.moveTo(a.x, a.y); ctx.lineTo(tip.x, tip.y);
+    }
+    ctx.stroke();
+    if (growth === 1) {
+      const p = scene.field.particles[to], point = aperture ? magnify(b, lens, aperture) : b;
+      ctx.globalAlpha = .7 * lens.networkFade;
+      drawInspectionObject(ctx, point.x, point.y, markRadius(scene) * (point.magnification || 1), lens.current.label);
+    }
   }
   ctx.restore();
 }
@@ -227,15 +276,23 @@ function drawLens(ctx, scene) {
     if (distance > aperture) continue;
     // A convex field: strongest at the centre, smoothly meeting the unmagnified rim.
     // Its radial mapping stays increasing, so grains never cross through one another.
-    const magnification = 1 + 1.65 * (1 - distance / aperture) ** 2;
+    const magnified = magnify(point, lens, aperture);
     // The field stays magnified throughout. Only the inspected grain becomes an object.
     const alpha = scene.opacity * (p.id === lens.current.id ? 1 - lens.reveal : 1);
-    ctx.fillStyle = `rgba(36,78,255,${alpha})`;
-    dot(ctx, lens.x + dx * magnification, lens.y + dy * magnification, p.radius * scene.field.bounds.grainSize * magnification);
+    const kind = scene.locations[p.id].kind;
+    if (kind) {
+      ctx.save(); ctx.globalAlpha = opacity * alpha;
+      drawInspectionObject(ctx, magnified.x, magnified.y, markRadius(scene) * magnified.magnification, kind);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = `rgba(36,78,255,${alpha})`;
+      dot(ctx, magnified.x, magnified.y, p.radius * scene.field.bounds.grainSize * magnified.magnification);
+    }
   }
+  drawInspectionNetwork(ctx, scene, lens, aperture);
   if (lens.reveal > 0) {
     ctx.globalAlpha = opacity * lens.reveal;
-    drawInspectionObject(ctx, lens.x, lens.y, (radius - rim) * (.2 + .8 * lens.reveal), lens.current.label);
+    drawInspectionObject(ctx, lens.x, lens.y, markRadius(scene) * 2.65 + (radius - rim - markRadius(scene) * 2.65) * lens.reveal, lens.current.label);
   }
   ctx.restore();
   ctx.lineWidth = .85;
@@ -305,7 +362,9 @@ export function drawApproach(ctx, width, height, seconds, options = {}) {
     const appeared = scene.reducedMotion ? 1 : smooth((scene.elapsed - random(p.id + 19) * 1.1) / .4);
     ctx.globalAlpha = scene.opacity * appeared;
     const point = project(scene, p);
-    dot(ctx, point.x, point.y, p.radius * scene.field.bounds.grainSize);
+    const kind = scene.phase === 0 && scene.locations[p.id].kind;
+    if (kind) drawInspectionObject(ctx, point.x, point.y, markRadius(scene), kind);
+    else dot(ctx, point.x, point.y, p.radius * scene.field.bounds.grainSize);
   }
   ctx.restore();
   if (scene.phase === 0) drawLens(ctx, scene);

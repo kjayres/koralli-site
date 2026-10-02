@@ -145,7 +145,7 @@ function recorder() {
     fillText(text) { this.labels.push(text); },
     stroke() {
       this.strokes.push(this.path);
-      this.strokeRecords.push({ path: this.path, style: this.strokeStyle, alpha: this.globalAlpha, width: this.lineWidth });
+      this.strokeRecords.push({ path: this.path, style: this.strokeStyle, alpha: this.globalAlpha, width: this.lineWidth, clip: this.clipPath });
     },
     reset() {
       assert.equal(this.stack.length, 0, 'Drawing must restore its canvas state');
@@ -170,8 +170,8 @@ function checkMagnification(ctx, lens, reference, selected, revealed) {
       x: lens.x + dx * magnification, y: lens.y + dy * magnification,
       radius: baseRadius * magnification,
     };
-  }).filter(p => p.inputRadius <= aperture + 1e-9);
-  assert.equal(grains.length, expected.length, 'The object reveal must preserve every surrounding magnified grain');
+  }).filter(p => p.inputRadius <= aperture + 1e-9 && !reference.locations[p.id].kind);
+  assert.equal(grains.length, expected.length, 'The object reveal must preserve every surrounding unclassified magnified grain');
   const probes = [];
   for (const grain of grains) {
     const point = grain.path[0].arc;
@@ -183,7 +183,10 @@ function checkMagnification(ctx, lens, reference, selected, revealed) {
     assert.ok(Math.abs(opacity - expectedOpacity) < 1e-9, 'Only the selected central grain may fade during the object reveal');
     probes.push({ input: source.inputRadius / aperture, output: distance(point, lens) / aperture, scale: point.radius / source.baseRadius });
   }
-  if (revealed) assert.ok(expected.some(p => p.id === selected && distance(p, lens) < 1e-8), 'The dimensional object must replace the selected central grain');
+  if (revealed) {
+    const source = reference.field.particles[selected];
+    assert.ok(distance({ x: 200 + source.x * reference.field.bounds.scale, y: 200 + source.y * reference.field.bounds.scale }, lens) < 1e-8, 'The resolved object must stay centred on its original subject mark');
+  }
   probes.sort((a, b) => a.input - b.input);
   for (let i = 1; i < probes.length; i++) {
     assert.ok(probes[i].output >= probes[i - 1].output - 1e-10, 'Radial magnification must not reverse the order of grains');
@@ -202,16 +205,59 @@ const networkPoint = id => {
   return { x: 200 + p.x * scale, y: 200 + p.y * scale };
 };
 assert.deepEqual(referenceField.inspections.map(({ edges }) => edges), createApproachScene(240, 320).inspections.map(({ edges }) => edges), 'Discovered relationships must be deterministic and retain particle identities across canvas sizes');
+const treeShapes = [], classified = new Set();
+for (const { id, label, edges } of referenceField.inspections) {
+  const reached = [id];
+  for (const edge of edges) {
+    assert.ok(reached.includes(edge.from) && !reached.includes(edge.to), 'Each inspection must be one connected acyclic tree');
+    assert.ok(edge.start < edge.end && edge.end <= 1);
+    const parent = edges.find(candidate => candidate.to === edge.from);
+    assert.equal(edge.start, parent?.end ?? 0, 'A branch must wait until its parent reaches the shared grain');
+    reached.push(edge.to);
+  }
+  assert.equal(edges.filter(edge => edge.from === id).length, 1, 'Every subject tree must grow from one trunk at the inspected grain');
+  for (const member of reached) {
+    assert.equal(referenceField.locations[member].kind, label, 'Network members must all represent the inspected class');
+    assert.ok(!classified.has(member), 'Different subject networks must use distinct grains');
+    classified.add(member);
+  }
+  treeShapes.push(JSON.stringify(edges.map(({ from, to }) => [reached.indexOf(from), reached.indexOf(to)])));
+}
+assert.equal(new Set(treeShapes).size, 5, 'Subjects must have distinct authored branching structures');
 for (let frame = 0; frame <= 1152; frame++) {
   lensCtx.reset();
   drawApproach(lensCtx, 400, 400, frame / 60, { phase: 0 });
-  const network = lensCtx.strokeRecords.filter(stroke => stroke.style === '#707783');
+  const network = lensCtx.strokeRecords.filter(stroke => stroke.style === '#707783' && !stroke.clip);
+  const interior = lensCtx.strokeRecords.filter(stroke => stroke.style === '#707783' && stroke.clip);
   const inspection = referenceField.inspections[Math.floor(Math.max(0, frame / 60 - 1.3) / 4) % referenceField.inspections.length];
   for (const stroke of network) {
     assert.equal(stroke.path.length, 2);
-    assert.ok(inspection.edges.some(({ from, to }) => distance(stroke.path[0], networkPoint(from)) < 1e-8 && distance(stroke.path[1], networkPoint(to)) < 1e-8), 'Each discovered relationship must connect two original grains, including throughout its reveal');
+    assert.ok(inspection.edges.some(({ from, to }) => {
+      const a = networkPoint(from), b = networkPoint(to), tip = stroke.path[1];
+      const progress = ((tip.x - a.x) * (b.x - a.x) + (tip.y - a.y) * (b.y - a.y)) / ((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
+      return distance(stroke.path[0], a) < 1e-8 && progress >= 0 && progress <= 1 + 1e-8 && distance(tip, { x: a.x + (b.x - a.x) * progress, y: a.y + (b.y - a.y) * progress }) < 1e-8;
+    }), 'Each growing relationship must follow an edge between two original grains');
     assert.ok(distance(stroke.path[0], networkPoint(inspection.id)) < 1e-8 || network.some(parent => distance(parent.path[1], stroke.path[0]) < 1e-8), 'Revealing relationships must remain connected to the inspected grain');
     assert.ok(stroke.width < .85 && stroke.alpha <= .52, 'Discovered relationships must remain finer and lighter than the final coral');
+  }
+  if (network.length) {
+    const root = networkPoint(inspection.id);
+    assert.ok(interior.some(({ path }) => distance(path[0], root) < 1e-8), 'The network trunk must also be drawn inside the lens from the exact inspected grain');
+    for (const stroke of interior) {
+      const aperture = stroke.clip[0].arc.radius;
+      const source = network.find(edge => {
+        const a = edge.path[0], dx = a.x - root.x, dy = a.y - root.y;
+        const scale = 1 + 1.65 * (1 - Math.min(1, Math.hypot(dx, dy) / aperture)) ** 2;
+        return distance(stroke.path[0], { x: root.x + dx * scale, y: root.y + dy * scale }) < 1e-8;
+      });
+      assert.ok(source, 'Each lens-interior line must continue an existing exterior branch');
+      for (let i = 0; i < stroke.path.length; i++) {
+        const t = i / (stroke.path.length - 1), [a, b] = source.path;
+        const dx = a.x + (b.x - a.x) * t - root.x, dy = a.y + (b.y - a.y) * t - root.y;
+        const scale = 1 + 1.65 * (1 - Math.min(1, Math.hypot(dx, dy) / aperture)) ** 2;
+        assert.ok(distance(stroke.path[i], { x: root.x + dx * scale, y: root.y + dy * scale }) < 1e-8, 'Lens-interior branches must follow the same radial mapping as their grains');
+      }
+    }
   }
   if (networkFrames.includes(frame)) networkSamples.set(frame, network);
   if ((frame - 246) % 240 === 0 && frame >= 246) assert.equal(network.length, inspection.edges.length, 'Every inspection must reveal its full local relationship network');
@@ -243,7 +289,7 @@ assert.equal(networkSamples.get(312).length, 0, 'Relationships must disappear be
 assert.equal(networkSamples.get(330).length, 0, 'The moving lens must not drag relationships through the field');
 const stillInspectionCtx = recorder();
 drawApproach(stillInspectionCtx, 400, 400, 0, { phase: 0, reducedMotion: true });
-assert.equal(stillInspectionCtx.strokeRecords.filter(stroke => stroke.style === '#707783').length, referenceField.inspections[0].edges.length, 'Reduced motion must show the complete inspection network without waiting for animation');
+assert.equal(stillInspectionCtx.strokeRecords.filter(stroke => stroke.style === '#707783' && !stroke.clip).length, referenceField.inspections[0].edges.length, 'Reduced motion must show the complete inspection network without waiting for animation');
 assert.ok(distance(lensSamples[0], lensSamples[1]) < 1e-9, 'The lens must pause on one dot for at least two seconds');
 assert.notEqual(lensSamples[0].label, lensSamples[2].label, 'The lens must move on to another inspection');
 assert.ok(distance(lensSamples[1], lensSamples[2]) > 20);

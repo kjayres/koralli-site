@@ -1,5 +1,6 @@
 const clamp = n => Math.min(1, Math.max(0, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
+const fadeSpan = .28;
 
 /** Scroll changes the reading panel, while the shared particle scene keeps its clock. */
 export function initApproach(selectPhase) {
@@ -33,13 +34,13 @@ export function initApproach(selectPhase) {
 
   const update = () => {
     if (pinned) {
-      // Each phase has a reading interval and a short, non-overlapping dissolve.
+      // The copy dissolves through the paper, leaving one readable panel at a time.
       const progress = clamp((top - track.getBoundingClientRect().top) / distance);
       const position = progress * 3;
       const next = Math.min(2, Math.floor(position));
       const local = position - next;
-      const opacity = (next ? smooth(local / .13) : 1)
-        * (next < 2 ? 1 - smooth((local - .85) / .15) : 1);
+      const opacity = (next ? smooth(local / fadeSpan) : 1)
+        * (next < 2 ? 1 - smooth((local - (1 - fadeSpan)) / fadeSpan) : 1);
       select(next);
       steps[next].style.setProperty('--approach-opacity', opacity.toFixed(3));
       steps[next].style.setProperty('--approach-emphasis', smooth((local - .12) / .48).toFixed(3));
@@ -53,14 +54,15 @@ export function initApproach(selectPhase) {
   };
 
   const layout = () => {
-    // Measure the largest panel in the shared grid, so changing phase cannot shift the scene.
+    // Pin the heading, shared scene and next-section boundary as one viewport frame.
+    top = innerWidth < 760 ? 16 : 24;
+    section.style.setProperty('--approach-pin-top', `${top}px`);
+    section.style.setProperty('--approach-stage-height', `${Math.max(0, innerHeight - top * 2)}px`);
     section.classList.add('approach-enhanced');
     const height = stage.getBoundingClientRect().height;
-    top = Math.max(24, Math.min(110, innerHeight * .12, innerHeight - height - 28));
-    pinned = !motion.matches && height + top + 24 <= innerHeight;
+    pinned = !motion.matches && height + top * 2 <= innerHeight + 1;
     section.classList.toggle('approach-enhanced', pinned);
-    section.style.setProperty('--approach-pin-top', `${top}px`);
-    distance = Math.max(900, innerHeight * 2.15);
+    distance = Math.max(1200, innerHeight * 2.85);
     const trackHeight = pinned ? height + distance : 0;
     if (trackHeight !== lastHeight) {
       if (pinned) track.style.height = `${trackHeight}px`;
@@ -75,7 +77,7 @@ export function initApproach(selectPhase) {
     const index = steps.findIndex(step => `#${step.id}` === location.hash);
     if (index < 0) return;
     const start = scrollY + track.getBoundingClientRect().top - top;
-    scrollTo({ top: start + distance * (index + .18) / 3, behavior: 'instant' });
+    scrollTo({ top: start + distance * (index + fadeSpan + .08) / 3, behavior: 'instant' });
     update();
   };
   links.forEach(link => link.addEventListener('click', event => {
@@ -94,6 +96,8 @@ export function initApproach(selectPhase) {
   const observer = new ResizeObserver(layout);
   steps.forEach(step => observer.observe(step.querySelector('.approach-copy')));
   observer.observe(figure.querySelector('.approach-frame'));
+  observer.observe(section.querySelector('.approach-heading'));
+  observer.observe(section.querySelector('.approach-continuation'));
   layout();
   jumpToHash();
   return update;
