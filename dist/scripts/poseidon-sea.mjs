@@ -1,5 +1,5 @@
 // One image supplies colour only: every visible mark in the live scene is a WebGL point.
-import { createThunder } from './poseidon-thunder.mjs?v=af2eb9b3c6c2';
+import { createThunder } from './poseidon-thunder.mjs?v=ffe328f840d7';
 
 const VERTEX = `
 precision highp float;
@@ -192,7 +192,7 @@ function enhanceScene(figure) {
     if (!renderer || !renderer.count) return;
     const {gl,uniforms}=renderer;
     if (visible && !document.hidden && !motion.matches && elapsed>=nextStrike) {
-      strikeStart=elapsed; nextStrike=elapsed+10+hash(++strikeNumber+501)*8;
+      strikeStart=elapsed; nextStrike=elapsed+7+hash(++strikeNumber+501)*4;
       thunder.strike(.7);
     }
     const time=motion.matches?0:elapsed;
