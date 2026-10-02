@@ -26,19 +26,36 @@ void main() {
   float figure = max(max(head,body),max(staff,arms));
   float sea = smoothstep(.535,.62,p.y) * (1.0-figure);
   float sky = (1.0-smoothstep(.45,.57,p.y)) * (1.0-figure);
-  float phase = p.x*18.0 + p.y*11.0 - u_time*.83;
-  vec2 flow = vec2(.007*sin(phase),.010*cos(phase*.8));
+  float shelter = 1.0-smoothstep(.09,.27,length((a_position-vec2(.69,.76))*vec2(u_aspect,1.0)));
+  float waveEnergy = mix(1.0,.32,shelter);
+  float phase = p.x*18.0 + p.y*11.0 - u_time*.56;
+  vec2 flow = vec2(.004*sin(phase),.0055*cos(phase*.8));
   vec2 curl = (a_position-vec2(.32,.77))*vec2(u_aspect,1.0);
-  flow += vec2(-curl.y/u_aspect,curl.x)*.025*sin(u_time*.67-length(curl)*17.0)*exp(-length(curl)*3.0);
-  float response = u_surge*pow(.5+.5*cos(length((a_position-vec2(.65,.77))*vec2(u_aspect,1.0))*18.0-u_time*1.35),4.0);
-  p += flow*sea*(1.0+u_surge*.65);
-  p.y -= response*sea*.009;
+  flow += vec2(-curl.y/u_aspect,curl.x)*.008*sin(u_time*.46-length(curl)*17.0)*exp(-length(curl)*3.0);
+  float response = u_surge*pow(.5+.5*cos(length((a_position-vec2(.65,.77))*vec2(u_aspect,1.0))*18.0-u_time*.92),4.0);
+  p += flow*sea*waveEnergy*(1.0+u_surge*.20);
+  p.y -= response*sea*waveEnergy*.003;
   p += vec2(.0025*sin(u_time*.15+a_position.y*3.0),.001*sin(u_time*.18))*sky;
+  // A shared, grounded weight shift keeps the staff, grip and shoulders together.
+  // The surrounding field follows softly so the moving silhouette leaves no gap.
+  float support = band(.55,.615,.78,.845,a_position.x)*band(.005,.025,.805,.86,a_position.y);
+  float lean = .0108*sin(u_time*.48)+.0032*sin(u_time*.19);
+  vec2 pivot = vec2(.658,.79);
+  vec2 stance = (a_position-pivot)*vec2(u_aspect,1.0);
+  vec2 turned = vec2(stance.x*cos(lean)-stance.y*sin(lean),stance.x*sin(lean)+stance.y*cos(lean));
+  p += (turned-stance)/vec2(u_aspect,1.0)*support;
+  float breathing = sin(u_time*1.08);
+  float chest = band(.658,.677,.72,.747,a_position.x)*band(.275,.325,.47,.54,a_position.y);
+  p.y -= breathing*.0015*chest*(1.0-staff)*(1.0-arms*.9);
+  float beard = band(.678,.686,.713,.723,a_position.x)*band(.258,.279,.37,.397,a_position.y);
+  p.x += sin(u_time*.82)*.0007*beard;
+  float fabric = body*(1.0-staff)*band(.49,.55,.75,.80,a_position.y);
+  p.x += .0012*(sin(u_time*.63+a_position.y*9.0)-sin(a_position.y*9.0))*fabric;
   float perimeter = band(0.0,.03,.97,1.0,a_position.x)*band(0.0,.03,.97,1.0,a_position.y);
   p = mix(a_position,p,perimeter);
   v_colour = a_colour;
   float foam = pow(.5+.5*sin(phase),5.0)*sea;
-  v_colour = mix(v_colour,vec3(.957,.941,.906),foam*(.055+u_surge*.06)+response*sea*.055);
+  v_colour = mix(v_colour,vec3(.957,.941,.906),waveEnergy*(foam*(.035+u_surge*.025)+response*sea*.025));
   float cloudLight = (1.0-smoothstep(.12,1.0,length((a_position-u_lightOrigin)/u_lightExtent)))
     * (1.0-figure) * (1.0-smoothstep(.48,.56,a_position.y));
   v_colour = mix(v_colour,max(v_colour,vec3(.9,.945,1.0)),u_flash*cloudLight*.27);
