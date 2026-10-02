@@ -319,7 +319,8 @@ assert.equal(finalRegression.caption, '03 / ADAPT & GROW');
 assert.equal(finalRegression.detail, 'Learning from new evidence');
 assert.equal(finalRegression.observations.length, 8, 'The static illustration must show a completed example after three single-observation updates');
 assert.equal(finalRegression.pending.length, 0);
-assert.deepEqual(finalRegression.fit, finalRegression.targetFit);
+for (const key of ['intercept', 'slopeX', 'slopeZ']) assert.ok(Math.abs(finalRegression.fit[key] - finalRegression.targetFit[key]) < 1e-12,
+  'The completed static plane must use the fitted coefficients within floating-point precision');
 assert.equal(grainFills(regressionCtx).length, finalRegression.observations.length, 'The completed cube must show the observed sample without the dense context field');
 assert.equal(regressionCtx.strokeRecords.filter(stroke => stroke.style === '#526eaa' && stroke.path.length === 4).length, 1,
   'The third stage must draw one fitted plane');

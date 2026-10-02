@@ -33,16 +33,21 @@ const mixFit = (a, b, t) => ({ intercept: mix(a.intercept, b.intercept, t), slop
 // Five non-collinear starting measurements, then one surprising local observation.
 const INITIAL = [[-.48, -.42, -.025], [-.48, .42, .025], [.48, -.42, .03], [.48, .42, -.03], [0, 0, 0]];
 const CLUSTERS = [[.34, .27], [-.36, .25], [-.30, -.32], [.32, -.28]];
+const EARLY_DEPARTURES = [.24, -.22, .24, -.22];
 const RESPONSE_OFFSETS = [.20, .133, .066, 0, -.066, -.133, -.20];
 function observation(id) {
   let x, z, deviation;
   if (id < INITIAL_COUNT) [x, z, deviation] = INITIAL[id];
   else {
     const event = id - INITIAL_COUNT, centre = CLUSTERS[event % CLUSTERS.length];
-    x = centre[0] + .018 * Math.sin(event * 1.73);
-    z = centre[1] + .018 * Math.cos(event * 1.37);
-    // The response cycle does not divide the rolling window: updates keep mattering.
-    deviation = RESPONSE_OFFSETS[event % RESPONSE_OFFSETS.length];
+    const spread = ease((event - 3) / 12);
+    const across = (((event + 1) * .61803398875) % 1 - .5) * 1.3;
+    const depth = (((event + 1) * .41421356237) % 1 - .5) * .8;
+    x = mix(centre[0] + .018 * Math.sin(event * 1.73), across, spread);
+    z = mix(centre[1] + .018 * Math.cos(event * 1.37), depth, spread);
+    // Early surprises make learning legible; later evidence is wider and more regular.
+    deviation = event < EARLY_DEPARTURES.length ? EARLY_DEPARTURES[event]
+      : RESPONSE_OFFSETS[(event - EARLY_DEPARTURES.length) % RESPONSE_OFFSETS.length] * .6;
   }
   return { id, slot: id % CAPACITY, x, y: .04 + .20 * x + .10 * z + deviation, z };
 }

@@ -55,7 +55,7 @@ assert.ok([...observationsAt(colourScene, adaptationPresentation(4)).values()].e
 
 // Check early updates, the capacity boundary and a much later rolling window.
 const visibleMovements = [];
-for (const event of [1, 2, 6, 7, 8, 250]) {
+for (const event of [1, 2, 3, 4, 5, 6, 7, 8, 16, 28, 250]) {
   const arrival = 2.6 + event * 10;
   const before = adaptationPresentation(arrival - .1);
   const expectedCount = Math.min(capacityLimit, initialCount + event);
@@ -85,14 +85,17 @@ for (const event of [1, 2, 6, 7, 8, 250]) {
   assert.deepEqual(coordinates(fitted.fitObservations), coordinates(fitted.observations));
   checkLeastSquares(fitted.fit, fitted.fitObservations);
   fitNear(fitted.fit, fitted.targetFit, 'A completed interpolation must reach the fitted coefficients');
+  for (const fit of [before.fit, fitted.fit]) for (const x of [-.92, .92]) for (const z of [-.92, .92]) {
+    assert.ok(Math.abs(predict(fit, { x, z })) <= 1, 'Every checked refit must stay within the world cube');
+  }
   assert.ok(Object.keys(fitted.fit).some(key => Math.abs(fitted.fit[key] - before.fit[key]) > 1e-5),
     'New observations must actually change the fitted coefficients');
   const movement = Math.max(...[-.92, .92].flatMap(x => [-.92, .92].map(z =>
     Math.abs(predict(fitted.fit, { x, z }) - predict(before.fit, { x, z })))))
     * 180 * projectionScale * Math.cos(10 * Math.PI / 180);
   visibleMovements.push({ event, pixels: movement });
-  if ([1, 2, 8].includes(event)) assert.ok(movement >= 2,
-    'Early evidence and the first recycled observation must move the actual fitted plane by at least 2px in a 180px pane');
+  if (event <= 4) assert.ok(movement >= 4,
+    'The first four surprising observations must move the actual fitted plane by at least 4px in a 180px pane');
   if (event === 1) {
     const firstArrival = fitted.observations.at(-1);
     const initialResidual = Math.max(...before.fitObservations.map(p => Math.abs(p.y - predict(before.fit, p))));
@@ -108,6 +111,26 @@ for (const event of [1, 2, 6, 7, 8, 250]) {
   for (const p of fitted.observations) if (retained.has(p.id)) assert.deepEqual(coordinates([p]), coordinates([retained.get(p.id)]),
     'Adding evidence must not rewrite retained observations');
 }
+const evidenceSummary = event => {
+  const before = adaptationPresentation(2.6 + event * 10 - .1);
+  const fitted = adaptationPresentation(2.6 + event * 10 + 5.35), point = fitted.observations.at(-1);
+  const xs = fitted.observations.map(p => p.x);
+  return {
+    residual: Math.abs(point.y - predict(before.fit, point)), spread: Math.max(...xs) - Math.min(...xs),
+    horizontalBands: new Set(xs.map(x => Math.max(0, Math.min(3, Math.floor((x + .7) / .35))))).size,
+  };
+};
+const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+const earlyEvidence = [1, 2, 3, 4].map(evidenceSummary);
+const laterEvidence = Array.from({ length: 13 }, (_, i) => evidenceSummary(28 + i));
+assert.ok(median(laterEvidence.map(p => p.residual)) < median(earlyEvidence.map(p => p.residual)),
+  'Later arrivals should be more regular overall, without forcing every new observation to be an outlier');
+assert.ok(new Set(laterEvidence.map(p => p.residual.toFixed(4))).size > 3,
+  'Later observations must retain varied departures rather than lying exactly on the model');
+assert.ok(median(laterEvidence.map(p => p.spread)) > median(earlyEvidence.map(p => p.spread)),
+  'Later evidence windows must provide wider horizontal coverage without requiring monotonic rolling-window spans');
+assert.ok(laterEvidence.every(p => p.horizontalBands >= 3),
+  'Later evidence must occupy the horizontal range rather than form two narrow columns');
 const capacity = adaptationPresentation(77.95), recycled = adaptationPresentation(82.8);
 assert.equal(capacity.observations.length, capacityLimit);
 assert.equal(recycled.observations.length, capacityLimit);
@@ -203,9 +226,12 @@ for (const [width, height] of sizes) {
     }
     const plane = ctx.fills.find(fill => fill.path.length === 4);
     assert.ok(plane);
-    [[-.92, -.92], [.92, -.92], [.92, .92], [-.92, .92]].forEach(([x, z], i) => pointNear(plane.path[i],
-      projectAdaptation({ x, z, y: predict(state.fit, { x, z }) }, width, height, state.turn),
-      'The rendered surface must use the fitted intercept and both slopes'));
+    [[-.92, -.92], [.92, -.92], [.92, .92], [-.92, .92]].forEach(([x, z], i) => {
+      const y = predict(state.fit, { x, z });
+      assert.ok(Math.abs(y) <= 1, 'The actual fitted surface must remain inside the world cube without clamping');
+      pointNear(plane.path[i], projectAdaptation({ x, z, y }, width, height, state.turn),
+        'The rendered surface must use the fitted intercept and both slopes');
+    });
     const residuals = ctx.strokes.filter(stroke => stroke.colour === '#7488b2');
     assert.equal(residuals.length, state.observations.length);
     residuals.forEach((line, i) => {
