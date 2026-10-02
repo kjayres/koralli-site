@@ -170,8 +170,20 @@ for (const [width, height] of sizes) {
     const edges = ctx.strokes.filter(stroke => stroke.colour === '#858d9d');
     assert.equal(edges.length, 12, 'A complete cube must retain all twelve edges');
     if (state.turn === 1) {
-      const length = edge => Math.hypot(edge.path[1].x - edge.path[0].x, edge.path[1].y - edge.path[0].y);
-      for (const edge of edges) near(length(edge), length(edges[0]), 'All cube sides must have equal projected isometric length');
+      const yaw = 30 * Math.PI / 180, elevation = 10 * Math.PI / 180;
+      const worldEdge = 2, scale = Math.min(width, height) * .265;
+      const axes = [
+        { name: 'x', edges: [0, 2, 4, 6], x: Math.cos(yaw), y: -Math.sin(yaw) * Math.sin(elevation) },
+        { name: 'y', edges: [1, 3, 5, 7], x: 0, y: -Math.cos(elevation) },
+        { name: 'z', edges: [8, 9, 10, 11], x: Math.sin(yaw), y: Math.cos(yaw) * Math.sin(elevation) },
+      ];
+      for (const axis of axes) for (const index of axis.edges) {
+        const [a, b] = edges[index].path, dx = b.x - a.x, dy = b.y - a.y;
+        near(Math.hypot(dx, dy), worldEdge * scale * Math.hypot(axis.x, axis.y),
+          `Every ${axis.name}-aligned cube edge must match the chosen 30/10 camera projection`);
+        near(dx * axis.y - dy * axis.x, 0,
+          `The four ${axis.name}-aligned cube edges must remain parallel to their projected world axis`);
+      }
     }
     const plane = ctx.fills.find(fill => fill.path.length === 4);
     assert.ok(plane);

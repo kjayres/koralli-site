@@ -44,7 +44,7 @@ function windowOf(total) {
   return Array.from({ length: Math.min(CAPACITY, total) }, (_, i) => observation(Math.max(0, total - CAPACITY) + i));
 }
 function camera(turn) {
-  const yaw = Math.PI / 4 * clamp(turn), pitch = Math.atan(1 / Math.SQRT2) * clamp(turn);
+  const yaw = Math.PI / 6 * clamp(turn), pitch = Math.PI / 18 * clamp(turn);
   return { cy: Math.cos(yaw), sy: Math.sin(yaw), cp: Math.cos(pitch), sp: Math.sin(pitch) };
 }
 
