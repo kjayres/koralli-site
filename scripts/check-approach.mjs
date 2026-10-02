@@ -116,13 +116,13 @@ for (const size of sizes) {
   console.log(`${size}px: initial settled pile at ${initialSettledAt.toFixed(2)}s; four rollovers at ${rollovers.join(', ')}s.`);
 }
 
-// Record canvas geometry to check the visible lens dwell and coral connections.
+// Record canvas geometry to check the lens, discovered relationships and coral.
 function recorder() {
   const ctx = {
-    strokes: [], arcs: [], labels: [], path: [], fills: [], stack: [],
-    fillStyle: '#000000', strokeStyle: '#000000', globalAlpha: 1, clipPath: null,
+    strokes: [], strokeRecords: [], arcs: [], labels: [], path: [], fills: [], stack: [],
+    fillStyle: '#000000', strokeStyle: '#000000', globalAlpha: 1, lineWidth: 1, clipPath: null,
     save() {
-      this.stack.push({ fillStyle: this.fillStyle, strokeStyle: this.strokeStyle, globalAlpha: this.globalAlpha, clipPath: this.clipPath });
+      this.stack.push({ fillStyle: this.fillStyle, strokeStyle: this.strokeStyle, globalAlpha: this.globalAlpha, lineWidth: this.lineWidth, clipPath: this.clipPath });
     },
     restore() { assert.ok(this.stack.length, 'Canvas restores must match saves'); Object.assign(this, this.stack.pop()); },
     clip() { this.clipPath = this.path; },
@@ -143,10 +143,13 @@ function recorder() {
     fillRect(...values) { assert.ok(values.every(Number.isFinite)); },
     measureText(text) { return { width: text.length * 5 }; },
     fillText(text) { this.labels.push(text); },
-    stroke() { this.strokes.push(this.path); },
+    stroke() {
+      this.strokes.push(this.path);
+      this.strokeRecords.push({ path: this.path, style: this.strokeStyle, alpha: this.globalAlpha, width: this.lineWidth });
+    },
     reset() {
       assert.equal(this.stack.length, 0, 'Drawing must restore its canvas state');
-      this.strokes = []; this.arcs = []; this.labels = []; this.path = []; this.fills = [];
+      this.strokes = []; this.strokeRecords = []; this.arcs = []; this.labels = []; this.path = []; this.fills = [];
     },
   };
   return ctx;
@@ -190,12 +193,28 @@ function checkMagnification(ctx, lens, reference, selected, revealed) {
   return probes;
 }
 
-const lensCtx = recorder(), lensSamples = [], iconSamples = [], radialSamples = [];
+const lensCtx = recorder(), lensSamples = [], iconSamples = [], radialSamples = [], networkSamples = new Map();
 const referenceField = createApproachScene(400, 400);
 const dwellFrames = [168, 294, 408], objectFrames = [192, 432, 672, 912, 1152], travelFrames = [120, 153];
+const networkFrames = [176, 198, 222, 246, 282, 294, 312, 330];
+const networkPoint = id => {
+  const p = referenceField.field.particles[id], scale = referenceField.field.bounds.scale;
+  return { x: 200 + p.x * scale, y: 200 + p.y * scale };
+};
+assert.deepEqual(referenceField.inspections.map(({ edges }) => edges), createApproachScene(240, 320).inspections.map(({ edges }) => edges), 'Discovered relationships must be deterministic and retain particle identities across canvas sizes');
 for (let frame = 0; frame <= 1152; frame++) {
   lensCtx.reset();
   drawApproach(lensCtx, 400, 400, frame / 60, { phase: 0 });
+  const network = lensCtx.strokeRecords.filter(stroke => stroke.style === '#707783');
+  const inspection = referenceField.inspections[Math.floor(Math.max(0, frame / 60 - 1.3) / 4) % referenceField.inspections.length];
+  for (const stroke of network) {
+    assert.equal(stroke.path.length, 2);
+    assert.ok(inspection.edges.some(({ from, to }) => distance(stroke.path[0], networkPoint(from)) < 1e-8 && distance(stroke.path[1], networkPoint(to)) < 1e-8), 'Each discovered relationship must connect two original grains, including throughout its reveal');
+    assert.ok(distance(stroke.path[0], networkPoint(inspection.id)) < 1e-8 || network.some(parent => distance(parent.path[1], stroke.path[0]) < 1e-8), 'Revealing relationships must remain connected to the inspected grain');
+    assert.ok(stroke.width < .85 && stroke.alpha <= .52, 'Discovered relationships must remain finer and lighter than the final coral');
+  }
+  if (networkFrames.includes(frame)) networkSamples.set(frame, network);
+  if ((frame - 246) % 240 === 0 && frame >= 246) assert.equal(network.length, inspection.edges.length, 'Every inspection must reveal its full local relationship network');
   if ([...dwellFrames, ...objectFrames, ...travelFrames].includes(frame)) {
     const lensPath = lensCtx.strokes.filter(path => path.length === 1 && path[0].arc)
       .reduce((largest, path) => !largest || path[0].arc.radius >= largest[0].arc.radius ? path : largest, null);
@@ -203,7 +222,7 @@ for (let frame = 0; frame <= 1152; frame++) {
     assert.ok(lens, 'Go & See must show a magnifying glass');
     if (dwellFrames.includes(frame)) lensSamples.push({ ...lens, label: lensCtx.labels.at(-1) });
     if (objectFrames.includes(frame)) {
-      const paths = lensCtx.strokes.filter(path => path !== lensPath).map(path => path.map(point => {
+      const paths = lensCtx.strokeRecords.filter(stroke => stroke.path !== lensPath && stroke.style !== '#707783').map(({ path }) => path.map(point => {
         const p = point.arc || point;
         return [(p.x - lens.x).toFixed(2), (p.y - lens.y).toFixed(2), p.radius?.toFixed(2)];
       }));
@@ -214,6 +233,17 @@ for (let frame = 0; frame <= 1152; frame++) {
     if (travelFrames.includes(frame)) radialSamples.push(...checkMagnification(lensCtx, lens, referenceField, referenceField.inspections[0].id, false));
   }
 }
+assert.equal(networkSamples.get(176).length, 0, 'Relationships must wait for the settled lens and object reveal');
+assert.ok(networkSamples.get(198).length > 0 && networkSamples.get(198).length < networkSamples.get(222).length, 'Relationships must spread out progressively from the inspection');
+assert.ok(networkSamples.get(198).some(({ path }) => distance(path[0], networkPoint(referenceField.inspections[0].id)) < 1e-8), 'The discovery must begin at the inspected grain');
+assert.equal(networkSamples.get(246).length, referenceField.inspections[0].edges.length);
+assert.deepEqual(networkSamples.get(246), networkSamples.get(282), 'The revealed network must hold still while the lens rests');
+assert.ok(networkSamples.get(294).every(stroke => stroke.alpha < networkSamples.get(282)[0].alpha), 'The network must recede before the next inspection');
+assert.equal(networkSamples.get(312).length, 0, 'Relationships must disappear before the lens travels');
+assert.equal(networkSamples.get(330).length, 0, 'The moving lens must not drag relationships through the field');
+const stillInspectionCtx = recorder();
+drawApproach(stillInspectionCtx, 400, 400, 0, { phase: 0, reducedMotion: true });
+assert.equal(stillInspectionCtx.strokeRecords.filter(stroke => stroke.style === '#707783').length, referenceField.inspections[0].edges.length, 'Reduced motion must show the complete inspection network without waiting for animation');
 assert.ok(distance(lensSamples[0], lensSamples[1]) < 1e-9, 'The lens must pause on one dot for at least two seconds');
 assert.notEqual(lensSamples[0].label, lensSamples[2].label, 'The lens must move on to another inspection');
 assert.ok(distance(lensSamples[1], lensSamples[2]) > 20);
@@ -296,7 +326,7 @@ for (let frame = 1; frame <= 52 * 20; frame++) {
 assert.ok(movingBranchObserved, 'The transition check must observe a branch while its source grain is still returning');
 assert.equal(checkedCorals.size, returningScene.studies.length, 'Every coral variant must have all of its particle bindings checked');
 
-console.log('Canvas sequence checked: radial magnification, all five dimensional objects, lens dwell, and every coral node and edge attached to the same returning particles across all five variants.');
+console.log('Canvas sequence checked: radial magnification, all five dimensional objects, progressive anchored inspection networks, lens dwell, and every coral node and edge attached to the same returning particles across all five variants.');
 if (costs.length) {
   costs.sort((a, b) => a - b);
   const percentile = p => costs[Math.floor((costs.length - 1) * p)].toFixed(2);

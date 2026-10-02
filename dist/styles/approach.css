@@ -96,3 +96,35 @@
 @media (prefers-reduced-motion:reduce) {
   .approach-number { transition:none; }
 }
+
+/* A single reading position, with the three panels sharing the same grid cell. */
+.approach-scroll { margin-top:36px; }
+.approach-next { display:none; }
+.approach-enhanced .approach-next { display:inline-block; }
+.approach-scroll .approach-layout { margin-top:0; }
+.approach-enhanced .approach-layout { position:sticky; top:var(--approach-pin-top,90px); align-items:center; }
+.approach-enhanced .approach-figure { position:relative; top:auto; margin:0; align-self:center; }
+.approach-enhanced .approach-steps { display:grid; align-items:start; }
+.approach-enhanced .approach-step { grid-area:1 / 1; min-height:0; padding:0 0 0 66px; opacity:0; visibility:hidden; pointer-events:none; }
+.approach-enhanced .approach-step.is-active { opacity:var(--approach-opacity,1); visibility:visible; pointer-events:auto; }
+.approach-enhanced .approach-step::before { display:none; }
+.approach-enhanced .approach-number { top:0; transition:none; }
+.approach-enhanced .approach-emphasis { color:color-mix(in srgb, var(--blue) calc(var(--approach-emphasis,0) * 100%), #5c5b58); }
+@media (min-width:760px) and (max-width:1050px) {
+  .approach-enhanced .approach-step { padding-left:54px; }
+}
+@media (max-width:759px) {
+  .approach-enhanced .approach-layout { display:grid; grid-template-columns:1fr; row-gap:24px; }
+  .approach-enhanced .approach-figure { display:block; grid-column:1; grid-row:1; padding:0; background:none; }
+  .approach-enhanced .approach-frame,.approach-enhanced .approach-figure figcaption { width:clamp(180px,53vw,220px); margin-left:auto; margin-right:auto; }
+  .approach-enhanced .approach-steps { grid-column:1; grid-row:2; margin:0; }
+  .approach-enhanced .approach-step { padding-left:50px; }
+  .approach-enhanced .approach-copy h3 { margin:10px 0 14px; }
+  .approach-enhanced .approach-copy p+p { margin-top:12px; }
+  .approach-enhanced .approach-copy .approach-lead { margin-bottom:14px; }
+  .approach-enhanced .approach-copy .text-link { margin-top:18px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .approach-figure { position:relative; top:auto; }
+  .approach-emphasis { color:var(--blue); }
+}

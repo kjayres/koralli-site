@@ -1,6 +1,6 @@
-import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=d8e0ffd66371';
-import { coralStudies } from './coral.mjs?v=d8e0ffd66371';
-import { drawInspectionObject } from './inspection-objects.mjs?v=d8e0ffd66371';
+import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=8e39c25a0b47';
+import { coralStudies } from './coral.mjs?v=8e39c25a0b47';
+import { drawInspectionObject } from './inspection-objects.mjs?v=8e39c25a0b47';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));
@@ -29,6 +29,34 @@ function placeHomes(scene, bounds) {
   }));
 }
 
+function inspectionNetwork(locations, root) {
+  const origin = locations[root], ids = [root];
+  const distance = (a, b) => Math.hypot(locations[a].u - locations[b].u, locations[a].v - locations[b].v);
+  const candidates = locations.map((point, id) => ({ id, radius: Math.hypot(point.u - origin.u, point.v - origin.v) }))
+    .filter(point => point.radius > .06 && point.radius < .36)
+    .sort((a, b) => random(a.id + root) - random(b.id + root));
+  for (const { id } of candidates) {
+    if (ids.every(other => distance(id, other) > .06)) ids.push(id);
+    if (ids.length === 35) break;
+  }
+  // A small spanning tree selects relationships between the existing grains once.
+  const reached = new Map([[root, 0]]), edges = [];
+  while (reached.size < ids.length) {
+    let nearest = null;
+    for (const [from, arrival] of reached) {
+      for (const to of ids) {
+        if (reached.has(to)) continue;
+        const length = distance(from, to);
+        if (!nearest || length < nearest.length) nearest = { from, to, arrival, length };
+      }
+    }
+    edges.push(nearest);
+    reached.set(nearest.to, nearest.arrival + nearest.length);
+  }
+  const longest = Math.max(...reached.values());
+  return edges.map(({ from, to, arrival }) => ({ from, to, delay: arrival / longest * .75 }));
+}
+
 /** One population, with permanent homes shared by the suspended field and coral. */
 export function createApproachScene(width, height) {
   const field = createParticleField(approachBounds(width, height));
@@ -53,6 +81,7 @@ export function createApproachScene(width, height) {
     const i = locations.length;
     locations.push({ u: .06 + random(i + 73) * .88, v: .07 + random(i + 421) * .85 });
   }
+  inspections.forEach(inspection => { inspection.edges = inspectionNetwork(locations, inspection.id); });
   const scene = { field, locations, studies, inspections, width, height, phase: 0, age: 0, elapsed: 0, last: null, grey: 0, opacity: .48, reducedMotion: false };
   placeHomes(scene, field.bounds);
   field.particles.forEach((p, i) => Object.assign(p, scene.homes[i], { vx: 0, vy: 0 }));
@@ -137,7 +166,27 @@ function lensPosition(scene) {
   const a = cycle === 0 ? { x: scene.width * .12, y: scene.height * .17 } : project(scene, scene.field.particles[previous.id]);
   const progress = scene.reducedMotion ? 1 : smooth(local / 1.4);
   const reveal = scene.reducedMotion ? 1 : smooth((local - 1.4) / .28) * (1 - smooth((local - 3.7) / .3));
-  return { x: a.x + (b.x - a.x) * progress, y: a.y + (b.y - a.y) * progress, current, reveal, settled: local >= 1.4 || scene.reducedMotion };
+  const networkProgress = scene.reducedMotion ? 1 : clamp((local - 1.68) / 1.1);
+  const networkFade = scene.reducedMotion ? 1 : 1 - smooth((local - 3.45) / .4);
+  return { x: a.x + (b.x - a.x) * progress, y: a.y + (b.y - a.y) * progress, current, reveal, networkProgress, networkFade, settled: local >= 1.4 || scene.reducedMotion };
+}
+
+function drawInspectionNetwork(ctx, scene, lens) {
+  if (!lens.networkProgress || !lens.networkFade) return;
+  ctx.save(); ctx.lineWidth = .45; ctx.lineCap = 'round';
+  ctx.strokeStyle = '#707783'; ctx.fillStyle = '#707783';
+  for (const { from, to, delay } of lens.current.edges) {
+    const reveal = smooth((lens.networkProgress - delay) / .25) * lens.networkFade;
+    if (!reveal || [from, to].some(id => Math.hypot(scene.field.particles[id].x - scene.homes[id].x, scene.field.particles[id].y - scene.homes[id].y) >= .018)) continue;
+    const a = project(scene, scene.field.particles[from]), b = project(scene, scene.field.particles[to]);
+    // Reveal whole anchored edges, with the discovery travelling out from the lens.
+    ctx.globalAlpha = .52 * reveal;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const p = scene.field.particles[to];
+    ctx.globalAlpha = .7 * reveal;
+    dot(ctx, b.x, b.y, p.radius * scene.field.bounds.grainSize);
+  }
+  ctx.restore();
 }
 
 function lensHandle(ctx, x, y, radius, depth = 0) {
@@ -156,6 +205,7 @@ function drawLens(ctx, scene) {
   const opacity = scene.reducedMotion ? 1 : smooth((scene.age - .9) / .4);
   if (!opacity) return;
   const lens = lensPosition(scene);
+  drawInspectionNetwork(ctx, scene, lens);
   const radius = clamp(scene.width * .102, 24, 43);
   const rim = Math.max(1.5, radius * .05), depth = Math.max(.7, radius * .025);
   ctx.save(); ctx.globalAlpha = opacity;
