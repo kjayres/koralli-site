@@ -16,8 +16,12 @@
 .approach-figure figcaption { display:flex; flex-direction:column; gap:7px; min-height:49px; padding-top:15px; }
 .approach-figure .figure-caption { color:var(--blue); font-size:9px; letter-spacing:.11em; }
 .approach-detail { color:#686660; font:10px/1.5 var(--mono); }
-.approach-key { visibility:hidden; }
-[data-approach][data-phase="2"] .approach-key { visibility:visible; }
+.approach-frame::after { transition:opacity .7s; }
+[data-approach][data-phase="2"] .approach-frame::after { opacity:0; }
+.approach-key,.approach-illustration { visibility:hidden; }
+[data-approach][data-phase="2"] :is(.approach-key,.approach-illustration) { visibility:visible; }
+.approach-illustration { font:9px/1.4 var(--mono); color:#77746c; }
+.approach-key span+span::before { background:#e87883; }
 .approach-fallback { display:flex; flex-direction:column; justify-content:center; height:100%; gap:24px; padding:30px; color:var(--blue); font-size:18px; }
 .approach-steps { grid-column:1; grid-row:1; margin:0; padding:0; list-style:none; }
 .approach-step { position:relative; min-height:65svh; padding:var(--approach-copy-offset,0px) 0 100px 66px; scroll-margin-top:var(--approach-reading-top); }
@@ -94,7 +98,7 @@
   .approach-step { scroll-margin-top:254px; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .approach-number { transition:none; }
+  .approach-number,.approach-frame::after { transition:none; }
 }
 
 /* The heading and following section boundary frame one fixed reading position. */

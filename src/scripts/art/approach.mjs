@@ -1,6 +1,7 @@
 import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs';
 import { coralStudies } from './coral.mjs';
 import { drawInspectionObject } from './inspection-objects.mjs';
+import { adaptationPresentation, adaptationParticle, drawAdaptation } from './adaptation.mjs';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));
@@ -80,7 +81,7 @@ function inspectionNetwork(locations, { id: root, label }) {
   return edges.map(edge => ({ ...edge, start: edge.start / longest, end: edge.end / longest }));
 }
 
-/** One population, with permanent homes shared by the suspended field and coral. */
+/** One population, retaining the original coral anchors for a stable inspection field. */
 export function createApproachScene(width, height) {
   const field = createParticleField(approachBounds(width, height));
   const locations = [], anchorMap = new Map();
@@ -118,17 +119,10 @@ export function approachPresentation(scene) {
     const index = scene.reducedMotion ? 0 : Math.floor(cycle / 11) % FORM_NAMES.length;
     return { caption: '02 / BUILD & LEARN', detail: FORM_NAMES[index], form: index, cycle };
   }
-  const cycle = Math.max(0, scene.age - 1.8);
-  const index = scene.reducedMotion ? 0 : Math.floor(cycle / 11.2) % scene.studies.length;
-  const age = cycle % 11.2;
-  return {
-    caption: '03 / ADAPT & GROW', detail: scene.studies[index].study.name,
-    index, growth: scene.reducedMotion ? 1 : clamp(age / 2),
-    fade: scene.reducedMotion ? 1 : smooth((scene.age - 1.5) / .3) * (1 - smooth((age - 10) / 1.0)),
-  };
+  return adaptationPresentation(scene.age, scene.reducedMotion);
 }
 
-/** Scroll changes forces, never particle identity or position. Time advances only in view. */
+/** Scroll changes forces while preserving particle identities and visible positions. */
 export function updateApproachScene(scene, width, height, seconds, { phase = 0, reducedMotion = false } = {}) {
   const time = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   const dt = scene.last === null ? 0 : clamp(time - scene.last, 0, .1);
@@ -141,7 +135,30 @@ export function updateApproachScene(scene, width, height, seconds, { phase = 0, 
     scene.height = height;
   }
   const next = clamp(Math.round(phase), 0, 2);
-  if (next !== scene.phase) { scene.phase = next; scene.age = 0; }
+  if (reducedMotion) scene.adaptationExit = null;
+  if (scene.adaptationExit) {
+    scene.adaptationExit.age += dt;
+    if (scene.adaptationExit.age >= .45) scene.adaptationExit = null;
+  }
+  if (next !== scene.phase) {
+    if (scene.phase === 2 && !reducedMotion) {
+      const state = adaptationPresentation(scene.age, scene.reducedMotion);
+      // Bake the projected view back into the physical field before gravity resumes.
+      const projected = scene.field.particles.map(p => adaptationParticle(scene, p.id, state));
+      scene.field.particles.forEach((p, i) => Object.assign(p, {
+        x: (projected[i].x - width / 2) / scene.field.bounds.scale,
+        y: (projected[i].y - height / 2) / scene.field.bounds.scale,
+        vx: 0, vy: 0, asleep: false, sleepTime: 0,
+      }));
+      scene.field.resting = false;
+      scene.adaptationExit = {
+        age: 0, state,
+        points: projected.map(point => ({ ...point, rgb: point.colour.match(/\d+/g).map(Number) })),
+      };
+    }
+    if (next === 2 || reducedMotion) scene.adaptationExit = null;
+    scene.phase = next; scene.age = 0;
+  }
   if (!reducedMotion) {
     let nextAge = scene.age + dt;
     if (scene.phase === 1 && !scene.field.resting) {
@@ -341,55 +358,39 @@ function drawLens(ctx, scene) {
   ctx.restore();
 }
 
-function drawGrowth(ctx, scene) {
-  const { index, growth, fade } = approachPresentation(scene);
-  const { study, ids } = scene.studies[index];
-  const points = ids.map(id => project(scene, scene.field.particles[id]));
-  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  for (let i = 1; i < ids.length; i++) {
-    const parent = study.nodes[i][2];
-    const progress = clamp((growth - study.arrivals[parent]) / (study.arrivals[i] - study.arrivals[parent]));
-    const ready = [i, parent].every(n => {
-      const p = scene.field.particles[ids[n]], home = scene.homes[ids[n]];
-      return Math.hypot(p.x - home.x, p.y - home.y) < .018;
-    });
-    if (!progress || !ready) continue;
-    const a = points[parent], b = points[i];
-    ctx.strokeStyle = `rgba(17,17,17,${.62 * fade})`; ctx.lineWidth = .85;
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + (b.x - a.x) * progress, a.y + (b.y - a.y) * progress); ctx.stroke();
-    if (progress < 1) {
-      ctx.fillStyle = `rgba(36,78,255,${fade})`;
-      dot(ctx, a.x + (b.x - a.x) * progress, a.y + (b.y - a.y) * progress, 1.8);
-    }
-  }
-  points.forEach((p, i) => {
-    if (growth < study.arrivals[i]) return;
-    const source = scene.field.particles[ids[i]], home = scene.homes[ids[i]];
-    if (Math.hypot(source.x - home.x, source.y - home.y) >= .018) return;
-    ctx.fillStyle = study.operators.includes(i) ? `rgba(255,102,85,${fade})` : `rgba(36,78,255,${fade})`;
-    dot(ctx, p.x, p.y, study.children[i] > 1 ? 2.6 : 2.05);
-  });
-  ctx.restore();
-}
-
 /** The caller owns the canvas clear, DPR and visible animation clock. */
 export function drawApproach(ctx, width, height, seconds, options = {}) {
   if (!(width > 0 && height > 0)) return;
   let scene = states.get(ctx);
   if (!scene) { scene = createApproachScene(width, height); states.set(ctx, scene); }
   updateApproachScene(scene, width, height, seconds, options);
+  if (scene.phase === 2) {
+    drawAdaptation(ctx, scene);
+    return approachPresentation(scene);
+  }
   const rgb = [36, 78, 255].map((v, i) => Math.round(v + ([112, 119, 131][i] - v) * scene.grey));
+  const exitWeight = scene.adaptationExit ? 1 - smooth(scene.adaptationExit.age / .45) : 0;
   ctx.save(); ctx.fillStyle = `rgb(${rgb.join(',')})`;
   for (const p of scene.field.particles) {
     const appeared = scene.reducedMotion ? 1 : smooth((scene.elapsed - random(p.id + 19) * 1.1) / .4);
     ctx.globalAlpha = scene.opacity * appeared;
+    let radius = p.radius * scene.field.bounds.grainSize;
+    if (scene.adaptationExit) {
+      const from = scene.adaptationExit.points[p.id];
+      ctx.globalAlpha += (from.alpha - ctx.globalAlpha) * exitWeight;
+      radius += (from.radius - radius) * exitWeight;
+      ctx.fillStyle = `rgb(${rgb.map((v, i) => Math.round(v + (from.rgb[i] - v) * exitWeight)).join(',')})`;
+    }
     const point = project(scene, p);
-    const kind = scene.phase === 0 && scene.locations[p.id].kind;
+    const kind = scene.phase === 0 && exitWeight < .1 && scene.locations[p.id].kind;
     if (kind) drawInspectionObject(ctx, point.x, point.y, markRadius(scene), kind);
-    else dot(ctx, point.x, point.y, p.radius * scene.field.bounds.grainSize);
+    else dot(ctx, point.x, point.y, radius);
   }
   ctx.restore();
   if (scene.phase === 0) drawLens(ctx, scene);
-  if (scene.phase === 2) drawGrowth(ctx, scene);
+  if (scene.adaptationExit) drawAdaptation(ctx, scene, {
+    particles: false, state: scene.adaptationExit.state,
+    opacity: 1 - smooth(scene.adaptationExit.age / .45),
+  });
   return approachPresentation(scene);
 }
