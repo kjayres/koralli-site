@@ -1,4 +1,4 @@
-import { ORGANIC_CORALS } from './reef-organic.mjs?v=8e39c25a0b47';
+import { ORGANIC_CORALS } from './reef-organic.mjs?v=4272aaa1c2e4';
 
 const random = seed => { const n = Math.sin(seed * 91.73 + 17.19) * 41738.31; return n - Math.floor(n); };
 

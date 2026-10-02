@@ -113,7 +113,7 @@ for (const size of sizes) {
     assert.equal(scene.age, age);
     finiteAndContained(scene, originals);
   }
-  console.log(`${size}px: initial settled pile at ${initialSettledAt.toFixed(2)}s; four rollovers at ${rollovers.join(', ')}s.`);
+  console.log(`${size}px: initial settled pile at ${initialSettledAt.toFixed(2)}s; ${rollovers.length} rollovers at ${rollovers.join(', ')}s.`);
 }
 
 // Record canvas geometry to check the lens, discovered relationships and coral.

@@ -105,30 +105,6 @@ const shapes = [
     box(.35, -.18, .26, .36);
     for (let i = 0; i < 3; i++) line(.40, -.09 + i * .09, .56, -.09 + i * .09);
   }),
-  makeShape(({ line, path }) => {
-    const beam = (a, b, width) => {
-      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const nx = -(b[1] - a[1]) / length, ny = (b[0] - a[0]) / length;
-      const steps = Math.ceil(width / .008);
-      for (let i = 0; i <= steps; i++) {
-        const offset = width * (i / steps - .5);
-        line(a[0] + nx * offset, a[1] + ny * offset, b[0] + nx * offset, b[1] + ny * offset);
-      }
-    };
-    const outer = [], inner = [];
-    for (let i = 0; i <= 100; i++) {
-      const t = i / 100, angle = -1.48 + t * 4.20;
-      const thickness = .125 * Math.sin(Math.PI * t * .91) ** .72;
-      const point = radius => [.005 + Math.cos(angle) * radius, -.015 + Math.sin(angle) * radius];
-      const a = point(.46), b = point(.46 - thickness);
-      outer.push(a); inner.push(b);
-      line(...a, ...b);
-    }
-    path([...outer, ...inner.reverse(), outer[0]]);
-    beam([-.39, .17], [-.57, .43], .075);
-    beam([-.25, -.29], [.36, .39], .09);
-    beam([-.44, -.19], [-.06, -.48], .14);
-  }),
 ];
 
 export const RESEARCH_FORM_COUNT = shapes.length;
