@@ -1,13 +1,13 @@
-import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=92669125fe89';
-import { coralStudies } from './coral.mjs?v=92669125fe89';
-import { drawInspectionObject } from './inspection-objects.mjs?v=92669125fe89';
+import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=677519222157';
+import { coralStudies } from './coral.mjs?v=677519222157';
+import { drawInspectionObject } from './inspection-objects.mjs?v=677519222157';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
 const random = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const states = new WeakMap();
-const FORM_NAMES = ['A shared view of performance', 'Connected data tables', 'A connected workflow', 'Hammer and sickle'];
+const FORM_NAMES = ['A shared view of performance', 'Connected data tables', 'A connected workflow', 'All that is solid melts into sand.'];
 const INSPECTIONS = [
   { u: .29, v: .30, label: 'People' },
   { u: .70, v: .37, label: 'Processes' },
