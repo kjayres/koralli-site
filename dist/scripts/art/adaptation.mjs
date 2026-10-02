@@ -3,7 +3,8 @@ const clamp = value => Math.max(0, Math.min(1, value));
 const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
 const BLUE = [36, 78, 255], GREY = [112, 119, 131], CORAL = [232, 120, 131];
-const INITIAL_COUNT = 5, CAPACITY = 12, ENTRY = 2.6, INTERVAL = 10;
+const INITIAL_COUNT = 5, CAPACITY = 12, FIRST_EVIDENCE = 5.5, INTERVAL = 5;
+const EVIDENCE_HOLD = 1.5, REFIT_DURATION = .35;
 const colour = (a, b, t) => a.map((value, i) => mix(value, b[i], t));
 const css = rgb => `rgb(${rgb.map(Math.round).join(',')})`;
 
@@ -31,7 +32,7 @@ const predict = (fit, p) => fit.intercept + fit.slopeX * p.x + fit.slopeZ * p.z;
 const mixFit = (a, b, t) => ({ intercept: mix(a.intercept, b.intercept, t), slopeX: mix(a.slopeX, b.slopeX, t), slopeZ: mix(a.slopeZ, b.slopeZ, t) });
 
 // Five non-collinear starting measurements, then one surprising local observation.
-const INITIAL = [[-.48, -.42, -.025], [-.48, .42, .025], [.48, -.42, .03], [.48, .42, -.03], [0, 0, 0]];
+const INITIAL = [[-.48, -.42, -.22], [-.48, .42, .34], [.48, -.42, .34], [.48, .42, -.22], [0, 0, -.24]];
 const CLUSTERS = [[.34, .27], [-.36, .25], [-.30, -.32], [.32, -.28]];
 const EARLY_DEPARTURES = [.24, -.22, .24, -.22];
 const RESPONSE_OFFSETS = [.20, .133, .066, 0, -.066, -.133, -.20];
@@ -61,24 +62,25 @@ function camera(turn) {
 
 /** Bounded rolling data, derived directly from phase age rather than an accumulating log. */
 export function adaptationPresentation(age, reducedMotion = false) {
-  const seconds = reducedMotion ? ENTRY + 35.5 : (Number.isFinite(age) ? Math.max(0, age) : 0);
-  const local = Math.max(0, seconds - ENTRY), event = Math.floor(local / INTERVAL), eventAge = local % INTERVAL;
+  const seconds = reducedMotion ? FIRST_EVIDENCE + 2 * INTERVAL + EVIDENCE_HOLD + REFIT_DURATION + .1 : (Number.isFinite(age) ? Math.max(0, age) : 0);
+  const local = Math.max(0, seconds - FIRST_EVIDENCE);
+  const event = seconds < FIRST_EVIDENCE ? 0 : Math.floor(local / INTERVAL) + 1, eventAge = local % INTERVAL;
   const total = INITIAL_COUNT + event, previousTotal = Math.max(INITIAL_COUNT, total - 1);
   const current = windowOf(total), previous = windowOf(previousTotal);
-  const updateProgress = event ? ease((eventAge - 5) / .3) : 1;
+  const updateProgress = event ? ease((eventAge - EVIDENCE_HOLD) / REFIT_DURATION) : 1;
   const previousFit = fitPlane(previous), nextFit = fitPlane(current);
-  const fitObservations = event && eventAge < 5 ? previous : current;
-  const targetFit = event && eventAge < 5 ? previousFit : nextFit;
+  const fitObservations = event && eventAge < EVIDENCE_HOLD ? previous : current;
+  const targetFit = event && eventAge < EVIDENCE_HOLD ? previousFit : nextFit;
   const fit = event ? mixFit(previousFit, nextFit, updateProgress) : nextFit;
-  const initialFit = reducedMotion ? 1 : ease((seconds - 3.4) / .55);
+  const initialFit = reducedMotion ? 1 : ease((seconds - 2.75) / .65);
   const pending = [], points = Array(CAPACITY).fill(null);
   const observations = current.map(point => {
     const recent = event > 0 && point.id >= previousTotal;
-    const included = !recent || eventAge >= 5;
+    const included = !recent || eventAge >= EVIDENCE_HOLD;
     if (!included) pending.push(point.id);
     // Before recycling a slot, let its oldest displayed observation recede quietly.
     const retiring = total >= CAPACITY && point.id < total - CAPACITY + 1;
-    const retirement = retiring && !reducedMotion ? 1 - ease((eventAge - 9.55) / .4) : 1;
+    const retirement = retiring && !reducedMotion ? 1 - ease((eventAge - (INTERVAL - .45)) / .4) : 1;
     const presence = (recent && !reducedMotion ? ease(eventAge / .2) : 1) * retirement;
     const pulse = recent && !reducedMotion ? 1 - updateProgress : 0;
     const ringProgress = recent ? clamp((eventAge % 1.5) / 1.25) : 1;
@@ -95,7 +97,7 @@ export function adaptationPresentation(age, reducedMotion = false) {
     age: seconds, local, event, eventAge, total, pending, updateProgress, refitProgress: updateProgress,
     assemble, turn, camera: camera(turn), initialFit,
     frameOpacity: reducedMotion ? 1 : ease((seconds - 1.55) / .8),
-    planeOpacity: initialFit, points, observations, fitObservations, fit, targetFit,
+    planeOpacity: Math.min(1, initialFit * 4), points, observations, fitObservations, fit, targetFit,
   };
 }
 
@@ -156,6 +158,13 @@ export function drawAdaptation(ctx, scene, { opacity = 1, particles = true, stat
   for (const [a, b] of EDGES) segment(ctx, box[a], box[b]);
 
   const corners = [[-.92, -.92], [.92, -.92], [.92, .92], [-.92, .92]].map(([x, z]) => onPlane(x, z));
+  ctx.save();
+  if (state.initialFit < 1) {
+    const ys = corners.map(point => point.y);
+    const revealY = mix(Math.max(...ys), Math.min(...ys), state.initialFit);
+    ctx.beginPath(); ctx.moveTo(0, revealY); ctx.lineTo(scene.width, revealY);
+    ctx.lineTo(scene.width, scene.height); ctx.lineTo(0, scene.height); ctx.closePath(); ctx.clip();
+  }
   ctx.globalAlpha = opacity * state.planeOpacity * .045; ctx.fillStyle = '#244eff';
   ctx.beginPath(); corners.forEach((point, i) => i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)); ctx.closePath(); ctx.fill();
   ctx.globalAlpha = opacity * state.planeOpacity * .55; ctx.strokeStyle = '#526eaa'; ctx.lineWidth = .65; ctx.stroke();
@@ -164,6 +173,7 @@ export function drawAdaptation(ctx, scene, { opacity = 1, particles = true, stat
     segment(ctx, onPlane(coordinate, -.92), onPlane(coordinate, .92));
     segment(ctx, onPlane(-.92, coordinate), onPlane(.92, coordinate));
   }
+  ctx.restore();
   if (typeof ctx.setLineDash === 'function') ctx.setLineDash([1.2, 1.8]);
   ctx.strokeStyle = '#7488b2'; ctx.lineWidth = .45;
   for (const point of state.observations) {
