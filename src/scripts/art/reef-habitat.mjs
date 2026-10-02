@@ -1,17 +1,9 @@
 import { ORGANIC_CORALS } from './reef-organic.mjs';
+import { reefFloorHeight } from './reef-terrain.mjs';
+export { reefFloorHeight } from './reef-terrain.mjs';
 
 const random = seed => { const n = Math.sin(seed * 91.73 + 17.19) * 41738.31; return n - Math.floor(n); };
 
-/** The camera stays low; local knolls and a shallow channel reveal the depth. */
-export function reefFloorHeight(x, y, compact = false) {
-  const xx = compact ? x * 3.2 : x, yy = compact ? y / .52 : y;
-  const rise = 1 / (1 + Math.exp(-(yy + 110) / 130));
-  const mound = (cx, cy, rx, ry) => Math.exp(-(((xx - cx) / rx) ** 2) - ((yy - cy) / ry) ** 2);
-  return (compact ? .9 : 1) * (66 + 258 * rise
-    + 48 * mound(-690, -130, 390, 205) + 54 * mound(510, 75, 440, 230)
-    + 30 * mound(-90, 290, 290, 170) - 32 * mound(-80, -90, 185, 300)
-    + 6 * Math.sin(xx * .009 + yy * .012) + 3 * Math.cos(xx * .018 - yy * .023));
-}
 
 function footprint(kind, height, spread, depth, yaw) {
   const mesh = ORGANIC_CORALS[kind], c = Math.cos(yaw), s = Math.sin(yaw);
@@ -21,6 +13,26 @@ function footprint(kind, height, spread, depth, yaw) {
     ry = Math.max(ry, Math.abs(x * s + y * c) * height * spread * depth);
   }
   return { rx, ry };
+}
+
+function suitableRoot(x, y, envelope, height, compact) {
+  let low=Infinity,high=-Infinity;
+  for(const dx of [-envelope.rx,0,envelope.rx])for(const dy of [-envelope.ry,0,envelope.ry]) {
+    const ground=reefFloorHeight(x+dx,y+dy/3.1,compact);
+    low=Math.min(low,ground);high=Math.max(high,ground);
+  }
+  // Grow on a shelf, not through its steep edge. Small recruits need flatter seats.
+  return high-low < height*.85;
+}
+
+function clearsSwimmingCorridors(x,y,envelope,height,compact) {
+  // Conservative bounds of the existing fish pairs and turtle routes, including
+  // fins and vertical drift. New terrain must not plant growth into their paths.
+  const corridors=compact?[[430,-260,-120,400],[445,355,510,370],[510,-325,-95,290],[350,-700,-520,195]]
+    :[[1130,-275,-110,465],[1050,665,855,412],[1160,-325,-65,350],[900,-1005,-765,249]];
+  const top=reefFloorHeight(x,y,compact)+height+4;
+  return corridors.every(([span,near,far,ceiling])=>Math.abs(x)>span+envelope.rx
+    ||y*3.1+envelope.ry<near||y*3.1-envelope.ry>far||top<ceiling-6);
 }
 
 /** Seeded clusters are packed by their actual mesh envelopes, not a row/grid. */
@@ -67,11 +79,13 @@ export function reefHabitat(compact = false) {
       // The y coordinates are stretched into world depth by the renderer.
       if (colonies.some(other => Math.abs(x - other.origin[0]) < (envelope.rx + other.envelope.rx) * 1.015 + 2
         && Math.abs(y - other.origin[1]) * 3.1 < (envelope.ry + other.envelope.ry) * 1.015 + 2)) continue;
+      if (!suitableRoot(x,y,envelope,height,compact)) continue;
+      if (!clearsSwimmingCorridors(x,y,envelope,height,compact)) continue;
       const colourField = Math.sin(nx * 4.1 + depthPosition * 3.3) + .42 * Math.cos(key * .4);
       colonies.push({ name: `Habitat colony ${colonies.length + 1}`, kind, height,
         origin: [x, y, reefFloorHeight(x, y, compact)], yaw: yaw * 180 / Math.PI,
         width, depth, material: group.flex ? 'blue' : colourField > .40 ? 'coral' : 'blue',
-        motion: Boolean(group.flex), flex: group.flex || 0, envelope, burial: compact ? 4.5 : 1.5, bank: true });
+        motion: Boolean(group.flex), flex: group.flex || 0, envelope, burial: Math.min(compact ? 4.5 : 1.5,height*.025), bank: true });
       placed++;
     }
   }
@@ -107,10 +121,12 @@ export function reefHabitat(compact = false) {
       if (Math.abs(nx - (-.07 + .19 * Math.sin(depthPosition * 3.6))) < .042 && depthPosition < .78) continue;
       if (colonies.some(other => Math.abs(x - other.origin[0]) < (envelope.rx + other.envelope.rx) * 1.015 + 2
         && Math.abs(y - other.origin[1]) * 3.1 < (envelope.ry + other.envelope.ry) * 1.015 + 2)) continue;
+      if (!suitableRoot(x,y,envelope,height,compact)) continue;
+      if (!clearsSwimmingCorridors(x,y,envelope,height,compact)) continue;
       colonies.push({ name: `Young colony ${added + 1}`, kind, height,
         origin: [x, y, reefFloorHeight(x, y, compact)], yaw: yaw * 180 / Math.PI,
         width, depth, material: random(key + 10) < .78 ? parent.material : parent.material === 'blue' ? 'coral' : 'blue',
-        motion: false, flex: 0, envelope, burial: compact ? 3 : 1.5, bank: true });
+        motion: false, flex: 0, envelope, burial: Math.min(compact ? 3 : 1.5,height*.025), bank: true });
       placed++; added++;
     }
   }

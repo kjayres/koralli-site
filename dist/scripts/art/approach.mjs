@@ -1,6 +1,6 @@
-import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=c7b0b994717f';
-import { coralStudies } from './coral.mjs?v=c7b0b994717f';
-import { drawInspectionObject } from './inspection-objects.mjs?v=c7b0b994717f';
+import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=38b91a96bffa';
+import { coralStudies } from './coral.mjs?v=38b91a96bffa';
+import { drawInspectionObject } from './inspection-objects.mjs?v=38b91a96bffa';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));
@@ -238,16 +238,34 @@ function drawInspectionNetwork(ctx, scene, lens, aperture = 0) {
   ctx.restore();
 }
 
-function lensHandle(ctx, x, y, radius, depth = 0) {
-  const d = Math.SQRT1_2, half = Math.max(2.5, radius * .085);
-  const a = { x: x + (radius + half) * d + depth * .6, y: y + (radius + half) * d + depth };
-  const b = { x: x + radius * 1.70 * d + depth * .6, y: y + radius * 1.70 * d + depth };
-  const nx = -d * half, ny = d * half;
-  ctx.beginPath(); ctx.moveTo(a.x + nx, a.y + ny); ctx.lineTo(b.x + nx, b.y + ny);
-  ctx.arc(b.x, b.y, half, Math.PI * .75, -Math.PI * .25, true);
-  ctx.lineTo(a.x - nx, a.y - ny);
-  ctx.arc(a.x, a.y, half, -Math.PI * .25, Math.PI * .75, true);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+function lensHandle(ctx, x, y, radius, depth) {
+  const d = Math.SQRT1_2, half = Math.max(2.1, radius * .072);
+  const start = radius * .97, end = radius * 1.66, tip = half * .8;
+  const point = (u, v, z = 0) => [x + (u - v) * d + z * .6, y + (u + v) * d + z];
+  const move = (u, v, z) => ctx.moveTo(...point(u, v, z));
+  const line = (u, v, z) => ctx.lineTo(...point(u, v, z));
+  const curve = (a, b, c, z = 0) => ctx.bezierCurveTo(...point(...a, z), ...point(...b, z), ...point(...c, z));
+  // A single tapered grip with a shaded curved underside and a recessed collar.
+  ctx.save(); ctx.lineWidth = .42; ctx.strokeStyle = '#607cd1'; ctx.fillStyle = '#d9e2f6';
+  ctx.beginPath(); move(start, half); line(end, tip);
+  curve([end + tip, tip], [end + tip, -tip], [end, -tip]);
+  line(end, -tip, depth);
+  curve([end + tip, -tip], [end + tip, tip], [end, tip], depth);
+  line(start, half, depth); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#f3f0e8';
+  if (typeof ctx.createLinearGradient === 'function') {
+    const fill = ctx.createLinearGradient(...point(start, -half), ...point(start, half));
+    fill.addColorStop(0, '#f3f0e8'); fill.addColorStop(.55, '#eef0f1'); fill.addColorStop(1, '#dce5f8');
+    ctx.fillStyle = fill;
+  }
+  ctx.strokeStyle = '#4263bb'; ctx.lineWidth = .5;
+  ctx.beginPath(); move(start, -half); line(end, -tip);
+  curve([end + tip, -tip], [end + tip, tip], [end, tip]);
+  line(start, half); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.lineWidth = .3; ctx.strokeStyle = '#95a6cd';
+  ctx.beginPath(); move(start + half * 1.4, -half * .95);
+  curve([start + half * 1.8, -half * .3], [start + half * 1.8, half * .3], [start + half * 1.4, half * .95]);
+  ctx.stroke(); ctx.restore();
 }
 
 function drawLens(ctx, scene) {
@@ -259,13 +277,16 @@ function drawLens(ctx, scene) {
   const rim = Math.max(1.5, radius * .05), depth = Math.max(.7, radius * .025);
   ctx.save(); ctx.globalAlpha = opacity;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#244eff'; ctx.lineWidth = .65;
-  ctx.fillStyle = '#e8eaf0';
+  ctx.strokeStyle = '#4263bb'; ctx.lineWidth = .45;
+  ctx.fillStyle = '#dce4f4';
   lensHandle(ctx, lens.x, lens.y, radius, depth);
-  // Two offset faces give the rim a shallow cylindrical edge.
-  ctx.beginPath(); ctx.arc(lens.x + depth * .6, lens.y + depth, radius, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(lens.x + depth * .6, lens.y + depth, radius, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(lens.x + depth * .6, lens.y + depth, radius, -.18, Math.PI * 1.06); ctx.stroke();
   ctx.fillStyle = '#f3f0e8';
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius, 0, TAU); ctx.fill();
+  // The thin bevel carries the blue pencil shading; the glass remains clear.
+  ctx.strokeStyle = '#dee5f4'; ctx.lineWidth = rim;
+  ctx.beginPath(); ctx.arc(lens.x, lens.y, radius - rim / 2, 0, TAU); ctx.stroke();
   ctx.save();
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius - rim, 0, TAU); ctx.clip();
   const aperture = radius - rim;
@@ -295,18 +316,19 @@ function drawLens(ctx, scene) {
     drawInspectionObject(ctx, lens.x, lens.y, markRadius(scene) * 2.65 + (radius - rim - markRadius(scene) * 2.65) * lens.reveal, lens.current.label);
   }
   ctx.restore();
-  ctx.lineWidth = .85;
+  ctx.strokeStyle = '#4263bb'; ctx.lineWidth = .53;
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius, 0, TAU); ctx.stroke();
-  ctx.lineWidth = .5;
+  ctx.strokeStyle = '#8296c6'; ctx.lineWidth = .32;
   ctx.beginPath(); ctx.arc(lens.x, lens.y, radius - rim, 0, TAU); ctx.stroke();
-  // Sparse cross-edges describe the thickness without turning the lens into a symbol.
-  ctx.lineWidth = .5;
-  for (const angle of [0, Math.PI / 4, Math.PI / 2]) {
-    const x = lens.x + Math.cos(angle) * radius, y = lens.y + Math.sin(angle) * radius;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + depth * .6, y + depth); ctx.stroke();
+  // Short, fine strokes follow the bevel rather than forming a second flat icon.
+  ctx.lineWidth = .25; ctx.strokeStyle = '#8197cb';
+  for (let i = 0; i < 19; i++) {
+    const angle = -.05 + i / 18 * Math.PI * .95;
+    ctx.beginPath();
+    ctx.moveTo(lens.x + Math.cos(angle) * (radius - rim * .75), lens.y + Math.sin(angle) * (radius - rim * .75));
+    ctx.lineTo(lens.x + Math.cos(angle + .012) * (radius - rim * .2), lens.y + Math.sin(angle + .012) * (radius - rim * .2));
+    ctx.stroke();
   }
-  ctx.lineWidth = .75; ctx.fillStyle = '#f3f0e8';
-  lensHandle(ctx, lens.x, lens.y, radius);
   if (lens.settled) {
     ctx.globalAlpha = opacity * lens.reveal;
     ctx.font = '400 9px "IBM Plex Mono", monospace';

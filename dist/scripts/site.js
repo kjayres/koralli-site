@@ -8,12 +8,12 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=c7b0b994717f'),
-  research: () => import('./art/research.mjs?v=c7b0b994717f'),
-  approach: () => import('./art/approach.mjs?v=c7b0b994717f'),
-  coral: () => import('./art/coral.mjs?v=c7b0b994717f'),
-  reef: () => import('./art/reef.mjs?v=c7b0b994717f'),
-  'journal-water': () => import('./art/journal-water.mjs?v=c7b0b994717f')
+  wave: () => import('./art/wave.mjs?v=38b91a96bffa'),
+  research: () => import('./art/research.mjs?v=38b91a96bffa'),
+  approach: () => import('./art/approach.mjs?v=38b91a96bffa'),
+  coral: () => import('./art/coral.mjs?v=38b91a96bffa'),
+  reef: () => import('./art/reef.mjs?v=38b91a96bffa'),
+  'journal-water': () => import('./art/journal-water.mjs?v=38b91a96bffa')
 };
 
 function artworkFailed(state, error) {
@@ -60,7 +60,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=c7b0b994717f');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=38b91a96bffa');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -214,7 +214,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=c7b0b994717f').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=38b91a96bffa').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -344,7 +344,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=c7b0b994717f').then(module => {
+if (building && svg) import('./art/building.mjs?v=38b91a96bffa').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -403,10 +403,10 @@ document.addEventListener('visibilitychange', () => {
 document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
-if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=c7b0b994717f')
+if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=38b91a96bffa')
   .then(({ initWorkflows }) => initWorkflows())
   .catch(error => console.error('Unable to initialise the workflow examples:', error));
-if (document.querySelector('#team-question')) import('./team.mjs?v=c7b0b994717f')
+if (document.querySelector('#team-question')) import('./team.mjs?v=38b91a96bffa')
   .then(({ initTeam }) => initTeam())
   .catch(error => console.error('Unable to initialise the team examples:', error));
 if (tracksScroll) onScroll();

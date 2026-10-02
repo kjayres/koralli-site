@@ -1,9 +1,10 @@
-import { ORGANIC_CORALS } from './reef-organic.mjs?v=c7b0b994717f';
-import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs?v=c7b0b994717f';
-import { reefCurrent, reefPlankton } from './reef-current.mjs?v=c7b0b994717f';
-import { movingTurtle } from './reef-turtle.mjs?v=c7b0b994717f';
-import { fishPose } from './reef-fish-motion.mjs?v=c7b0b994717f';
-import { reefSurfaceSteps, reefActorPreparationSteps, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs?v=c7b0b994717f';
+import { ORGANIC_CORALS } from './reef-organic.mjs?v=38b91a96bffa';
+import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs?v=38b91a96bffa';
+import { reefTerrain, reefRockFragments } from './reef-terrain.mjs?v=38b91a96bffa';
+import { reefCurrent, reefPlankton } from './reef-current.mjs?v=38b91a96bffa';
+import { movingTurtle } from './reef-turtle.mjs?v=38b91a96bffa';
+import { fishPose } from './reef-fish-motion.mjs?v=38b91a96bffa';
+import { reefSurfaceSteps, reefActorPreparationSteps, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs?v=38b91a96bffa';
 
 const TAU = Math.PI * 2;
 const WATER = [12, 22, 48];
@@ -74,25 +75,6 @@ function makeFish() {
 }
 const FISH = makeFish();
 
-function extendedFloor(compact) {
-  const columns = compact ? 50 : 78, rows = compact ? 58 : 74;
-  const span = compact ? 730 : 1650, near = compact ? -980 : -2010, far = compact ? 2700 : 4600;
-  const vertices = [], faces = [];
-  for (let row = 0; row <= rows; row += 1) {
-    const y = near + (far - near) * (row / rows) ** 1.7;
-    for (let column = 0; column <= columns; column += 1) {
-      const x = -span + column / columns * span * 2 + Math.sin(row * 7.1 + column * 2.3) * 9;
-      const yy = y + Math.sin(row * 2.7 + column * 5.1) * 7;
-      vertices.push([x, yy, floorHeight(x, yy / 3.1, compact)]);
-    }
-  }
-  for (let row = 0; row < rows; row += 1) for (let column = 0; column < columns; column += 1) {
-    const a = row * (columns + 1) + column, b = a + 1, c = a + columns + 1, d = c + 1;
-    faces.push([a, b, d], [a, d, c]);
-  }
-  return { name: 'Continuous reef floor', material: 'terrain', vertices, faces, nodes: [],
-    normals: faces.map(face => normal(vertices[face[0]], vertices[face[1]], vertices[face[2]])) };
-}
 
 function prepare(source, index) {
   let vertices, faces, nodes;
@@ -129,7 +111,9 @@ function groundScene(terrain, objects, compact) {
     coral.base = ground - coral.burial;
     coral.vertices = coral.vertices.map(([x,y,z]) => {
       const localHeight = clamp((z - oldBase) / coral.height);
-      const conformity = Math.pow(1 - localHeight, 5);
+      // Carry the root's local support gradually into the lower colony. A rapid
+      // falloff let broad plates cut back through a rising rock shoulder.
+      const conformity = 1 - localHeight;
       const localGround = floorHeight(x, y / 3.1, compact);
       return [x, y, z - oldBase + coral.base + (localGround - ground) * conformity];
     });
@@ -230,6 +214,7 @@ function style(material, faceNormal, depth, distance) {
   let fill, edge, width;
   if (material === 'terrain') { fill = 0.006 + (1 - light) * 0.013; edge = 0.11; width = 0.28; }
   else if (material === 'rock') { fill = 0.012 + (1 - light) * 0.025; edge = 0.27; width = 0.37; }
+  else if (material === 'limestone') { fill = 0.012 + light * 0.058; edge = .30 + light * .12; width = .28; }
   else if (material === 'fish') { fill = 0.012 + (1 - light) * 0.016; edge = 0.55; width = 0.28; }
   else { fill = 0.016 + (1 - light) * 0.028; edge = material === 'coral' ? 0.64 : 0.61; width = 0.20; }
   // Opaque blends hide the rear surface while retaining very light shading.
@@ -256,7 +241,7 @@ export class Reef {
     s.reefCompact = s.w < 600;
     const layout=reefHabitat(s.reefCompact);
     yield;
-    const scene=[extendedFloor(s.reefCompact)];
+    const scene=[...reefTerrain(s.reefCompact),...reefRockFragments(layout,s.reefCompact)];
     yield;
     for(let i=0;i<layout.length;i++) {
       scene.push(groundScene(null,[prepare(layout[i],i)],s.reefCompact)[1]);

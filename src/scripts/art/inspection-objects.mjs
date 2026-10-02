@@ -66,153 +66,211 @@ function oval(cx, cy, rx, ry) {
   ];
 }
 
-// Rounded volumes share the isometric ground plane; nearer limbs overlap the torso.
-function human(ctx, x, y, scale) {
-  const p = pen(ctx, x, y, scale), alpha = ctx.globalAlpha;
-  const position = point => { const [px, py] = iso(point); return [px, py + 32]; };
-  const paint = (commands, fill) => { p.path(commands); ctx.fillStyle = fill; ctx.fill(); };
-  const gradient = (centre, radius, sphere = false) => {
-    if (p.tiny) return PAPER;
-    const [cx, cy] = centre;
-    let fill = TINT;
-    if (sphere && typeof ctx.createRadialGradient === 'function') {
-      fill = ctx.createRadialGradient(x + (cx - radius * .35) * scale, y + (cy - radius * .4) * scale, 0, x + cx * scale, y + cy * scale, radius * 1.2 * scale);
-    } else if (typeof ctx.createLinearGradient === 'function') {
-      fill = ctx.createLinearGradient(x + (cx - radius) * scale, y + cy * scale, x + (cx + radius) * scale, y + cy * scale);
+const VOLUME_RIGHT = [Math.SQRT1_2, -Math.SQRT1_2, 0];
+const VOLUME_DOWN = [1 / Math.sqrt(6), 1 / Math.sqrt(6), -2 / Math.sqrt(6)];
+const VOLUME_VIEW = [1 / Math.sqrt(3), 1 / Math.sqrt(3), 1 / Math.sqrt(3)];
+const volumeCache = new Map();
+// Baked from the signed-distance models below: shaded pixel runs and visible occlusion edges.
+// Geometry remains editable in the model functions; no ray marching runs during page animation.
+const bakedVolumes = {"People":"YJz/Gv8azhoBBgIFAgQBBQEGAgcBCAEKUxoCBAMDAgQCBQIGAQcBCAEJAQsBDU4aAQYBAwEEAgICAwEEAQMCBAEFAQYCBwEIAQoBCwEMTBoBBQEDBAIBAwECAgMBBAEDAgUBBgEHAQgBCQEKAQsBDkoaAQUBAwYCBAMBBAEFAwYCCAEKAQsBDAEOSBoBBQEEAQMBAgEDBQIDAwIEAQUBBgEHAggBCgELAQwBDQEPRhoBBgEFAQMHAgMDAgQCBQIGAQcBCAEJAQoBDAENAQ8BEUUaAQUBBAECAQMFAgQDAgQCBQEGAQcCCAEKAQsBDAENAQ4BEAETQxoBBwEFAgMGAgQDAgQCBQEGAQcCCAIKAQwBDQEOARABE0MaAQYBBQEEAQMBAgEDAQIGAwMEAQUBBgEHAggCCgELAQwBDQEPARABEgEVQRoBCAEGAgQGAwEEAQMDBAIFAQYDBwEIAQkBCgELAg0BDwERARIBFUEaAQgBBgEFAwQBAwEEAQMEBAMFAQYCBwIIAQkBCgILAQwBDgEPAREBEwEVQRoBCAEGAgUDBAEDBAQCBQIGAwcBCAEJAQoCCwEMAQ0BDgEQAREBEwIUQBoBCAEGAQUBBgQEAQUBBAIFBAYCBwEIAQkBCgILAQwBDQEOAQ8BEAESARMCFUAaAQgCBwMFAQQFBQEGAwcBCAMJAgsBDAINAQ4BDwERARMCFAEVQBoBCQEIAwYDBQUGAwcBCAIJAQoBCwEMAg0BDgEPARABEgETARQCFUAaAQkCCAIHAQYEBwEGAgcDCAEJAgoCCwINAQ4BDwEQAREBEgEUARUCFEAaAgoCCAMHAQgDBwMIAgkCCgILAQwBDQEOAQ8BEAIRARMBFAEVARQBFUAaAQsBCgEJAQgBCQQIAQkBCAIJBAoBCwEMAg0CDgIQARIBEwIUARUBFAEVQBoBDQELAgoHCQQKAQsCDAENAg4CDwEQAhICFAEVARQBFUEaAQ8BDQELBwoBCwEKAwsBDAINAg4CDwEQAREBEgEUBRVCGgEOAQ0BDAELAQwGCwIMAQ0BDAENAg4CEAERAhIBEwIVAhQCFUIaAQ8CDgENBgwEDQEOAg8CEAERARICEwEVAxQCFUQaARABDwMOAw0CDgENAg4CDwEQAhEDEwEVAhQCFQEUARVEGgESAhABDwUOAw8BEAERARABEQESAhMEFAQVRhoCEgERBBABDwEQAxECEgITAhQBFQIUARUBFAMVRxoCEwESBBEBEgERAxICFAIVARQBFQIUBBVJGgIUBRMBFAETARQDFQMUAhUDFAEVSxoBFQQUAhUBFAEVARQBFQEUBBUCFAEVARRNGgEVARQGFQYUAxVRGgQUARUDFAEVARQBFQEUARVWGgIUAxUBFAEV/xofGgEFAQQBBQIGAgcBCAEHAggBCVIaAQUDBAEDAwUDBgEHAQgBCQIKAQ1NGgEFAgQBAwMEAgMBBAIFAQYCBwEIAgoBDAEOShoBBgEEAwMIBAIFAQYBBwIJAgwBDQEQSBoFBAEDCgQBBQEGAQgBCgEMAQ0BDwEQARRFGgEFAQMMBAEDAwQBBgEHAQkBCgINAQ8BEQEUQxoBBQEEAQMEBAEDCgQBBQEGAgcBCQELAQ0BDwERARMBFAEVQRoBBQEDAQQBAwcEAQMEBAIFAwYCCAEKAQwBDQEQAREBEwIVPxoCBAEDBQQBAwgEAQYBBQEGAgcBCAIJAQsBDAEPARABEgIVAhQ8GgEFCAQBAwIEAQMEBAIFAQYCBwEIAgkBCgELAQwBDQEQARIBEwEUAxU6GgEFAgQBAwoEAgMBBAIFAgYBBwIIAgoBCwEMAQ0BDgEPARABEwUVARQ4GgEEAwMBBAEDAgUGBAEDAQQCBQIGAgcDCQILAQwBDQEOAQ8BEAESARQCFQIUAhU3GgEEAQICAwECAQMDBAIFBAQDBQMHAQgCCQILAQwBDQEOAQ8BEAERARMDFAQVARQBFTUaAQUBAwQCAwMDBAEFAQQDBQIGAQcCCAEJAQoCCwEMAQ0BDwEQAhEBEwEUAxUCFAQVNBoBBgEDBQIDAwIEAQMEBQIGAQgCCQIKAQsCDQEOAQ8BEQESARMCFAEVARQBFQEUBxUzGgEEAQMEAgEDAgICAwMEAQUBBwEGAggBCQIKAQsBDAENAQ4BDwEQAhIFFAEVARQGFQEUARUyGgEHAQMFAgUDAQQDBQEHAQgBCQIKAQsBDAENAQ4BDwEQAREBEgETAxUBFAEVAxQJFTEaAQUDAwMCAQMBBAMDAQQCBQEGAQgBCQEKAgsBDAENAQ4BDwIRARMBFAEVARQFFQEUARUCFAQVAhQBFTEaAQQBAgEDAgIEAwMEAQYBBQEHAggBCgIMAg4BDwEQAREBEwMUARUBFAIVARQBFQIUBBUBFgMVAhQBFS8aAQYBBAEDAQIBAwECAwMCBAEFAgYBBwEIAQkBCgEMAQ0BDgEPARACEgEUAxUCFAMVARQBFQEUBBUCFgMVARQBFQEULxoBBgEEBAMBBAEDAwUCBgEHAgkBCgELAQ0BDgIQARIBEwEUARUBFAQVARQDFQUUARUCFgMVARQBFQIULhoBBgEEAQMBAgEDAwQBBQEGAgcCCAIKAQwBDQEOARABEgETAhQBFQIUBRUBFAEVARQBFQIUAxUBFgMVARQEFS4aAQYFBAMGAQcBCAIJAgsCDQEOARABEQETAhQEFQEUBBUCFAEVARQBFQEUAhUBFgQVARQEFQEULBoBCQIGBAUBBgMIAgoCDAENAQ4BDwEQARIBEwEVAhQBFQQUARUBFAEVAhQBFQIUARUCFAEVARYBFQIWARUBFAQVARQsGgEJBAcBBgEHAQgBCQEKAgsBDAENAg4BEAERARIBEwEVARQDFQEUBBUDFAMVARQCFQEUAhUCFgcVARQBFSsaAQgBBgMHAQgBCQEKAQsCDAENAQ4BDwIRARIBFAIVAhQCFQEUAxUBFAIVAhQEFQEUARUCFAEWARUDFgQVARQBFQEUKxoBCAEGAgcBCAEJAgsCDQIPAhEBEgETAhQCFQIUAhUBFAEVARQBFQMUARUDFAIVARQBFQEUARUFFgUVAhQBFSoaAQgCBwIIAgoBCwENAQ4BDwEQAhICEwEUAhUBFAMVAxQGFQIUAhUCFAQVBBYCFQIUARUCFAEVKhoDBwIIAgoBDAEOAQ8BEAERARICEwIUAhUBFAIVAhQBFQIUAhUEFAIVAxQBFQEUARUBFwUWAhUBFAEVARQBFQIUKBoBCAMHAggBCgELAQwBDgEPARABEQESAhQEFQEUAxUBFAIVARQBFQUUAhUBFAQVARQDFwMWARUBFAIVAxQBFSgaAQgEBwEIAQkBCwENAQ4BDwERAhMBFAQVARQCFQEUAhUDFAIVARQHFQEUARUBFAEVARkBGAIXARYKFScaAQgBBwEGAQcBCAEJAQoBDAENAQ4BEAESARMDFAEVARYBFQEUAxUCFAEVAhQBFQEUAxUBFAEVAhQFFQIZARgCFwEVARYCFQEUARUBFAMVJxoBCAMHAQgBCgILAQ4BDwERARIBEwEUARUBFgcVAhQDFQEUARUFFAEVARQFFQIZARgCFwEWAxUBFAQVAhQlGgEJAQYDBwEIAQkBCwINARABEQETARQIFQEUARUCFAYVAxQEFQEUAhUBFAEXAhkBGAEXAhYCFQEUAhUBFAMVJRoBCAEGAgcBCAIJAQsBDAEOARABEgETAhUBFgkVAxQCFQIUARUBFAEVAhQBFQMUARUBFAEaARgBGQEYAhcBFgIVARQBFQIUAxUlGgMHAggBCQEKAQsBDQEOARECEwIWBRUEFAIVARQCFQMUCBUDFAEaARYCGAIXARYDFQQUAhUlGgIHAQYBBwEIAQoCCwEOAQ8BEAESBhUBFgEVARQCFQEUARUBFAIVAhQBFQEUCxUCGgEWAxcBFgEVARYBFAEVARQCFQEUJhoEBwEJAgoBDAEOARABEgETARUCFgEVAhYCFQEUARUBFAEVBBQFFQEUARUDFAEVARQBFQIUAhoBFQIXAxYBFQQUARUBFCUaAQgEBwEJAgoBDQEOARABEgEUBRUBFgIVARQDFQIUAhUBFAIVARQBFQIUARUBFAMVARQCFQMaAhYBFwEWARUBFgIVAhQBFSYaAQgDBwIIAQkBDAENAQ8BEAETARQBFgEVARYBFQIWAhUBFAgVARQBFQEUAhUBFAMVARQBFQEUAhUEGgEXBBYCFQIUJxoCBwEGAQcBCAEJAQoBDAENAQ8BEQETAhUFFgEVAhQDFQIUARUBFAEVARQGFQEUARUBFAEVAhQBFQYaBhUoGgMHAQgBCQIKAQwBDQEQAREBFAEVARYCFQEWAhUDFAUVBBQBFQEUAxUBFAEVAhQDFQEUMxoBCQEHAQYCBwIJAQoBDAEOARABEQEUAxUCFgEVBhQBFQMUAxUCFAIVAhQBFQMUARUBFAEVMxoBCAQHAQkBCgELAQwBDwERARMCFQIWARUCFgIUAhMBFAgVARQFFQEUBBUCFDMaAgcBBgIIAQkBCgELAQwBDgERARMDFQIWARcBFQEUAhMCFAMVAhQBFQMUARUBFAoVMxoCBwEGAQcBCAEJAQoBDAENAQ8BEQETARQBFQQWARUDEwIUARUBFAEVAxQBFQEUARUDFAEVARQCFQEUAxUBFDIaAQoBBwEGAQcCCAEJAQoBDAEOAQ8BEgEUAhUBFgIXARUBFAMSAhQFFQEUAhUEFAEVAhQDFQEUAhUyGgEIAQcBBgEHAQgBCQEKAQsBDAEOARABEgEVARQCFgEXARYBFQQTAhQBFQIUAhUBFAEVARQDFQEUARUBFAIVAhQDFTIaAQgBBwEGAQcCCAEKAQsBDQEOARABEwMVARgBFwEVARMBEgETARIBEwEUAhUDFAEVARQBFQEUAxUBFAEVAhQFFTMaAQgBBwEGAQcBCAEJAQoBDAENAQ4BEQETARUBFAEWARcBFgEUARMCEgERARICFAIVARQBFQQUARUBFAIVARQBFQEUAxUCFDMaAQcBBgIHAQgCCgEMAQ0BDwERARMCFQETARQBFQITBBIDFAIVAhQEFQEUARUCFAIVARQBFQIUMxoBCQEIAgcCCAEKAQsBDAENARABEgEVARQBFQERAhMFEgITAhQGFQEUAhUDFAEVAxQBFTQaAQgBBgMHAQgBCQEMAQ0BDgEQARMCFAEVAhEBEgMRARABEQESARMCFAIVARQDFQMUARUBFAQVAhQ0GgEIAwcBCAEJAQoBCwENAQ8BEQETAhQBFgMRARABEQIQAREBEgITARQBFQMUARUCFAEVAhQBFQEUBBUBFDQaBAcBCAEJAQoBDAENAQ8BEQEUARUBFAEQAREBEAERBBACEQESARMBFAMVARQBFQEUARUCFAYVARQ0GgEJAgYCBwEIAQoBCwEMAQ0BDwERARQCFQEQAhEFEAERARIBEwQUBRUBFAgVNBoBCAMHAggBCQELAQwBDwEQARIDFQMRAhABEQEQAhECEgEUAhUBFAEVARQDFQIWARUBFgUVNBoEBwEIAQkBCgELAQ0BDwEQARIBFQEUARUBEgIRARABEQEQAxEBEgETBBQBFQEUAhUBGAEXARYBFQEWBBUBFDQaAwcCCAEJAQoBDAENAQ4BEQEUAhUDEwUSARECEgMUAxUBFAEVARYDFQEUAhUBFAMVNBoBBwEGAgcCCQEKAQwBDgEPAREBFAIVAhQBEwEUBRMBFAEVARQCFQEUAxUBFAUTARQBFQEUARUBFAEVMxoBCAEGAgcBCAEJAQoBCwENAQ4BEAESAxUBEwUUAxUDFAEVAhQCFQETBhIBEwIUAhUCFDIaAQkEBwEJAQoBCwENAQ4BEAESARUBFAEVARoBEgEUAhUDFgIVARQBFQEUBBUDEwQSARMBFAQVARQyGgQHAQgBCQEKAQwBDQEOAREBEwEVARQBFQEaARABEgETARUBFgUVARQFFQQTAxICEwEVARQCFQEUMhoBCQEHAQYBBwEIAQkBCwEMAQ4BDwERAhQBFQIaAQ4BEAERARMDFQEWAxUBFAMVARYBFAITBBIBEwEUARUEFDIaAQsBCQMIAQoBCwEMAQ0BDwESAxQCGgINAQ8BEQESARMEFQEUBBUBFgITAhIBEQISARMDFAEVAhQyGgEOAQsDCgELAgwBDgEQARIDFQIaAw0BDwEQARIBEwEUCBUBEwESAhMBEQISARMBFAEVARQDFTMaAQ8EDQEOAhABEgEUAhUDGgEMAw0BDwEQAREBEwIUAhUBFAEVARQBFQITBhIBFAIVARQBFQEUMxoBEgERAQ8BEAERARABEgIUAxUDGgIMAg0BDgEPARACEQETAhQBFQIUARUBEwEUARMEEgETAhQBFQEUAhU0GgEVAxMBFAEVBBQEGgMMAw4BEAIRARMBFAUVARQCEwMSARMBEgIUAxUBFDYaARUCFAEVARQCFQUaAgwBDQIOAg8BEAERARIBEwMVAhQCEwYSARQBFQQUQhoDDAINAQ4BDwEQARICEwEVARQBFQEUARUDEwQSAhMBFAEVARQCFUIaAwwCDQEPARABEQISARMBFAEVAhQBFQQTAhICEwEUBBUBFEIaBA0BDgEPAhABEQESARQBFQEUAxUDEwESARECEgETARQBFQIUARUBFEIaAQ0BDAINAQ4BDwIQAREBEgETAhUCFAEVAhMGEgIUARUBFAEVARRCGgMMAQ0CDgEPARABEQITBRUBFAITAhIBEQESAhMEFAEVQhoBDQEMAQ0BDgENAQ4BDwIRARIBEwEUAhUBFAEVARMBFAUSAhMFFUIaAgwCDQEOAg8BEAERARIBEwIUARUCFAITBRICEwUVQhoDDAENAQ4CDwEQARECEwIVBBQCEwQSAhMBFQEUAhUBFEIaAQwDDQEOAQ8CEAERARIBEwUVARQCEwQSAhMBFQIUARUBFEIaAgwBDQEOAQ0CDwEQAhIBEwEVARQBFQEUARUCEwUSARMCFAEVAhQBFUIaAQwBDQEMAQ0CDgEPAhEBEgETARUBFAEVAhQDEwESAhEBEgITARUEFEIaAQ0BDAINAQ4CDwEQARECEwEUBBUEEwESARECEgETARQCFQIUQhoCDQEMAQ0CDgEPARABEQITARQCFQIUAhMGEgMUARUBFAEVQhoBDQMMAQ4CDwEQAREBEgETARQDFQEUBBMEEgEUAhUBFAEVARRCGgENAQwCDQIOAQ8BEAERARIBEwUUARMBFAETARIBEQMSARMCFQIUARVCGgIMAg0CDgEQAhEBEgETARUDFAEVAxMEEgETAhQCFQEUARVCGgENAgwCDgIPARABEQESARMBFAIVAxQCEwMSARMBEgETARUCFAEVQxoCDQEMAQ0CDgEPARABEQESARMBFAQVARcBFgEUAhMCEgETAhQDFUQaAgwCDQEOAQ8BEAERARIGFAEaAhgCFgQVARQBFQEURRoDDQIOAQ8BEAERARIBEwEUAxUBFAIaARcDFgQVRxoBDQEMAQ0BDgIPARABEQESARMBFAIVAhQEGgEWARUCFEkaAQwDDQEOAhABEQESARMBFAQVURoBDAMNAQ8CEAERARIBEwEUARUDFFEaAQ0BDAINAQ4CDwERARICFAEVARQCFVEaAREBDgENAg4CDwERARIBEwIUAhVTGgESARABDwEQAQ8BEAISARQBFQEUARUBFFQaARQDEwMUARUCFAEVVhoDFAEVARQDFQEUWRoEFP8a/xr/Gv8a/xr/GjoaaQZrBm0GewZ9BicHggZDB0UHJAflBwkIpQhkCSQK5QoaC6YLoAwoDWIN6g2sDugOqg9sEC4R8BGyEjgTdBP6E7wUuBVCFjoXyBe9GLwYfRl8GT0aPBr9Gpsbuxv8GmEcYxx5HCkdKx0tHS8dMR0zHTUdOyBLIE0gTyBRIPkgGSG3IXUiNSOiIvMjZCOxJCgkcSXoJOokLyaqJawlriXtJmwmbiZwJqsnLicwJzInNCfwJ/In9Cf2J7IotCi2KLgouihyKXQpdil8KeopNCo2KjgqQCr2Kvgq+ioCK2wruCu6K8Yreix8LIgsPC0+LUwt/i0ALg4uwC7CLtIugi+EL0QwRjBYMLYwBjEIMcgxyjHeMYoyjDJMM04zZDMONBA00DSTNeo0kjVVNlQ2FzdwNhY32TfYN5s49jdGOJo4nDghOiI6pzuoO/89FD+0QHZBGkI2QjhC+UL4QrtDNEO6Q3pEfEQ9RbZEPEXiRf5F+UbARvhGu0eAR4JHQ0i6R0JIL0kxSTNJ6EgESS5J70nxSfNJxknsSa1K7kmvSohKSUusSm1LrkpvS0hLbEstTG5LL0wKTM1MLEwuTO9MsEzMTM5M7kyvTQhNrk2wTcpNTk5UTnBOck6MThZPMk80T05P9E/2TxBQtlC4UNJQeFF6UZRROlI8UlZSlVP8Uv5SGFO+U8BT2lNkVIBUglScVCZVQlVEVV5V6FUEVgZWIFaqVsZWyFbiVmxXiFeKV6RXLlhKWExYZljwWAxZDlkoWbJZ0FnqWXRaklo2W1Rb+FsWXLpc2Fx8XZpdPl5cXgBfHl/CX+Bf+l+EYKJgRmFkYXxhs2O5Y5Zm8WinaQ==","Relationships":"uHD/Gv8a/xr/Gv8aLBoEBgEIAQkBCgEMrhoBBQEEAwUBBgEHAggBCgEMARCqGgEGAQUDAwIEAQUBBgEFAQcCCAELAQ2oGgEGAQQDAwQEAwUBBwEIAQkBCgELphoBBgEEAgMCAgIDBQQCBgIHAQkBCwENpBoBBAMDAgIFAwIEAgUBBgEHAQgBCQEKAQuiGgEFAQQMAwEEAwUCBgEIAQkBCwEOnxoBBwEFAQQDAwECAQMBAgEDAQIDAwEEAQMCBAEFAwYBBwEJAQoBDJ4aAQcBBQEEAQMBBAIDAwIIAwIEAgUBBgEHAQgBCQELAQ+cGgEGAQUBBAEDAQQNAwMEAgUCBgEHAQgBCgENmhoBCAEGAQUFBAMDAQIDAwECBQMCBAIFAgYBBwEIAQoBCwEPmBoBCAEHAQYCBQUEAgMBAgEDAQIHAwIEAgUCBgEHAQgBCQELAQ2XGgEIAgYCBQIEAQUBBAEDAQQDAwECCAMCBAEFAQQBBQIGAQcBCAEKAQsBEJUaAQgBBwMGAwUGBAIDAQIHAwQEAgUBBgEHAQgCCgENlBoBCQIHAwYEBQQEBQMBAgQDBQQCBQIGAQgBCQEKAQuTGgEKAQgEBwMGAQUBBAEFAwQBAwEEAwMCAgYDAwQCBQEGAQcBCAEJAQwBDpEaAQsBCgEIAQkDBwIGAwUEBAMDAQIDAwECAwMFBAIFAgcBCAEKAQwBDhgaAQcBBQEGAQgBC3MaAQsCCgIJAQgBBwEGAQcCBgIFAQQBBQEEAgMBBAEDAQQBAgcDBAQBBQEGAQcBCAEJAQwBDQEQFhoCAwEEAQUBBgEIAQkBC3EaAQ0CCwEKAgkCCAIHAgYCBQEEAQUCBAgDAQIBAwECAgMCBAEFAQYBBwEIAQoBDAENAQ8BEhQaAQQDAwEEAgYBBwEIAQoBDAENbhoBDwENAQwBCwIKAQkDCAIHAgYDBQIEAQMBBAkDAgQCBQEGAQcBCAEKAQsBDQEPARABFBIaAQUEAwIEAQUBBgEHAQgBCgELAgxsGgEQAQ4BDQIMAwoDCAMHAQYDBQQEAQMBBAYDAgQBBQEGAQcBCAEJAQsCDAEOAQ8BEQ8aAQYCBQIEBQMDBQEGAQgBCgILAQoCCQELaRoBDwEOAQ0BDAILAgoCCQEIAgcCBgMFBQQCAwECAQMBAgEEAQMBBQIGAQcBCAEJAQsEDAEOARALGgEHAwQBBQEIAQUBBAEDAQQEAwEEAgUBBwEJAQwBDQELAQkCCAIJAQtmGgERARABDwEOAg0BDAEKAwkBCAIHAgYBBQEGAwUBBAUDAwQBBQIGAQgCCQcKAQsGGgEIAgYDBAEFAQYBBwEIAgYBBAEFAgQFAwEFAQYBCQENAQ4BDAEJAQgCBwEJAQsBETYaAQcEBgEHAQgBCgELJhoBEgERARACDgENAQwBCwIKAQkCCAIHAgYEBQIEAwMDBAEFAQYBBwIIAQkBCgIJAwgFBwIGAwUCBAEFAQYCBwEIAQkCBwEGAQUDBAEDAQIDAwEEAQUBBwEJARABDAEKAQgBBwEIAQwBDjMaAwYCBQIEAQUBBgEHAQgBCgEMAQ8lGgETAREBEAEPAQ4BDQEMAQsCCgEJAwgCBwIGAwUGBAEFAQYCBwEIAQkBCgEJAQgCBwIGAQcDBgUFAQYCBQEGAQcBCAEJAgsCCAEHAgYCBQEEAQMBAgIDAgQCBQIHAQsBCgEIAQoBDAEPARIvGgEHAgYCBQQEAwUBBgEIAQkBCwENARAkGgEWARMBEgERARABDgENAQwBCwMKAQkCCAEHAQYBBwEGAwUCBAMFAQYCBwEIAwkBCAIGAwUFBgIFAQYCBQEHAQYBBwIJAQsBDAEOAQwBCgIJAQcBBgEFAgQBAwMCAwMCBAEHAQkBDAELAQ0BDwEUKxoBCAEHAQYCBQIEAQUCBAIFAgQBBQIGAQgBCQEKAQwBDwESJBoBFgEVARMBEgEQAQ8BDgENAQwBCwIKAgkBBwEIAgcBBgUFAgYCBwMIAQkCCAEGAgUBBAMFAQYEBQMGAwcBCQELAQwBDQERAQ8BDQEMAQoBCQEIAQcBBgMEAwMCAgEDAQUBBgEIAQoCDgERARMBFicaAQcCBQEEAQUBBAIFAQQCBQUEAgUCBgEIAQoBCwENAQ4BEQEUJRoBFQETARIBEAEPAg4CDAELAQoBCQIIAQcBCAEHAQYBBQUGAQcBCAEHAggBCQEIAQcBBgkFAQQBBQEGAQUCBgEHAQgBCQEKAQ0BDgEQARMBEAEPAQ4BDQELAggBBgIFBAMBAgEDAQQBBgEHAQoBDQIRARMBFyQaAQYBBQEGBAUFBAEFBQQDBQEGAQcBCQEKAQsBDQEOARABEiYaAhUBEwERARABDwEOAQ0BDAELAgoBCQIIAgcDBgQHAQkCCAEJAQgBBwEGAQUCBAYFAQQBBQMGAgcCCAEKAQwBDQEPAREBGAEUARMBEQEQAQ4BDAEJAQcCBgEFAgQBAwIEAgUBBwEIAQoBDgESARQBFyEaAQcBBgIFAgQCBQIEAwUDBAMFAQYCBQEGAQUBBgEIAQkBCgELAQ0BDwERARIBFicaARUBEwESAREBEAEOAQ0BDAILAQoCCQEIAQcBCAMHAwgBCQMIAQcCBgEFAwQBBQIEAQUBBAIFAwYCBwIIAQkBCwENAQ8BEQEUARkBGAEXARQBEgEPAQ0BCwEJAQcBBgIFAwQCBQEGAQcBCQELARABEwEUHRoBBwIGAQQDBQQEAQUFBAMFBAYBBQMGAQcBCAEJAQoBCwEOAQ8BEAESARUoGgEWARUBEwERARABDgENAgwBCwEKAwkCCAQJAQgCCQIIAQcBBQQEAQMEBAQFAQYBBQEGAwcBCAEJAQoBDQEPARMBFwMZARgBFQERAQ4BDAEJAQgBBwUFAQQCBQEGAQkBCwEWARABERgaAQgBBwEGAQUBBAQFAgQDBQEEAwUCBAMFAQYBBQEGAgcBBgMHAQgBCQEKAQsBDQEOAQ8BEQESARYqGgEVARMBEQEQAQ8BDgINAQsCCgQJBAoCCQIIAQYBBQUEAQMCBAEFAgQBBQEEBAUCBgIHAQkBCgEMAQ4BEAEZARoDGQEXARMBDwENAQoBCAEHAQYDBQQEAQYBCAELAQoBCQEKAgkCCAQHAggDCQEKAQsEGgEHAQYFBQIEAQUDBAIFAQQBBQEEBQUBBgEFAgYBBwEGAQcBBgEHBQgCCgELAQ0BDgEQARIBFAIVKhoBFgEUARICEAEOAg0BDAELBQoCCwIKAggBBgIFAQQBAwIEAQUDBAEDAQQBBQEEBQUEBgIIAQkBCwENARABFAMaAhkBFQERAQwBCgEJAQgBBwEGAgUBBAEDAQQBBQEGAQgBCwEIAgcCBgIHAQYBBwEGAgcBCAIHAQYCBwIGAgUHBAMFBAQFBQUGAQcBBgEHAggCBwEIAQkCCAEJAQoBCwINAQ8BEQESARMBFAEVKxoCFQETAhECDgENAQwECwEMBAsBCQEIAQYBBQMDAgQBAwIEAgMFBAQFAwYCBwEIAQkBCwENARABEwUaARcBEQENAQoCCQEIAQcBBQIDAQQBAwEEAQcBCAEMAwYBBQQGAwcCBgEFAQYCBQQEAgMHBAQFAQYBBQQGAQcBBgQHAggBBwIIBAkBCgELAQoBDAENAQ4BEAERARMBFAEVARQtGgEWARQBEgIQAQ8CDQMMAQ0DDAELAQkBBwIFAQQCAwIEBQMCBAEDAgQFBQIGAgcCCAEJAQsBDQEQARMFGgEYAREBDQELAQoBCQEHAQYBBQEEAgMBBAEFAQcBCQEMAgYCBQUGAQcBBQEGAQUFBAYDBAQGBQIGAQcBBgMHAggBBwEIAQkBCAEJAQoBCQIKAQsCCgELAQwBDQEOAQ8BEAESARMBFQEUARUuGgIVARMCEQEPAQ4BDQUOAQ0BDAEKAQgBBwIFAgQBAwIEAgMBBAEDAgQCAwIEAQUCBAIFAgYCBwIIAQoBCwEOARABFAUaARcBEQEOAQ0BCgEJAQYBBQIEAQMDBAEHAQgBDAEGAQUCBgEFAQYCBwEGAwUFBAUDAgQDBQEGAQUCBgEHAgYCBwIIAQcCCAIJAQgBCgEJAwoDCwEMAQsCDAENAQ8BEAESARMBFAMVMBoBFQETARIBEAMPAQ4CDwEQAQ8BDgELAQgBBwMFDAMDBAMFAgYBBQEGAgcCCAEKAQwBDgEPAREFGgEWARIBEAENAQoBCAEGAQUBBAIDAgQBBQEGAQgBDQEGAgUFBgIFAwQGAwMEAwUEBgEHAQYCBwEIAQcCCAQJBAoCCwYMAg0BDgEPARABEgEUBBUxGgIVARMBEQEQARECEAERAhABDwEMAQoBCAEHAQUCBAgDAQQCAwMEAQUBBAIFAQYBBQIGAQcCCAEJAQsBDAENAg4BFAMaAQsBFgETARABDAEKAQgBBwEFAQQBAwEEAQMBBAEFAQYBCQEMBgYDBQEEAQMBBAEDAwQCAwMEAQUCBgMHAQgDBwIIAQkBCAMJAgoECwQMBA0CDgIQARIBEwMVARQBFTMaARUBFAMSARMDEgIQAQwBCQEGAgUBAwIECQMCBAEFAgQBBQEEBAYCBwEIAgkEDAEPARIBGgEIAQcBEwEVARQBEAENAQoBBwEGAgUBBAEDAgQBBQEHAQgBDQEGAQcBBgEHAgYCBQMEBAMBBAIDAgUCBgMHBQgCCQEKAQkCCgMLAwwGDQMOAQ8CEAERAhMEFTUaARUBFAETAxQBEwIUARMBEAEKAQcBBQEEAQMBBAEDAgIHAwEEAQMBBAEFAQQDBQEGAQUBBgEHBAgBCgQMAQ4BEgEHAgYBDgIUAREBDQEJAQgBBgEFAQQDAwEEAQUBBwEJAQ0CBwQGAQQBBQMEAwMCBAEFAQQBBQEGAgcDCAEJBwoCCwIMAQ0CDAENAQ4CDQMPBBACEQESARQCFQEUAhU3GgEVBRYCFwEVAQ0BBwEGAQULAwYEBAUDBgIHAQgCCQIMAQsCDAEOAwYBBQEIAQ8BEwERAQ0BCQEHAQYBBQEEAgMBBAEDAQUBBwEJAQ4DBwMGBwQBBQEEAgUBBgEHAwgBCQcKAQsCDAENAgwCDQMOAg8DEAQRARIBEwEUBhU4GgcWARcBFgEIAQYBBQEECwMCBAEDBAQCBQMGAgcCCAEJAQoBDQEMAQsCCgIFAQYDBQEKARIBEQENAQoBCAEGAQUBBAMDAQQBBQEHAQkBDQIIAQcBBgEFAQYBBQIEAQUBBAQFAQcBBgEHAgkBCgEJAwoDCwEMAg0BDAINAw4CDwMQAREBEgIRAhIDEwEWAhUBFgEVARQ7GgUWARcBFgEKAQYBBQEEAQMBBAYDAgQEAwUEAQUCBgMHAQgBBwIJAQsBDQEMAQoBCQIEAgUBBAIFAQoBEgEQAQwBCgEIAQYBBAEDAQQBAwIEAQYBBwEJAQ4CCAMGBwUCBgIHAQgCCgQLBAwCDQMOAg8BEAEPAhADEQISAxMCFAQVARYDFUIaAQsBBwEGAgUBBAMDAQQGAwIEAQMBBAQFAgYDBwMIAQkBCgENAQwBCwEIAwQFBQELARMBEAELAQkBBwIFAwMCBAEFAQcBCQEPAQkBCAIHBQYCBwEGAggDCQEKAgwBDQIMBQ4BDwEOAQ8CEAERARACEQESAxMCFAYVARYBFQEWAhVDGgEQAQoBBwEGAQUDBAMDAQQEAwQEAQUBBAIFAwYDBwIIAgkBDAENAQwBCAMDAQQBBQEEAQUBBAEGAQwBFAEQAQwBCQEHAgUCBAEDAgQBBQEHAQkBDwIIBgcBCAEHAggBCQEIAQoBCwIMAg0DDgIPAhABDwEQAREFEgETAhQDFQEWBBUCFgQVRRoBDAEJAQcBBgEFBAQEAwEEAgMDBAIFAQQBBQIGAQcBBgEHAwgCCQEKAg0BCgEDAQQBAwMEAwUBBwENARQBDwEMAQkBCAIFBAMBBAEFAQcBCgEPAgkCCAIJAQgDCQEKAQkCCgEMAQ0DDgMPBBACEQESAxMDFAIVAhYBFQIWCBVGGgERAQsBCQEHAwUCBAEDAQQBAwEEAQMBBAIDAQUCBAMFAwYCBwIIAQcCCAEJAQsBDAELAwQBAwMFAwYBBwEPARcBEAELAQkBBwEGAgQDAwEEAQUBBwEKARABCwEKAQkICgELAQwBDQEOAw8BEAERARABEQMSBBMDFAEVARYBFQEWAhUBFgIVAxYBFQIWARVIGgEOAQoBCAEHAQYDBQQEAQMFBAEFAQQDBQIGAQcBCAEJAQgBBwEIAQcBBgEHAQgCCgEGAQQBBQEGAgUBBgMHAQkBEAEXAQ4BCwEJAQcCBQMDAgQBBwEKAQ0CDAELAQwHCwEMAQ0BDgIPARACEQMSBBMBFAIVAxYBFQEWAxUBFgcVAhZJGgEUAQ0BCwEJAgcDBQEEBQMBBQUEAgUDBgEIAwkBBwEGAgUBBgEIAQoBCwMGAgUBBgEHAQgBBwEIAQkBEAEWAQ4BCwEJAQcBBgEFAgMBBAEGAQgBCwEOARIBDgINAgwBDQIMAw0CDgEPAxEBEgETARIDFAIVAhYBFQEWBhUBFgQVAhYBFU0aARIBDQEKAQkBBwIGAQUBBAQDAgUCBAMFAQYBBQIGAgcCCQEIAQcBBQEEAQUBBgEIAQoBDQEMAQgCBQIGAQcCCAEJAQoBDAEPARUBDgEKAQkCBgEFAQQBBQEHAQgBDAEPARMBEAEPARABDwEOAQ8EDgIPARABEQESARMEFAEVARYEFQEWARUBFgIVAxYCFQEWAxVRGgERAQ4BCwEKAQgBBwEGAQUBBAIDAgQBBQEEAQUBBgcFAQYBBwEIAQkBBwEFAQQBBQEGAQcBCQEMAQ8BDAEHAQYEBwIJAQoBDAENARABFAEOAQsBCAEHAQUBBgEHAQgBCgENARABFAESAxEBEAUPAhABEQESARMCFAMVARYEFQEWBBUBFgQVAhZVGgESAQ4BCwEKAQkBBwEGAQUBBAIDAwQBBQMGAgUBBgEFAgQBBQEHAgkBBwMGAQcBCQEMAQ8BEAEIAgcDCAEJAQoBCwEMAQ4BDwERARQBDQELAQkCBwEIAQoBDQEQARMCFQIUARMBEgYRARIBEwEUAhUDFgsVARYBFQEWWhoBEwEQAQwBCwEJAQcCBQQDAQQCBQQGAQUBBAIDAQUBBgEIAQoBCwEJAQcBBgEHAQgBCgENARABDgMJAQgBCQEKAQsBDAENAQ4BEAIRARIBDgELAQkBCgELAQ0BDwESAhUEFgEVARMEEgITARQGFQEWBBUBFgUVXhoBFAESAQ4BCwEIAQcCBQIDAQQBAwEEAgYCBwEGAQUEBAEFAQgBCwENAQwBCQEIAgcBCQELAQ8BEgEKBAkCCwENAQ4CEAISARQBEwENAgwBDgEQAREBFAEVARQBFwQWAhUEFAIVARYEFQIWAxUBFgMVYhoBFgETAQ8BCwEIAQcBBgIEAwMBBAIGAQcBCAEGAgQCBQEGAQgBCwENAQ4BDAIIAQYBCAEJAQwBEQEMAQYCBQEGAQkBCwEPARACEgEUAhUBFgESAhABEQESARQCFQEUARYBFwUWAhUBFgkVARYDFQEWZxoBFAEOAQoBCQEHAQUBBAQDAQQBBQEGAQgCCQEGAQUBBgEHAQgBCwENAg8BCQIGAQUBBgEJAQ0BEQEHAwYBBwEJAQ4BFAEVARYDFwIWARQBEwUVBRoFFgYVARYBFQEWAhVsGgETAQ4BCwEKAQcCBQEEAQMCAgEDAQQBBwEJAQwBCwMHAQgBCgEMAQ4BEAEKAQcDBQEHAQoBDwEOAgYCBQEIAQsBDgEWAxgBFwEWARUBFgMVARYJGgQWARUBFgEVARYDFXAaARIBEAEMAQkBBwIFAQQDAwEEAQYBCQEMAQ4BDAEJAggBCQELAQ0BEAEOAwYCBQEHAQsBEAELBAYBCQEMARABGAEZAhcTGgIWARUBFnUaARYBEQEMAQoBCAIFAwMBBQEHAQsBDgIPAQoBCAEHAQgBCQELAQ4BEAIGAwUBBwEIAQwBEAEIAwYBBwEJAQ4BEpEaAREBDQEKAQcBBgIEAQUBBgEIAQsBDgEPARIBDQEJAQcBBgEHAQgBCwEPAQoBBgQFAQcBCQENARABBwEGAQUBBgEHAQoBDwEUkBoBDgESAQ4BCgEHAgYBBwEIAQkBCwENARABEgEPAQkBBwIGAQcBCQENAQ4BBwEGAgUBBAEGAQgBCQEPAQwBBgEHAQUBBgEIAQ0BEZEaARABFAEMAQoECAEKAQsBDQEQAhIBCgEHAQUCBgEIAQsBDgEMAwYCBQEGAQgBDAERAQkBBwIGAQgBDQESARaQGgESARQBEgELAgoBCQIKAQsBDQEOARABEwEKAQcEBgEJAQsBDwEIAQYCBQEEAQUBBgEIAQwBEQEIAQcBCQELAQ0BEwEWkBoCEgEV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"};
+const blendDistance = (a, b, width) => {
+  const h = Math.max(width - Math.abs(a - b), 0) / width;
+  return Math.min(a, b) - h * h * width * .25;
+};
+function capsuleDistance(x, y, z, a, b, radius) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy + (z - a[2]) * dz) / (dx * dx + dy * dy + dz * dz)));
+  return Math.hypot(x - a[0] - dx * t, y - a[1] - dy * t, z - a[2] - dz * t) - radius;
+}
+function humanDistance(x, y, z) {
+  const qx = Math.abs(x) - 1.6, qy = Math.abs(y) - 5.2, qz = Math.abs(z - 34) - 9;
+  let body = Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qy, qz), 0) - 3.6;
+  for (const side of [-1, 1]) {
+    body = blendDistance(body, capsuleDistance(x, y, z, [0, side * 9, 42], [1.5, side * 16, 25], 3.15), 3.4);
+    body = blendDistance(body, capsuleDistance(x, y, z, [.3, side * 4.35, 25], [.8, side * 4.35, 3.7], 3.45), 2.8);
+  }
+  return Math.min(body, Math.hypot(x - 1.1, y, z - 61.4) - 7.2);
+}
+function palmDistance(u, v, z, centre, angle, radii) {
+  const dx = u - centre[0], dy = v - centre[1], dz = z - centre[2];
+  const a = Math.cos(angle) * dx + Math.sin(angle) * dy, b = -Math.sin(angle) * dx + Math.cos(angle) * dy;
+  const k0 = Math.hypot(a / radii[0], b / radii[1], dz / radii[2]);
+  const k1 = Math.hypot(a / (radii[0] ** 2), b / (radii[1] ** 2), dz / (radii[2] ** 2));
+  return k1 ? k0 * (k0 - 1) / k1 : -Math.min(...radii);
+}
+function handshakeDistance(x, y, z) {
+  const u = (.86 * x - .5 * y) / .8292, v = (.42 * x + .72 * y) / .8292;
+  const a = .61, ax = Math.cos(a), ay = Math.sin(a);
+  let near = palmDistance(u, v, z, [-8, 4, 1], a, [13, 8.8, 4.8]);
+  near = blendDistance(near, capsuleDistance(u, v, z, [-38, -15, 0], [-23, -5, 1], 6.8), 4);
+  for (let i = 0; i < 4; i++) {
+    const across = -6.6 + i * 4.4, length = [15, 16.5, 14.5, 11.5][i];
+    const bx = -8 + ax * 6 - ay * across, by = 4 + ay * 6 + ax * across;
+    const start = [bx, by, 1], middle = [bx + ax * 7, by + ay * 7, .8], tip = [bx + ax * length, by + ay * length, -2.6];
+    near = blendDistance(near, capsuleDistance(u, v, z, start, middle, 2.2), 1.8);
+    near = blendDistance(near, capsuleDistance(u, v, z, middle, tip, 2.2), 1.5);
+  }
+  near = blendDistance(near, capsuleDistance(u, v, z, [-16, -3, 2], [-4, -10, 3.5], 2.7), 3);
+  const b = 2.5, bx = Math.cos(b), by = Math.sin(b);
+  let far = palmDistance(u, v, z, [11, -.5, 0], b, [13, 8.3, 4.6]);
+  far = blendDistance(far, capsuleDistance(u, v, z, [38, -13, 1], [24, -4, 0], 6.3), 4);
+  for (let i = 0; i < 4; i++) {
+    const across = -6.1 + i * 4.0, length = [12.5, 14, 13, 10.5][i];
+    const px = 11 + bx * 6 - by * across, py = -.5 + by * 6 + bx * across;
+    const start = [px, py, -1.5], bend = [px + bx * length, py + by * length, -4.8], tip = [px + bx * (length + 1.4), py + by * (length + 1.4), -.6];
+    far = blendDistance(far, capsuleDistance(u, v, z, start, bend, 2), 1.6);
+    far = blendDistance(far, capsuleDistance(u, v, z, bend, tip, 2), 1.3);
+  }
+  far = blendDistance(far, capsuleDistance(u, v, z, [4, -7, 4], [-4, -6, 6], 3.2), 3);
+  far = blendDistance(far, capsuleDistance(u, v, z, [-4, -6, 6], [5, 0, 7], 2.8), 2);
+  far = blendDistance(far, capsuleDistance(u, v, z, [5, 0, 7], [19, 10, 4.7], 2.65), 1.8);
+  return Math.min(near, far) * .78;
+}
+
+// Ray-march the authored solid once. Frames only reuse its shaded rows and contours.
+function createVolume(field, { width = 96, height = 156, step = .5, zoom = 1.12, offsetY = 25, centreZ = 32, bound = 42 } = {}) {
+  const values = new Int16Array(width * height).fill(-1), depths = new Float32Array(width * height), normals = new Float32Array(width * height * 3);
+  const left = -width * step / 2, top = -height * step / 2;
+  const light = [-.16, .43, .889];
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const sx = (left + (col + .5) * step) / zoom, sy = (top + (row + .5) * step) / zoom - offsetY;
+      const perpendicular = sx * sx + (sy + centreZ * 2 / Math.sqrt(6)) ** 2;
+      if (perpendicular >= bound * bound) continue;
+      const extent = Math.sqrt(bound * bound - perpendicular), centre = 100 - centreZ / Math.sqrt(3);
+      let travel = centre - extent, px, py, pz, hit = false;
+      for (let march = 0; march < 72 && travel <= centre + extent; march++) {
+        px = VOLUME_RIGHT[0] * sx + VOLUME_DOWN[0] * sy + VOLUME_VIEW[0] * (100 - travel);
+        py = VOLUME_RIGHT[1] * sx + VOLUME_DOWN[1] * sy + VOLUME_VIEW[1] * (100 - travel);
+        pz = VOLUME_DOWN[2] * sy + VOLUME_VIEW[2] * (100 - travel);
+        const d = field(px, py, pz);
+        if (d < .035) { hit = true; break; }
+        travel += Math.max(.035, d);
+      }
+      if (!hit) continue;
+      const e = .05;
+      let nx = field(px + e, py, pz) - field(px - e, py, pz);
+      let ny = field(px, py + e, pz) - field(px, py - e, pz);
+      let nz = field(px, py, pz + e) - field(px, py, pz - e);
+      const length = Math.hypot(nx, ny, nz); nx /= length; ny /= length; nz /= length;
+      depths[row * width + col] = travel;
+      normals.set([nx, ny, nz], (row * width + col) * 3);
+      const diffuse = Math.max(0, nx * light[0] + ny * light[1] + nz * light[2]);
+      const crevice = Math.max(0, 1 - field(px + nx * 3, py + ny * 3, pz + nz * 3) / 3);
+      const shade = .025 + .255 * (1 - diffuse) + .06 * crevice + .016 * (random(row * width + col + 97) - .5);
+      values[row * width + col] = Math.min(25, Math.max(0, Math.round(shade / .34 * 25)));
     }
-    if (typeof fill !== 'string') {
-      fill.addColorStop(0, sphere ? PAPER : '#dce5fc'); fill.addColorStop(.28, PAPER);
-      fill.addColorStop(.5, '#edf0f8'); fill.addColorStop(.8, '#d5e0fa'); fill.addColorStop(1, '#b5c8f5');
+  }
+  const creases = [], occupied = (x, y) => x >= 0 && x < width && y >= 0 && y < height && values[y * width + x] >= 0;
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      if (!occupied(col, row)) continue;
+      for (const [dx, dy] of [[1, 0], [0, 1]]) {
+        if (!occupied(col + dx, row + dy)) continue;
+        const i = row * width + col, j = (row + dy) * width + col + dx;
+        const dot = normals[i * 3] * normals[j * 3] + normals[i * 3 + 1] * normals[j * 3 + 1] + normals[i * 3 + 2] * normals[j * 3 + 2];
+        if (Math.abs(depths[i] - depths[j]) < 1.1 && dot > .4) continue;
+        const px = left + (col + dx) * step, py = top + (row + dy) * step;
+        creases.push(['M', px, py], ['L', px + dy * step, py + dx * step]);
+      }
     }
-    return fill;
+  }
+  return traceVolume(values, width, height, step, creases);
+}
+function traceVolume(values, width, height, step, creases) {
+  const left = -width * step / 2, top = -height * step / 2;
+  const rows = [], edges = new Map(), occupied = (x, y) => x >= 0 && x < width && y >= 0 && y < height && values[y * width + x] >= 0;
+  const edge = (x1, y1, x2, y2) => {
+    const key = y1 * (width + 1) + x1, next = y2 * (width + 1) + x2;
+    if (!edges.has(key)) edges.set(key, []);
+    edges.get(key).push(next);
   };
-  const texture = commands => {
-    if (p.tiny) return;
-    ctx.save(); p.path(commands); ctx.clip(); ctx.fillStyle = INK;
-    for (let i = 0; i < 130; i++) {
-      const u = -19 + random(i + 40) * 38, v = -39 + random(i + 293) * 79;
-      ctx.globalAlpha = alpha * (.09 + random(i + 1837) * .14);
-      ctx.beginPath(); ctx.arc(x + u * scale, y + v * scale, Math.max(.12, scale * .25), 0, TAU); ctx.fill();
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width;) {
+      const shade = values[row * width + col], start = col++;
+      while (col < width && values[row * width + col] === shade) col++;
+      if (shade >= 0) rows.push([left + start * step, top + row * step, (col - start) * step, shade]);
     }
-    ctx.restore();
-  };
-  const capsule = (from, to, radius, openShoulder = false) => {
-    const a = position(from), b = position(to), dx = b[0] - a[0], dy = b[1] - a[1];
-    const length = Math.hypot(dx, dy), nx = -dy / length * radius, ny = dx / length * radius, k = 1.3333333;
-    const commands = [
-      ['M', a[0] + nx, a[1] + ny], ['L', b[0] + nx, b[1] + ny],
-      ['C', b[0] + nx + dx / length * radius * k, b[1] + ny + dy / length * radius * k, b[0] - nx + dx / length * radius * k, b[1] - ny + dy / length * radius * k, b[0] - nx, b[1] - ny],
-      ['L', a[0] - nx, a[1] - ny],
-      ['C', a[0] - nx - dx / length * radius * k, a[1] - ny - dy / length * radius * k, a[0] + nx - dx / length * radius * k, a[1] + ny - dy / length * radius * k, a[0] + nx, a[1] + ny], ['Z'],
-    ];
-    paint(commands, gradient(a, radius)); texture(commands);
-    p.line(openShoulder ? commands.slice(0, 4) : commands, .9, .76);
-  };
-  const ellipsoid = (centre, radii) => {
-    const [cx, cy] = position(centre), [rx, ry, rz] = radii;
-    const xx = .75 * (rx * rx + ry * ry), xy = Math.sqrt(3) / 4 * (rx * rx - ry * ry);
-    const yy = .25 * (rx * rx + ry * ry) + rz * rz;
-    const a = Math.sqrt(xx), b = xy / a, c = Math.sqrt(yy - b * b);
-    const transform = ([u, v]) => [cx + a * u, cy + b * u + c * v];
-    const commands = oval(0, 0, 1, 1).map(([op, ...coordinates]) => {
-      const output = [op];
-      for (let i = 0; i < coordinates.length; i += 2) output.push(...transform(coordinates.slice(i, i + 2)));
-      return output;
+    for (let col = 0; col < width; col++) {
+      if (!occupied(col, row)) continue;
+      if (!occupied(col, row - 1)) edge(col, row, col + 1, row);
+      if (!occupied(col + 1, row)) edge(col + 1, row, col + 1, row + 1);
+      if (!occupied(col, row + 1)) edge(col + 1, row + 1, col, row + 1);
+      if (!occupied(col - 1, row)) edge(col, row + 1, col, row);
+    }
+  }
+  const contours = [];
+  while (edges.size) {
+    const first = edges.keys().next().value, points = [];
+    let current = first;
+    do {
+      points.push([left + current % (width + 1) * step, top + Math.floor(current / (width + 1)) * step]);
+      const next = edges.get(current);
+      if (!next) break;
+      const target = next.pop(); if (!next.length) edges.delete(current);
+      current = target;
+    } while (current !== first);
+    if (points.length < 4) continue;
+    const smooth = points.filter((_, i) => i % 2 === 0).map((_, i) => {
+      const at = i * 2, previous = points[(at + points.length - 1) % points.length], next = points[(at + 1) % points.length];
+      return [(previous[0] + points[at][0] * 2 + next[0]) / 4, (previous[1] + points[at][1] * 2 + next[1]) / 4];
     });
-    return { commands, centre: [cx, cy], width: a, point: angle => transform([Math.cos(angle), Math.sin(angle)]) };
-  };
-  capsule([-1, -9.4, 44], [1, -12, 22], 2.5);
-  capsule([0, -4.5, 26], [1.4, -4.7, 1], 2.9);
-  capsule([0, 4.5, 26], [1.4, 4.7, 1], 2.9);
-  capsule([0, 0, 46], [1, 0, 54], 2.6);
-  const torso = ellipsoid([0, 0, 35], [5.3, 8.8, 13.6]);
-  paint(torso.commands, gradient(torso.centre, torso.width)); texture(torso.commands);
-  const contour = Array.from({ length: 33 }, (_, i) => [i ? 'L' : 'M', ...torso.point(.65 - (Math.PI + 1.3) * i / 32)]);
-  p.line(contour, .95, .8);
-  capsule([1.8, 9.2, 44], [3, 12, 22], 2.5, true);
-  const head = ellipsoid([1.2, 0, 61], [5.7, 5.7, 6.1]);
-  paint(head.commands, gradient(head.centre, head.width, true)); texture(head.commands);
-  p.line(head.commands);
+    const commands = [['M', ...smooth[0]]];
+    for (let i = 0; i < smooth.length; i++) {
+      const a = smooth[(i + smooth.length - 1) % smooth.length], b = smooth[i], c = smooth[(i + 1) % smooth.length], d = smooth[(i + 2) % smooth.length];
+      commands.push(['C', b[0] + (c[0] - a[0]) / 6, b[1] + (c[1] - a[1]) / 6, c[0] - (d[0] - b[0]) / 6, c[1] - (d[1] - b[1]) / 6, ...c]);
+    }
+    commands.push(['Z']); contours.push(commands);
+  }
+  const colours = Array.from({ length: 26 }, (_, i) => 'rgb(' + [243, 240, 232].map((base, channel) => Math.round(base + ([36, 78, 255][channel] - base) * i / 25 * .34)).join(',') + ')');
+  return { rows, contours, creases, colours, step, sprite: null };
+}
+function paintVolume(ctx, x, y, scale, volume, tiny = false) {
+  const p = pen(ctx, x, y, scale);
+  ctx.save();
+  for (const contour of volume.contours) { p.path(contour); ctx.fillStyle = PAPER; ctx.fill(); }
+  if (!tiny) {
+    for (const [u, v, width, shade] of volume.rows) {
+      ctx.fillStyle = volume.colours[shade]; ctx.fillRect(x + u * scale, y + v * scale, width * scale, volume.step * scale);
+    }
+  }
+  for (const contour of volume.contours) p.line(contour, .95, .8);
+  if (!tiny && volume.creases.length) p.line(volume.creases, .55, .5);
+  ctx.restore();
+}
+function readVolume(encoded) {
+  const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+  const width = bytes[0], height = bytes[1], step = .5, values = new Int16Array(width * height);
+  let cursor = 2, filled = 0;
+  while (filled < values.length) {
+    const count = bytes[cursor++], shade = bytes[cursor++];
+    values.fill(shade === 26 ? -1 : shade, filled, filled + count); filled += count;
+  }
+  const creases = [], left = -width * step / 2, top = -height * step / 2;
+  while (cursor < bytes.length) {
+    const packed = bytes[cursor++] | bytes[cursor++] << 8, vertex = Math.floor(packed / 2);
+    const px = left + vertex % (width + 1) * step, py = top + Math.floor(vertex / (width + 1)) * step;
+    creases.push(['M', px, py], ['L', px + (packed % 2 ? step : 0), py + (packed % 2 ? 0 : step)]);
+  }
+  return traceVolume(values, width, height, step, creases);
+}
+function drawVolume(ctx, x, y, scale, kind, field, options) {
+  if (!volumeCache.has(kind)) volumeCache.set(kind, readVolume(bakedVolumes[kind]));
+  const volume = volumeCache.get(kind);
+  if (typeof OffscreenCanvas !== 'undefined' && typeof ctx.drawImage === 'function') {
+    if (!volume.sprite) {
+      volume.sprite = new OffscreenCanvas(188, 188);
+      paintVolume(volume.sprite.getContext('2d'), 94, 94, 2, volume);
+    }
+    ctx.drawImage(volume.sprite, x - 47 * scale, y - 47 * scale, 94 * scale, 94 * scale);
+  } else paintVolume(ctx, x, y, scale, volume, scale * 47 < 10);
+}
+function human(ctx, x, y, scale) {
+  drawVolume(ctx, x, y, scale, 'People', humanDistance);
 }
 
 function handshake(ctx, x, y, scale) {
-  const p = pen(ctx, x, y, scale), alpha = ctx.globalAlpha;
-  const project = (u, v, height = 0) => iso([.702 * u + .54 * v, -.315 * u + .9 * v, height]);
-  const surface = (commands, height = 0) => commands.map(([op, ...coordinates]) => {
-    const output = [op];
-    for (let i = 0; i < coordinates.length; i += 2) output.push(...project(coordinates[i], coordinates[i + 1], height));
-    return output;
-  });
-  const paint = (commands, fill, outline = commands) => {
-    p.path(commands); ctx.fillStyle = fill; ctx.fill();
-    if (!p.tiny) {
-      ctx.save(); p.path(commands); ctx.clip(); ctx.fillStyle = INK;
-      for (const grain of grainShade) {
-        ctx.globalAlpha = alpha * grain.alpha * .75;
-        ctx.beginPath(); ctx.arc(x + grain.x * scale, y + grain.y * scale, Math.max(.12, grain.radius * scale), 0, TAU); ctx.fill();
-      }
-      ctx.restore();
-    }
-    if (outline) p.line(outline, .9, .8);
-  };
-  const shade = (a, b, width, dome = false) => {
-    if (p.tiny) return PAPER;
-    let fill = TINT;
-    if (dome && typeof ctx.createRadialGradient === 'function') {
-      fill = ctx.createRadialGradient(x + (a[0] - width * .25) * scale, y + (a[1] - width * .3) * scale, 0, x + a[0] * scale, y + a[1] * scale, width * scale);
-    } else if (typeof ctx.createLinearGradient === 'function') {
-      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const nx = -(b[1] - a[1]) / length * width, ny = (b[0] - a[0]) / length * width;
-      fill = ctx.createLinearGradient(x + (a[0] - nx) * scale, y + (a[1] - ny) * scale, x + (a[0] + nx) * scale, y + (a[1] + ny) * scale);
-    }
-    if (typeof fill !== 'string') {
-      fill.addColorStop(0, dome ? PAPER : '#dbe4fa'); fill.addColorStop(.3, PAPER);
-      fill.addColorStop(.58, '#edf0f9'); fill.addColorStop(.82, '#d6e0f7'); fill.addColorStop(1, '#b8caf0');
-    }
-    return fill;
-  };
-  const leftWrist = surface([
-    ['M', -40, -22], ['C', -35, -25, -27, -19, -22, -13], ['L', -28, 3],
-    ['C', -35, -1, -41, -6, -44, -10], ['C', -46, -13, -43, -20, -40, -22], ['Z'],
-  ], 3);
-  const rightWrist = surface([
-    ['M', 31, -21], ['C', 37, -24, 43, -19, 46, -10], ['L', 34, 3],
-    ['C', 29, -1, 27, -6, 24, -11], ['C', 24, -14, 27, -19, 31, -21], ['Z'],
-  ], 4);
-  paint(leftWrist, shade(project(-39, -17, 3), project(-26, -6, 3), 7.5));
-  paint(rightWrist, shade(project(39, -15, 4), project(27, -5, 4), 7.5));
-  const farPalm = surface([
-    ['M', 27, -11], ['C', 20, -16, 13, -17, 7, -15], ['L', -8, -11],
-    ['C', -13, -9, -14, -5, -11, 0], ['L', -16, 8],
-    ['C', -13, 14, -7, 18, -2, 19], ['L', 18, 12],
-    ['C', 24, 9, 29, 4, 31, -2], ['Z'],
-  ], 3.4);
-  paint(farPalm, shade(project(12, -3, 3.4), null, 22, true));
-  // Only the tips of the far hand show beneath the nearer palm.
-  for (const [u, v] of [[-11, 15], [-5, 20], [1, 24]]) {
-    const centre = project(u, v, 1.2), tip = oval(centre[0], centre[1], 2.7, 3.1);
-    paint(tip, shade(centre, null, 3.2, true));
-  }
-  const nearPalm = surface([
-    ['M', -25, -10], ['C', -20, -13, -14, -13, -9, -10],
-    ['C', -1, -7, 8, 0, 20, 10], ['C', 25, 14, 21, 19, 17, 15],
-    ['C', 21, 20, 16, 24, 12, 20], ['C', 15, 25, 10, 29, 6, 24],
-    ['C', 8, 29, 2, 31, -3, 26], ['L', -21, 11],
-    ['C', -25, 7, -28, 3, -29, -1], ['Z'],
-  ], 4.5);
-  paint(nearPalm, shade(project(-5, 7, 4.5), null, 24, true));
-  if (!p.tiny) {
-    for (const [u, v, endU, endV] of [[17, 15, 3, 4], [12, 20, -2, 9], [6, 24, -7, 14]]) {
-      p.line(surface([['M', u, v], ['C', u - 3, v - 2, endU + 3, endV + 3, endU, endV]], 4.5), .7, .56);
-    }
-  }
-  // The upper hand's long thumb lies across the back of the lower hand.
-  const thumb = surface([
-    ['M', -8, -8], ['C', -2, -9, 4, -3, 11, 2], ['L', 19, 6],
-    ['C', 24, 8, 22, 13, 18, 12], ['C', 14, 11, 5, 5, -1, 2],
-    ['C', -5, 0, -8, 1, -11, 1], ['C', -14, -2, -13, -7, -8, -8], ['Z'],
-  ], 7);
-  paint(thumb, shade(project(-8, -6, 7), project(19, 8, 7), 4), thumb.slice(0, 6));
+  drawVolume(ctx, x, y, scale, 'Relationships', handshakeDistance, { width: 184, height: 112, zoom: 1.08, offsetY: -3, centreZ: 0, bound: 51 });
 }
 
 function tile(p, cx, cy, width = 17, depth = 13, height = 3) {
