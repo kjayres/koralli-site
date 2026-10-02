@@ -10,6 +10,10 @@ const pointNear = (actual, expected, message) => {
 };
 const coordinates = points => points.map(({ id, x, y, z }) => ({ id, x, y, z }));
 const predict = (fit, p) => fit.intercept + fit.slopeX * p.x + fit.slopeZ * p.z;
+const initialCount = 5, capacityLimit = 12, projectionScale = .36;
+const fitNear = (actual, expected, message) => {
+  for (const key of ['intercept', 'slopeX', 'slopeZ']) near(actual[key], expected[key], message, 1e-12);
+};
 function checkLeastSquares(fit, points) {
   const residuals = points.map(p => p.y - predict(fit, p));
   for (const predictor of [() => 1, p => p.x, p => p.z]) near(
@@ -37,8 +41,8 @@ const collinear = [-2, -1, 0, 1, 2].map(x => ({ x, z: 2 * x, y: 3 + 5 * x }));
 checkLeastSquares(fitPlane(collinear), collinear);
 
 const initial = adaptationPresentation(0);
-assert.equal(initial.observations.length, 20);
-assert.equal(initial.points.length, 100);
+assert.equal(initial.observations.length, initialCount);
+assert.equal(initial.points.length, capacityLimit);
 assert.equal(initial.pending.length, 0);
 assert.equal(initial.initialFit, 0);
 assert.equal(adaptationPresentation(3.3).initialFit, 0, 'The completed cube must hold grey observations before fitting');
@@ -50,17 +54,18 @@ assert.ok([...observationsAt(colourScene, adaptationPresentation(4)).values()].e
   'Fitted observations must become blue');
 
 // Check early updates, the capacity boundary and a much later rolling window.
-for (const event of [1, 2, 39, 40, 41, 250]) {
+const visibleMovements = [];
+for (const event of [1, 2, 6, 7, 8, 250]) {
   const arrival = 2.6 + event * 10;
   const before = adaptationPresentation(arrival - .1);
-  const expectedCount = Math.min(100, 20 + event * 2);
+  const expectedCount = Math.min(capacityLimit, initialCount + event);
   for (const delay of [.2, 1, 2.5, 4.9]) {
     const pending = adaptationPresentation(arrival + delay);
     assert.equal(pending.observations.length, expectedCount);
-    assert.equal(pending.pending.length, 2);
+    assert.equal(pending.pending.length, 1);
     assert.deepEqual(coordinates(pending.fitObservations), coordinates(before.fitObservations),
       'Pending arrivals must not enter the fitted dataset during the five-second pause');
-    assert.deepEqual(pending.fit, before.fit, 'Pending arrivals must not move the plane');
+    fitNear(pending.fit, before.fit, 'Pending arrivals must not move the plane');
     assert.deepEqual(pending.targetFit, before.targetFit);
     assert.equal(pending.updateProgress, 0);
     checkLeastSquares(pending.targetFit, pending.fitObservations);
@@ -79,11 +84,23 @@ for (const event of [1, 2, 39, 40, 41, 250]) {
   assert.equal(fitted.fitObservations.length, expectedCount);
   assert.deepEqual(coordinates(fitted.fitObservations), coordinates(fitted.observations));
   checkLeastSquares(fitted.fit, fitted.fitObservations);
-  assert.deepEqual(fitted.fit, fitted.targetFit);
+  fitNear(fitted.fit, fitted.targetFit, 'A completed interpolation must reach the fitted coefficients');
   assert.ok(Object.keys(fitted.fit).some(key => Math.abs(fitted.fit[key] - before.fit[key]) > 1e-5),
     'New observations must actually change the fitted coefficients');
+  const movement = Math.max(...[-.92, .92].flatMap(x => [-.92, .92].map(z =>
+    Math.abs(predict(fitted.fit, { x, z }) - predict(before.fit, { x, z })))))
+    * 180 * projectionScale * Math.cos(10 * Math.PI / 180);
+  visibleMovements.push({ event, pixels: movement });
+  if ([1, 2, 8].includes(event)) assert.ok(movement >= 2,
+    'Early evidence and the first recycled observation must move the actual fitted plane by at least 2px in a 180px pane');
+  if (event === 1) {
+    const firstArrival = fitted.observations.at(-1);
+    const initialResidual = Math.max(...before.fitObservations.map(p => Math.abs(p.y - predict(before.fit, p))));
+    assert.ok(Math.abs(firstArrival.y - predict(before.fit, firstArrival)) > initialResidual * 3,
+      'The first new observation must visibly challenge the initial relationship');
+  }
   const display = observationsAt(colourScene, fitted);
-  for (const point of fitted.observations.slice(-2)) assert.equal(display.get(point.id).colour, 'rgb(36,78,255)');
+  assert.equal(display.get(fitted.observations.at(-1).id).colour, 'rgb(36,78,255)');
   const hold = adaptationPresentation(arrival + 9);
   assert.deepEqual(hold.fit, fitted.fit, 'The updated plane must remain readable for several seconds');
   assert.deepEqual(coordinates(hold.fitObservations), coordinates(fitted.fitObservations));
@@ -91,20 +108,19 @@ for (const event of [1, 2, 39, 40, 41, 250]) {
   for (const p of fitted.observations) if (retained.has(p.id)) assert.deepEqual(coordinates([p]), coordinates([retained.get(p.id)]),
     'Adding evidence must not rewrite retained observations');
 }
-const capacity = adaptationPresentation(407.95), recycled = adaptationPresentation(412.8);
-assert.equal(capacity.observations.length, 100);
-assert.equal(recycled.observations.length, 100);
-assert.deepEqual(recycled.observations.slice(0, 98).map(p => p.id), capacity.observations.slice(2).map(p => p.id),
-  'At capacity, a new pair must replace exactly the oldest pair');
+const capacity = adaptationPresentation(77.95), recycled = adaptationPresentation(82.8);
+assert.equal(capacity.observations.length, capacityLimit);
+assert.equal(recycled.observations.length, capacityLimit);
+assert.deepEqual(recycled.observations.slice(0, capacityLimit - 1).map(p => p.id), capacity.observations.slice(1).map(p => p.id),
+  'At capacity, one new observation must replace exactly the oldest observation');
 assert.deepEqual(recycled.fitObservations.map(p => p.id), capacity.fitObservations.map(p => p.id),
   'Recycling the display must not prematurely discard evidence from the current fit');
 const oldBindings = observationsAt(colourScene, capacity), newBindings = observationsAt(colourScene, recycled);
-assert.equal(oldBindings.get(0).id, newBindings.get(100).id);
-assert.equal(oldBindings.get(1).id, newBindings.get(101).id);
+assert.equal(oldBindings.get(0).id, newBindings.get(capacityLimit).id);
 for (const age of [1000, 10000, 36000]) {
   const state = adaptationPresentation(age);
-  assert.equal(state.observations.length, 100); assert.equal(state.fitObservations.length, 100);
-  assert.equal(state.points.length, 100); assert.equal(new Set(state.observations.map(p => p.slot)).size, 100);
+  assert.equal(state.observations.length, capacityLimit); assert.equal(state.fitObservations.length, capacityLimit);
+  assert.equal(state.points.length, capacityLimit); assert.equal(new Set(state.observations.map(p => p.slot)).size, capacityLimit);
   assert.ok(state.observations.every(p => [p.x, p.y, p.z].every(Number.isFinite)));
   checkLeastSquares(state.targetFit, state.fitObservations);
   assert.deepEqual(adaptationPresentation(age), state, 'Long-running states must be deterministic and bounded');
@@ -141,8 +157,8 @@ function recorder(width, height) {
   };
 }
 const dots = ctx => ctx.fills.filter(fill => fill.path.length === 1 && fill.path[0].radius);
-const sizes = [[224, 224], [240, 320], [400, 400], [418, 418], [400, 260]];
-const ages = [0, .5, 1.1, 1.8, 2.4, 2.6, 3.1, 12.8, 15.1, 17.75, 17.95, 22.8, 407.95, 412.8, 417.95, 10000];
+const sizes = [[180, 180], [224, 224], [240, 320], [400, 400], [420, 420], [400, 260]];
+const ages = [0, .5, 1.1, 1.8, 2.4, 2.6, 3.1, 12.8, 15.1, 17.75, 17.95, 22.8, 77.95, 82.8, 87.95, 10000];
 for (const [width, height] of sizes) {
   const scene = createApproachScene(width, height), particles = [...scene.field.particles];
   updateApproachScene(scene, width, height, 0, { phase: 1, reducedMotion: true });
@@ -170,8 +186,8 @@ for (const [width, height] of sizes) {
     const edges = ctx.strokes.filter(stroke => stroke.colour === '#858d9d');
     assert.equal(edges.length, 12, 'A complete cube must retain all twelve edges');
     if (state.turn === 1) {
-      const yaw = 30 * Math.PI / 180, elevation = 10 * Math.PI / 180;
-      const worldEdge = 2, scale = Math.min(width, height) * .265;
+      const yaw = 15 * Math.PI / 180, elevation = 10 * Math.PI / 180;
+      const worldEdge = 2, scale = Math.min(width, height) * projectionScale;
       const axes = [
         { name: 'x', edges: [0, 2, 4, 6], x: Math.cos(yaw), y: -Math.sin(yaw) * Math.sin(elevation) },
         { name: 'y', edges: [1, 3, 5, 7], x: 0, y: -Math.cos(elevation) },
@@ -180,7 +196,7 @@ for (const [width, height] of sizes) {
       for (const axis of axes) for (const index of axis.edges) {
         const [a, b] = edges[index].path, dx = b.x - a.x, dy = b.y - a.y;
         near(Math.hypot(dx, dy), worldEdge * scale * Math.hypot(axis.x, axis.y),
-          `Every ${axis.name}-aligned cube edge must match the chosen 30/10 camera projection`);
+          `Every ${axis.name}-aligned cube edge must match the chosen 15/10 camera projection`);
         near(dx * axis.y - dy * axis.x, 0,
           `The four ${axis.name}-aligned cube edges must remain parallel to their projected world axis`);
       }
@@ -221,8 +237,8 @@ for (const [width, height] of sizes) {
 
 // CPU-only drawing cost, with no canvas rasterisation or browser/device claim.
 const noop = { save() {}, restore() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, arc() {}, stroke() {}, fill() {}, setLineDash() {} };
-for (const count of [20, 100]) {
-  const scene = createApproachScene(400, 400), state = adaptationPresentation(count === 20 ? 4 : 417.95), costs = [];
+for (const count of [initialCount, capacityLimit]) {
+  const scene = createApproachScene(400, 400), state = adaptationPresentation(count === initialCount ? 4 : 87.95), costs = [];
   for (let i = 0; i < 120; i++) {
     const start = performance.now(); drawAdaptation(noop, scene, { state });
     if (i >= 20) costs.push(performance.now() - start);
@@ -230,4 +246,5 @@ for (const count of [20, 100]) {
   costs.sort((a, b) => a - b);
   console.log(`Adaptation ${count} observations: CPU draw median ${costs[49].toFixed(3)}ms, p95 ${costs[94].toFixed(3)}ms; no canvas rasterisation.`);
 }
+console.log(`Actual plane movement at180px: ${visibleMovements.map(({ event, pixels }) => `update${event} ${pixels.toFixed(2)}px`).join(', ')}.`);
 console.log('Adaptation checked: exact two-predictor fits, five-second pending exclusion, real refits, bounded recycling, equal cube sides, fitted surface/residuals, shared-grain entry, resize bounds and static reduced motion.');

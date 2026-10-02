@@ -317,7 +317,7 @@ const finalRegression = drawApproach(regressionCtx, 400, 400, 0, { phase: 2, red
 const grainFills = ctx => ctx.fills.filter(fill => fill.path.length === 1 && fill.path[0].arc);
 assert.equal(finalRegression.caption, '03 / ADAPT & GROW');
 assert.equal(finalRegression.detail, 'Learning from new evidence');
-assert.equal(finalRegression.observations.length, 26, 'The static illustration must show a completed example after several updates');
+assert.equal(finalRegression.observations.length, 8, 'The static illustration must show a completed example after three single-observation updates');
 assert.equal(finalRegression.pending.length, 0);
 assert.deepEqual(finalRegression.fit, finalRegression.targetFit);
 assert.equal(grainFills(regressionCtx).length, finalRegression.observations.length, 'The completed cube must show the observed sample without the dense context field');

@@ -3,10 +3,9 @@ const clamp = value => Math.max(0, Math.min(1, value));
 const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
 const BLUE = [36, 78, 255], GREY = [112, 119, 131], CORAL = [232, 120, 131];
-const INITIAL_COUNT = 20, CAPACITY = 100, ENTRY = 2.6, INTERVAL = 10;
+const INITIAL_COUNT = 5, CAPACITY = 12, ENTRY = 2.6, INTERVAL = 10;
 const colour = (a, b, t) => a.map((value, i) => mix(value, b[i], t));
 const css = rgb => `rgb(${rgb.map(Math.round).join(',')})`;
-const random = seed => { const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 /** Centred ordinary least squares: y = intercept + slopeX*x + slopeZ*z. */
 export function fitPlane(points) {
@@ -31,20 +30,27 @@ export function fitPlane(points) {
 const predict = (fit, p) => fit.intercept + fit.slopeX * p.x + fit.slopeZ * p.z;
 const mixFit = (a, b, t) => ({ intercept: mix(a.intercept, b.intercept, t), slopeX: mix(a.slopeX, b.slopeX, t), slopeZ: mix(a.slopeZ, b.slopeZ, t) });
 
+// Five non-collinear starting measurements, then one surprising local observation.
+const INITIAL = [[-.48, -.42, -.025], [-.48, .42, .025], [.48, -.42, .03], [.48, .42, -.03], [0, 0, 0]];
+const CLUSTERS = [[.34, .27], [-.36, .25], [-.30, -.32], [.32, -.28]];
+const RESPONSE_OFFSETS = [.20, .133, .066, 0, -.066, -.133, -.20];
 function observation(id) {
-  const x = (random(id * 7 + 11) - .5) * 1.7;
-  const z = (random(id * 7 + 37) - .5) * 1.7;
-  const drift = Math.max(0, id - INITIAL_COUNT + 1);
-  const slopeX = .36 + .22 * Math.sin(drift * .14);
-  const slopeZ = .24 + .17 * Math.sin(drift * .11);
-  const y = .04 + .12 * Math.sin(drift * .08) + slopeX * x + slopeZ * z + (random(id * 7 + 83) - .5) * .42;
-  return { id, slot: id % CAPACITY, x, y: Math.max(-.92, Math.min(.92, y)), z };
+  let x, z, deviation;
+  if (id < INITIAL_COUNT) [x, z, deviation] = INITIAL[id];
+  else {
+    const event = id - INITIAL_COUNT, centre = CLUSTERS[event % CLUSTERS.length];
+    x = centre[0] + .018 * Math.sin(event * 1.73);
+    z = centre[1] + .018 * Math.cos(event * 1.37);
+    // The response cycle does not divide the rolling window: updates keep mattering.
+    deviation = RESPONSE_OFFSETS[event % RESPONSE_OFFSETS.length];
+  }
+  return { id, slot: id % CAPACITY, x, y: .04 + .20 * x + .10 * z + deviation, z };
 }
 function windowOf(total) {
   return Array.from({ length: Math.min(CAPACITY, total) }, (_, i) => observation(Math.max(0, total - CAPACITY) + i));
 }
 function camera(turn) {
-  const yaw = Math.PI / 6 * clamp(turn), pitch = Math.PI / 18 * clamp(turn);
+  const yaw = Math.PI / 12 * clamp(turn), pitch = Math.PI / 18 * clamp(turn);
   return { cy: Math.cos(yaw), sy: Math.sin(yaw), cp: Math.cos(pitch), sp: Math.sin(pitch) };
 }
 
@@ -52,7 +58,7 @@ function camera(turn) {
 export function adaptationPresentation(age, reducedMotion = false) {
   const seconds = reducedMotion ? ENTRY + 35.5 : (Number.isFinite(age) ? Math.max(0, age) : 0);
   const local = Math.max(0, seconds - ENTRY), event = Math.floor(local / INTERVAL), eventAge = local % INTERVAL;
-  const total = INITIAL_COUNT + event * 2, previousTotal = Math.max(INITIAL_COUNT, total - 2);
+  const total = INITIAL_COUNT + event, previousTotal = Math.max(INITIAL_COUNT, total - 1);
   const current = windowOf(total), previous = windowOf(previousTotal);
   const updateProgress = event ? ease((eventAge - 5) / .3) : 1;
   const previousFit = fitPlane(previous), nextFit = fitPlane(current);
@@ -66,7 +72,7 @@ export function adaptationPresentation(age, reducedMotion = false) {
     const included = !recent || eventAge >= 5;
     if (!included) pending.push(point.id);
     // Before recycling a slot, let its oldest displayed observation recede quietly.
-    const retiring = total >= CAPACITY && point.id < total - CAPACITY + 2;
+    const retiring = total >= CAPACITY && point.id < total - CAPACITY + 1;
     const retirement = retiring && !reducedMotion ? 1 - ease((eventAge - 9.55) / .4) : 1;
     const presence = (recent && !reducedMotion ? ease(eventAge / .2) : 1) * retirement;
     const pulse = recent && !reducedMotion ? 1 - updateProgress : 0;
@@ -92,7 +98,7 @@ function projectWithCamera(point, width, height, view) {
   const x = point.x * view.cy + point.z * view.sy;
   const depth = point.z * view.cy - point.x * view.sy;
   const y = point.y * view.cp - depth * view.sp;
-  const scale = Math.min(width, height) * .265;
+  const scale = Math.min(width, height) * .36;
   return { x: width / 2 + x * scale, y: height * .49 - y * scale };
 }
 export function projectAdaptation(point, width, height, turn = 1) {

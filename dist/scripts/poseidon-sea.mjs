@@ -1,5 +1,5 @@
 // One image supplies colour only: every visible mark in the live scene is a WebGL point.
-import { createThunder } from './poseidon-thunder.mjs?v=6f0ec2b37e55';
+import { createThunder } from './poseidon-thunder.mjs?v=220c432bb670';
 
 const VERTEX = `
 precision highp float;
