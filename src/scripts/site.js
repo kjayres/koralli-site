@@ -59,7 +59,7 @@ async function prepareArtwork(state) {
     if (state.kind === 'reef') {
       state.reef = new state.art.Reef();
     }
-    if (state.kind === 'journal-water') {
+    if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
       const { initJournalLettering } = await import('./art/journal-lettering.mjs');
       state.updateJournalLettering = initJournalLettering();
     }
@@ -100,7 +100,7 @@ function paint(state, dt = 0) {
       updateJournalViewport();
       // A reduced-motion canvas is a complete still, so scrolling needs no repaint.
       state.art.drawJournalWater(ctx, w, h, state.time, { ...options, viewport: motion.matches ? undefined : state.viewport });
-      if (state.headingVisible || motion.matches) state.updateJournalLettering(state.time, options);
+      if (state.headingVisible || motion.matches) state.updateJournalLettering?.(state.time, options);
     }
     if (kind === 'coral') {
       state.art.drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });

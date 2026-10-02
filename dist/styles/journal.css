@@ -9,7 +9,6 @@
 .journal-page .site-header { color:var(--water-ink); }
 .journal-page .site-header nav .nav-contact { color:var(--water-accent); }
 .journal-page .wordmark img { filter:invert(1); mix-blend-mode:screen; }
-.journal-page .wordmark-definition { color:#a2b2cd; }
 .journal-page .site-header nav a:hover,
 .journal-page .site-header nav a[aria-current=page] { color:var(--water-accent); border-color:var(--water-accent); }
 .journal-page :is(a,button):focus-visible { outline-color:#c2cdff; }
@@ -20,9 +19,6 @@
 .journal-hero>.eyebrow { color:var(--water-muted); }
 .journal-opening { display:block; margin-top:68px; }
 .journal-opening h1 { position:relative; width:max-content; max-width:100%; white-space:nowrap; font-size:clamp(26px,9.2vw,132px); font-weight:400; line-height:1.04; letter-spacing:-.053em; }
-.journal-growing-letter { display:inline-block; vertical-align:baseline; overflow:visible; fill:currentColor; }
-.journal-growing-letter text { font-family:inherit; letter-spacing:normal; fill:currentColor; }
-.journal-seaweed { fill:currentColor; }
 .journal-opening .lead { margin-top:40px; max-width:430px; color:var(--water-muted); font-size:clamp(18px,1.6vw,22px); line-height:1.5; padding:0; }
 .journal-waterline { display:flex; justify-content:space-between; align-items:end; gap:30px; margin-top:56px; }
 .journal-waterline .text-link { color:var(--water-ink); font-size:10px; }

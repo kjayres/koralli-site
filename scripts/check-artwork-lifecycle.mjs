@@ -17,7 +17,7 @@ function element() {
     clientWidth:600, clientHeight:440
   };
 }
-async function setup({kind, reduced=false, building=false, importFailure, firstFailure=false, deferredReef=false}={}) {
+async function setup({kind, reduced=false, building=false, importFailure, firstFailure=false, deferredReef=false, journalLettering=false}={}) {
   const imports=[], errors=[], observers=[], frames=new Map(), events=new Map();
   const warmups=[],resizers=[];
   let nextFrame=0, failDraw=firstFailure, calls=0, failBuilding=false, clearCalls=0, letterCalls=0, boundsReads=0;
@@ -37,6 +37,7 @@ async function setup({kind, reduced=false, building=false, importFailure, firstF
   section.querySelector=s=>s==='.company-building'?svg:s==='.building-sticky'?chamber:null;
   const motion={matches:reduced,addEventListener:(n,cb)=>events.set(`motion:${n}`,cb)};
   const selectors={'.building-section':building?section:null,'.journal-opening h1':kind==='journal-water'?heading:null};
+  if(kind==='journal-water'&&journalLettering)selectors['[data-journal-frond], [data-journal-coral]']=element();
   const document={ hidden:false, documentElement:{scrollHeight:3000}, querySelector:s=>selectors[s] || null, querySelectorAll:s=>s==='canvas[data-art]'?(kind?[canvas]:[]):s==='[data-depth-panel]'?(building?panels:[]):s==='[data-depth]'?(building?depths:[]):[], addEventListener:(n,cb)=>events.set(n,cb) };
   const draw=()=>{calls++;if(failDraw)throw Error('Test draw failure');};
   const modules={
@@ -138,7 +139,15 @@ async function setup({kind, reduced=false, building=false, importFailure, firstF
   assert.equal(t.section.classList.contains('building-enhanced'),false);assert.ok(t.panels.every(p=>!p.getAttribute('aria-hidden')));
 }
 {
-  const t=await setup({kind:'journal-water'}),state=t.api.canvasStates[0];
+  const t=await setup({kind:'journal-water'});
+  assert.deepEqual(t.imports,['./art/journal-water.mjs'],'A plain journal heading needs no lettering module');
+  assert.equal(t.letterCalls(),0);assert.ok(t.host.classList.contains('art-ready'));
+  await t.intersect();t.flush();assert.equal(t.frames.size,1,'Journal water animates with a plain heading');
+  assert.equal(t.errors.length,0);
+}
+{
+  const t=await setup({kind:'journal-water',journalLettering:true}),state=t.api.canvasStates[0];
+  assert.deepEqual(t.imports,['./art/journal-water.mjs','./art/journal-lettering.mjs']);
   assert.equal(t.letterCalls(),1);assert.equal(t.clearCalls(),0,'The journal renderer owns its only canvas clear');
   t.flush();const reads=t.boundsReads();
   for(let i=0;i<20;i++)t.api.paint(state,1/60);

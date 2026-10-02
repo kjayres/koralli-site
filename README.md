@@ -20,7 +20,7 @@ npm run check
 npm run check:artwork
 ```
 
-The development server opens at http://127.0.0.1:4173. Build before committing changes to `src` so `dist` stays in sync. Relative asset URLs make the same build work on localhost and GitHub Pages. `npm run artwork:building` refreshes the downloadable building SVGs after changes to the building geometry. The journal title's living letterforms are controlled by `src/scripts/art/journal-lettering.mjs`; its canvas scene is in `src/scripts/art/journal-water.mjs`. Motion follows the visitor's reduced-motion setting and stops when the page is hidden.
+The development server opens at http://127.0.0.1:4173. Build before committing changes to `src` so `dist` stays in sync. Relative asset URLs make the same build work on localhost and GitHub Pages. `npm run artwork:building` refreshes the downloadable building SVGs after changes to the building geometry. The journal uses a plain text heading; its canvas scene is in `src/scripts/art/journal-water.mjs`. The earlier letter-growth study remains in `src/scripts/art/journal-lettering.mjs` and is only loaded when its matching SVG elements are present. Motion follows the visitor's reduced-motion setting and stops when the page is hidden.
 
 The homepage reef is rendered by `src/scripts/art/reef.mjs`, with its layout in `reef-habitat.mjs` and its page styling in `src/styles/reef.css`. `node scripts/export-reef.mjs` refreshes its static SVGs. The build versions JavaScript and CSS together so published pages use matching assets. `npm run check` also reports stale files in `dist/`; archive or remove obsolete generated files explicitly when retiring source assets.
 
