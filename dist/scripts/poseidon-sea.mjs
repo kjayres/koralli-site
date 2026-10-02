@@ -1,5 +1,5 @@
 // One image supplies colour only: every visible mark in the live scene is a WebGL point.
-import { createThunder } from './poseidon-thunder.mjs?v=34d51cbcb8d7';
+import { createThunder } from './poseidon-thunder.mjs?v=73054f22b655';
 
 const VERTEX = `
 precision highp float;
@@ -8,6 +8,7 @@ attribute vec3 a_colour;
 attribute float a_seed;
 attribute float a_kind;
 uniform float u_time, u_size, u_ratio, u_aspect, u_flash, u_surge;
+uniform vec2 u_lightOrigin, u_lightExtent;
 varying vec3 v_colour;
 varying float v_alpha, v_kind;
 float band(float a, float b, float c, float d, float x) {
@@ -15,19 +16,17 @@ float band(float a, float b, float c, float d, float x) {
 }
 void main() {
   vec2 p = a_position;
-  float head = 1.0-smoothstep(.82,1.0,length((p-vec2(.707,.264))/vec2(.054,.116)));
-  head = max(head,band(.681,.69,.745,.755,p.x)*band(.225,.245,.402,.417,p.y));
-  float robeRight = .768+.04*smoothstep(.50,.79,p.y);
-  float body = band(.626,.651,robeRight,robeRight+.018,p.x) * band(.29,.34,.792,.82,p.y);
-  float cape = band(.51,.572,.636,.67,p.x) * band(.40,.48,.75,.81,p.y);
-  float staff = max(band(.728,.737,.78,.79,p.x)*band(.035,.06,.21,.25,p.y),
-    band(.749,.754,.761,.767,p.x)*band(.18,.23,.775,.80,p.y));
-  float arms = band(.643,.651,.778,.79,p.x)*band(.329,.342,.625,.646,p.y);
-  float figure = max(max(head,body),max(max(cape,staff),arms));
+  float head = band(.668,.675,.729,.736,p.x)*band(.146,.155,.322,.336,p.y);
+  float hem = smoothstep(.49,.79,p.y);
+  float robeLeft = mix(.657,.625,hem), robeRight = mix(.746,.766,hem);
+  float body = band(robeLeft-.01,robeLeft,robeRight,robeRight+.012,p.x)*band(.29,.30,.792,.808,p.y);
+  float staff = max(band(.624,.630,.685,.692,p.x)*band(.018,.027,.224,.236,p.y),
+    band(.651,.655,.663,.667,p.x)*band(.19,.209,.794,.808,p.y));
+  float arms = band(.606,.614,.761,.769,p.x)*band(.295,.306,.496,.508,p.y);
+  float figure = max(max(head,body),max(staff,arms));
   float sea = smoothstep(.535,.62,p.y) * (1.0-figure);
   float sky = (1.0-smoothstep(.45,.57,p.y)) * (1.0-figure);
   float phase = p.x*18.0 + p.y*11.0 - u_time*.83;
-  p.x += cape*(1.0-arms)*.0025*sin(u_time*.64+a_position.y*8.0);
   vec2 flow = vec2(.007*sin(phase),.010*cos(phase*.8));
   vec2 curl = (a_position-vec2(.32,.77))*vec2(u_aspect,1.0);
   flow += vec2(-curl.y/u_aspect,curl.x)*.025*sin(u_time*.67-length(curl)*17.0)*exp(-length(curl)*3.0);
@@ -40,6 +39,9 @@ void main() {
   v_colour = a_colour;
   float foam = pow(.5+.5*sin(phase),5.0)*sea;
   v_colour = mix(v_colour,vec3(.957,.941,.906),foam*(.055+u_surge*.06)+response*sea*.055);
+  float cloudLight = (1.0-smoothstep(.12,1.0,length((a_position-u_lightOrigin)/u_lightExtent)))
+    * (1.0-figure) * (1.0-smoothstep(.48,.56,a_position.y));
+  v_colour = mix(v_colour,max(v_colour,vec3(.9,.945,1.0)),u_flash*cloudLight*.27);
   v_alpha = 1.0;
   v_kind = a_kind;
   gl_PointSize = u_size*(.9+.2*a_seed)*u_ratio;
@@ -51,7 +53,7 @@ void main() {
   } else if (a_kind > .5) {
     p = a_position;
     v_alpha = u_flash;
-    gl_PointSize = 1.2*u_ratio;
+    gl_PointSize = (1.55+.35*a_seed)*u_ratio;
   }
   gl_Position = vec4(p.x*2.0-1.0,1.0-p.y*2.0,0.0,1.0);
 }`;
@@ -75,6 +77,11 @@ function seaSurge(time) {
   const ease = value => { const x = Math.max(0,Math.min(1,value)); return x*x*(3-2*x); };
   return ease((cycle-5)/3)*(1-ease((cycle-11)/4));
 }
+function lightningEnvelope(age) {
+  if (age<0 || age>=.72) return 0;
+  const fade=Math.max(0,Math.min(1,(age-.17)/.55));
+  return .96*Math.min(1,age/.065)*(1-fade*fade*(3-2*fade));
+}
 
 function createRenderer(canvas) {
   const gl = canvas.getContext('webgl', { alpha: true, antialias: false, premultipliedAlpha: false });
@@ -94,7 +101,7 @@ function createRenderer(canvas) {
     const location = gl.getAttribLocation(program,name);
     gl.enableVertexAttribArray(location); gl.vertexAttribPointer(location,size,gl.FLOAT,false,28,offset);
   }
-  const uniforms = Object.fromEntries(['time','size','ratio','aspect','flash','surge'].map(name => [name,gl.getUniformLocation(program,`u_${name}`)]));
+  const uniforms = Object.fromEntries(['time','size','ratio','aspect','flash','surge','lightOrigin','lightExtent'].map(name => [name,gl.getUniformLocation(program,`u_${name}`)]));
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   gl.clearColor(.957,.941,.906,1);
   return { gl, uniforms, count: 0, columns: 1 };
@@ -137,11 +144,14 @@ function sampleScene(renderer,image,rect) {
   const boltRight=visibleRight-.014, boltLeft=Math.min(.894,Math.max(.804,boltRight-.062));
   const placeBolt=([x,y])=>[visibleRight<.966 ? boltLeft+(x-.894)/.054*(boltRight-boltLeft) : x,y];
   const bolt = [[.906,.095],[.894,.15],[.906,.19],[.895,.235],[.916,.273],[.911,.323],[.929,.381],[.918,.43],[.935,.49]].map(placeBolt);
+  const lightLeft=placeBolt([.894,0])[0], lightRight=placeBolt([.948,0])[0];
+  renderer.lightOrigin=[(lightLeft+lightRight)/2,.29];
+  renderer.lightExtent=[Math.max(.028,Math.min(.09,Math.abs(lightRight-lightLeft)*1.4)),.22];
   const segments = bolt.slice(1).map((end,i)=>[bolt[i],end]);
   segments.push([bolt[3],placeBolt([.939,.278])],[placeBolt([.939,.278]),placeBolt([.948,.337])]);
-  for (const [a,b] of segments) for (let i=0;i<48;i++) {
+  for (const [segment,[a,b]] of segments.entries()) for (let i=0;i<48;i++) {
     const t=i/48;
-    point(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,.68,.76,.88,0,1);
+    point(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,.93,.97,1,hash(segment*997+i),1);
   }
   renderer.gl.bufferData(renderer.gl.ARRAY_BUFFER,data.subarray(0,index),renderer.gl.STATIC_DRAW);
   renderer.count=index/7; renderer.columns=columns;
@@ -155,8 +165,12 @@ function enhanceScene(figure) {
   const soundButton=figure.closest('.agent-opening')?.querySelector('[data-poseidon-sound]');
   const soundAvailable=!!soundButton && !soundButton.hidden;
   let renderer, prepared='', visible=false, frame=0, previous=0, elapsed=0, painted=0, currentPhase='';
-  let width=0, height=0, ratio=1, nextStrike=7, strikeStart=-99, strikeNumber=0;
-  const fallback=() => { figure.classList.remove('is-poseidon-live'); cancelAnimationFrame(frame); frame=0; previous=0; thunder.stop(); if(soundButton)soundButton.hidden=true; };
+  let width=0, height=0, ratio=1, nextStrike=4, strikeStart=-99, strikeNumber=0, currentLightning='';
+  const markLightning=active=>{
+    const state=active?'active':'idle';
+    if(state!==currentLightning){figure.dataset.poseidonLightning=state;currentLightning=state;}
+  };
+  const fallback=() => { figure.classList.remove('is-poseidon-live'); cancelAnimationFrame(frame); frame=0; previous=0; strikeStart=-99; markLightning(false); thunder.stop(); if(soundButton)soundButton.hidden=true; };
   function draw() {
     if (!renderer || !renderer.count) return;
     const {gl,uniforms}=renderer;
@@ -167,10 +181,12 @@ function enhanceScene(figure) {
     const time=motion.matches?0:elapsed;
     const cycle=time%22, phase=cycle<5 || cycle>=15?'calm':cycle<8?'building':cycle<11?'crest':'settling';
     if (phase!==currentPhase) { figure.dataset.poseidonPhase=phase; currentPhase=phase; }
-    const age=elapsed-strikeStart, flash=!motion.matches && age>=0 && age<.7 ? Math.sin(age/.7*Math.PI)**2*.72 : 0;
+    const flash=motion.matches?0:lightningEnvelope(elapsed-strikeStart);
+    markLightning(flash>0);
     gl.viewport(0,0,canvas.width,canvas.height); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.uniform1f(uniforms.time,time); gl.uniform1f(uniforms.surge,seaSurge(time)); gl.uniform1f(uniforms.size,width/renderer.columns*1.04);
     gl.uniform1f(uniforms.ratio,ratio); gl.uniform1f(uniforms.aspect,width/height); gl.uniform1f(uniforms.flash,flash);
+    gl.uniform2f(uniforms.lightOrigin,...renderer.lightOrigin); gl.uniform2f(uniforms.lightExtent,...renderer.lightExtent);
     gl.drawArrays(gl.POINTS,0,renderer.count);
     figure.classList.add('is-poseidon-live');
   }
@@ -186,6 +202,7 @@ function enhanceScene(figure) {
     if (soundButton) soundButton.hidden=!soundAvailable || motion.matches || !renderer?.count;
     if (!visible || document.hidden || motion.matches || !renderer?.count || !width || !height) {
       cancelAnimationFrame(frame); frame=0; previous=0;
+      strikeStart=-99; markLightning(false);
       thunder.stop();
     } else if (!frame) frame=requestAnimationFrame(tick);
   }
