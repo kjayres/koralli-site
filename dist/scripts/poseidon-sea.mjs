@@ -1,5 +1,5 @@
 // One image supplies colour only: every visible mark in the live scene is a WebGL point.
-import { createThunder } from './poseidon-thunder.mjs?v=ffe328f840d7';
+import { createThunder } from './poseidon-thunder.mjs?v=e816cf862215';
 
 const VERTEX = `
 precision highp float;
@@ -24,8 +24,11 @@ void main() {
     band(.651,.655,.663,.667,p.x)*band(.19,.209,.794,.808,p.y));
   float arms = band(.606,.614,.761,.769,p.x)*band(.295,.306,.496,.508,p.y);
   float figure = max(max(head,body),max(staff,arms));
-  float sea = smoothstep(.535,.62,p.y) * (1.0-figure);
-  float sky = (1.0-smoothstep(.45,.57,p.y)) * (1.0-figure);
+  // Let the neighbouring cloud and water share the figure's broad support field.
+  // Tight silhouette masks stretch the grain spacing into visible rectangular seams.
+  float support = band(.55,.615,.78,.845,a_position.x)*band(.005,.025,.805,.86,a_position.y);
+  float sea = smoothstep(.535,.62,p.y) * (1.0-support);
+  float sky = (1.0-smoothstep(.45,.57,p.y)) * (1.0-support);
   float shelter = 1.0-smoothstep(.09,.27,length((a_position-vec2(.69,.76))*vec2(u_aspect,1.0)));
   float waveEnergy = mix(1.0,.32,shelter);
   float phase = p.x*18.0 + p.y*11.0 - u_time*.56;
@@ -38,7 +41,6 @@ void main() {
   p += vec2(.0025*sin(u_time*.15+a_position.y*3.0),.001*sin(u_time*.18))*sky;
   // A shared, grounded weight shift keeps the staff, grip and shoulders together.
   // The surrounding field follows softly so the moving silhouette leaves no gap.
-  float support = band(.55,.615,.78,.845,a_position.x)*band(.005,.025,.805,.86,a_position.y);
   float lean = .0108*sin(u_time*.48)+.0032*sin(u_time*.19);
   vec2 pivot = vec2(.658,.79);
   vec2 stance = (a_position-pivot)*vec2(u_aspect,1.0);
@@ -49,7 +51,9 @@ void main() {
   p.y -= breathing*.0015*chest*(1.0-staff)*(1.0-arms*.9);
   float beard = band(.678,.686,.713,.723,a_position.x)*band(.258,.279,.37,.397,a_position.y);
   p.x += sin(u_time*.82)*.0007*beard;
-  float fabric = body*(1.0-staff)*band(.49,.55,.75,.80,a_position.y);
+  // Ease robe motion away from the lower shaft without changing the grip above.
+  float clothStaff = mix(staff,band(.638,.651,.667,.680,a_position.x),smoothstep(.51,.55,a_position.y));
+  float fabric = body*(1.0-clothStaff)*band(.49,.55,.75,.80,a_position.y);
   p.x += .0012*(sin(u_time*.63+a_position.y*9.0)-sin(a_position.y*9.0))*fabric;
   float perimeter = band(0.0,.03,.97,1.0,a_position.x)*band(0.0,.03,.97,1.0,a_position.y);
   p = mix(a_position,p,perimeter);
