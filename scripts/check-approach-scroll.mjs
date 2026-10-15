@@ -67,7 +67,7 @@ async function setup({ reduced = false, width = 1440, height = 900, panelHeight 
   section.querySelector = selector => nodes[selector] ?? null;
   section.querySelectorAll = selector => selector === '[data-approach-step]' ? steps : selector === '[data-approach-link]' ? [links[0], nextLinks[0], links[1], nextLinks[1], links[2]] : [];
   track.getBoundingClientRect = () => ({ top: trackTop - context.scrollY });
-  stage.getBoundingClientRect = () => ({ height: section.classList.contains('approach-enhanced') ? Math.max(measuredHeight, Number.parseFloat(section.style['--approach-stage-height']) || 0) : measuredHeight });
+  stage.getBoundingClientRect = () => ({ height: measuredHeight });
   figure.querySelector = selector => selector === '.approach-frame' ? frame : null;
   figure.getBoundingClientRect = () => ({ bottom: trackTop + 290 - context.scrollY });
   steps.forEach((step, index) => {
@@ -196,7 +196,7 @@ test('fades develop over a generous scroll interval while the reading position r
   assert.ok(fading[1] >= 84, 'The middle phase must have equally gradual entry and exit');
   assert.equal(t.scrolls.length, 0, 'Ordinary scrolling must never be intercepted or corrected programmatically');
   const bottomOfStage = Number.parseFloat(pinTop) + t.stage.getBoundingClientRect().height;
-  assert.equal(bottomOfStage, t.context.innerHeight - Number.parseFloat(pinTop), 'The frame must extend to the bottom cue, without a blank exit spacer');
+  assert.ok(bottomOfStage <= t.context.innerHeight - Number.parseFloat(pinTop), 'The complete content-sized frame must fit inside the viewport');
   assert.equal(t.section.style['--approach-exit-space'], undefined);
 });
 

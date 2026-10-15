@@ -54,10 +54,9 @@ export function initApproach(selectPhase) {
   };
 
   const layout = () => {
-    // Pin the heading, shared scene and next-section boundary as one viewport frame.
+    // Pin the heading, shared scene and next-section boundary as one compact frame.
     top = innerWidth < 760 ? 16 : 24;
     section.style.setProperty('--approach-pin-top', `${top}px`);
-    section.style.setProperty('--approach-stage-height', `${Math.max(0, innerHeight - top * 2)}px`);
     section.classList.add('approach-enhanced');
     const height = stage.getBoundingClientRect().height;
     pinned = !motion.matches && height + top * 2 <= innerHeight + 1;

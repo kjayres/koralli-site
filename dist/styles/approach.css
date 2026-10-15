@@ -1,5 +1,5 @@
 /* One shared scene follows the three phases of the Koralli approach. */
-.work-opening { max-width:1420px; margin:auto; padding:170px var(--gutter) 85px; }
+.work-opening { max-width:1420px; margin:auto; padding:170px var(--gutter) 56px; }
 .work-opening-copy { display:grid; grid-template-columns:1fr 1fr; column-gap:clamp(45px,7vw,100px); row-gap:24px; align-items:start; margin-top:26px; }
 .work-opening h1 { grid-column:1 / -1; max-width:23ch; font-size:clamp(40px,4.3vw,60px); white-space:normal; text-wrap:balance; }
 .work-opening-copy>div { grid-column:1 / -1; width:100%; max-width:58ch; justify-self:start; }
@@ -7,6 +7,7 @@
 .work-opening-copy>div>p+p { color:#5c5b58; margin-top:18px; }
 .work-opening .text-link { margin-top:28px; }
 .approach-section { --approach-reading-top:clamp(90px,12svh,130px); padding-top:24px; padding-bottom:24px; }
+.work-page .case-section { padding-top:48px; }
 .approach-heading h2 { margin-top:0; max-width:25ch; }
 .approach-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,420px); column-gap:clamp(40px,6vw,85px); align-items:start; margin-top:30px; }
 .approach-figure { grid-column:2; grid-row:1; position:sticky; top:var(--approach-reading-top); width:100%; margin:calc(-1 * var(--approach-entry-lift,0px)) 0 0; align-self:start; }
@@ -50,7 +51,7 @@
   .approach-copy .approach-lead { font-size:18px; }
 }
 @media (max-width:759px) {
-  .work-opening { padding-top:150px; padding-bottom:50px; }
+  .work-opening { padding-top:150px; padding-bottom:40px; }
   .work-opening-copy { grid-template-columns:1fr; gap:26px; margin-top:22px; }
   .work-opening h1 { font-size:clamp(38px,9.5vw,48px); white-space:normal; }
   .work-opening-copy>div { grid-column:1; max-width:none; }
@@ -107,7 +108,7 @@
 .approach-continuation { display:none; }
 .approach-next { display:none; }
 .approach-enhanced .approach-next { display:inline-block; }
-.approach-enhanced .approach-stage { position:sticky; top:var(--approach-pin-top,24px); min-height:var(--approach-stage-height,calc(100svh - 48px)); display:grid; grid-template-rows:auto 1fr auto; row-gap:24px; }
+.approach-enhanced .approach-stage { position:sticky; top:var(--approach-pin-top,24px); min-height:0; display:grid; grid-template-rows:auto auto auto; row-gap:24px; }
 .approach-enhanced .approach-heading h2 { margin-top:0; }
 .approach-enhanced .approach-layout { margin-top:0; align-items:center; align-self:center; }
 .approach-enhanced .approach-continuation { display:flex; padding-top:18px; border-top:1px solid transparent; }
