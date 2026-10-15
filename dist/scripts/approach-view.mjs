@@ -60,14 +60,8 @@ export function initApproach(selectPhase) {
     section.classList.add('approach-enhanced');
     const height = stage.getBoundingClientRect().height;
     pinned = !motion.matches && height + top * 2 <= innerHeight + 1;
-    // Balance the complete composition, keeping its internal gaps fixed.
-    if (pinned && innerWidth >= 760) {
-      top = Math.max(top, (innerHeight - height) / 2);
-      section.style.setProperty('--approach-pin-top', `${top}px`);
-    }
     section.classList.toggle('approach-enhanced', pinned);
-    // Each phase gets roughly three-fifths of a screen of ordinary scrolling.
-    distance = Math.max(1080, innerHeight * 1.8);
+    distance = Math.max(1200, innerHeight * 2.85);
     const trackHeight = pinned ? height + distance : 0;
     if (trackHeight !== lastHeight) {
       if (pinned) track.style.height = `${trackHeight}px`;

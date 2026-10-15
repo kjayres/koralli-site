@@ -137,7 +137,7 @@ test('the pinned frame contains the title, particle scene and working case link'
     }
     if (!voidTags.has(name.toLowerCase()) && !attributes.endsWith('/')) ancestors.push(attributes);
   }
-  assert.deepEqual(framed.sort(), ['a', 'canvas', 'h2']);
+  assert.deepEqual(framed, ['h2', 'canvas', 'a']);
 });
 
 test('scrolling forwards and backwards selects each phase once and preserves readable endpoints', async () => {
@@ -179,11 +179,11 @@ test('every phase has a fully readable interval and its emphasis develops during
   });
 });
 
-test('the compact sequence preserves gradual fades and a fixed reading position', async () => {
+test('fades develop over a generous scroll interval while the reading position remains fixed', async () => {
   const t = await setup();
   const pinTop = t.section.style['--approach-pin-top'];
   const travel = Number.parseFloat(t.track.style.height) - t.stage.getBoundingClientRect().height;
-  assert.ok(travel >= t.context.innerHeight * 1.7 && travel <= t.context.innerHeight * 2, 'Three phases should fit within two screens of scrolling');
+  assert.ok(travel >= t.context.innerHeight * 2.7, 'Each phase needs close to a viewport of ordinary scrolling');
   const fading = [0, 0, 0];
   for (let sample = 0; sample <= 600; sample++) {
     t.scrollToPosition(sample / 600);
