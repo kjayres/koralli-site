@@ -80,19 +80,19 @@ p {
 }
 
 h1 {
-  font-size:clamp(44px,5.1vw,76px);
+  font-size:clamp(40px,4.5vw,64px);
   line-height:1.03;
   letter-spacing:-.042em
 }
 
 h2 {
-  font-size:clamp(32px,3.5vw,50px);
+  font-size:clamp(29px,3vw,40px);
   line-height:1.12;
   letter-spacing:-.035em
 }
 
 h3 {
-  font-size:28px;
+  font-size:25px;
   line-height:1.22;
   letter-spacing:-.025em
 }
@@ -133,7 +133,7 @@ h3 {
 }
 
 .lead {
-  font-size:24px;
+  font-size:20px;
   line-height:1.4;
   letter-spacing:-.015em
 }
@@ -156,7 +156,7 @@ h3 {
 .section {
   max-width:1420px;
   margin:auto;
-  padding:90px var(--gutter);
+  padding:72px var(--gutter);
   border-top:1px solid var(--rule)
 }
 
@@ -185,13 +185,26 @@ h3 {
 
 .editorial-grid {
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:clamp(40px,8vw,120px);
-  margin-top:48px
+  grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  gap:clamp(36px,5vw,72px);
+  margin-top:32px
+}
+
+.section>.editorial-grid:first-child {
+  margin-top:0
+}
+
+.editorial-grid>div>p {
+  max-width:60ch
+}
+
+.editorial-grid h2 {
+  max-width:20ch;
+  text-wrap:balance
 }
 
 .editorial-grid p+p {
-  margin-top:22px
+  margin-top:18px
 }
 
 .editorial-grid .text-link {
@@ -415,7 +428,7 @@ h3 {
 
 .depth-panels {
   position:relative;
-  min-height:230px
+  min-height:180px
 }
 
 .depth-panel {
@@ -434,9 +447,10 @@ h3 {
 }
 
 .depth-panel h3 {
-  font-size:clamp(28px,2.6vw,38px);
+  font-size:clamp(25px,2.1vw,31px);
   line-height:1.22;
   letter-spacing:-.027em;
+  text-wrap:balance;
   max-width:470px;
   margin-top:20px
 }
@@ -998,7 +1012,7 @@ h3 {
 }
 
 .footer-main h2 {
-  font-size:clamp(38px,4vw,58px);
+  font-size:clamp(32px,3.1vw,44px);
   margin-top:25px
 }
 
@@ -1063,7 +1077,7 @@ h3 {
     max-width:760px
   }
   .hero h1 {
-    font-size:82px;
+    font-size:64px;
     max-width:760px
   }
   .building-layout {
@@ -1098,7 +1112,7 @@ h3 {
     font-size:28px
   }
   .depth-panels {
-    min-height:255px
+    min-height:190px
   }
   .building-heading .eyebrow {
     font-size:8px
@@ -1136,7 +1150,7 @@ h3 {
 
 @media(max-width:759px) {
   h1 {
-    font-size:48px
+    font-size:40px
   }
   .site-header {
     padding-top:20px;
@@ -1218,7 +1232,7 @@ h3 {
     margin-top:32px
   }
   .lead {
-    font-size:22px
+    font-size:19px
   }
   .work-example {
     margin-top:28px

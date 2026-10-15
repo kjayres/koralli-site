@@ -249,7 +249,7 @@ function drawInspectionNetwork(ctx, scene, lens, aperture = 0) {
     if (growth === 1) {
       const p = scene.field.particles[to], point = aperture ? magnify(b, lens, aperture) : b;
       ctx.globalAlpha = .7 * lens.networkFade;
-      drawInspectionObject(ctx, point.x, point.y, markRadius(scene) * (point.magnification || 1), lens.current.label);
+      dot(ctx, point.x, point.y, p.radius * scene.field.bounds.grainSize * (point.magnification || 1));
     }
   }
   ctx.restore();
@@ -317,15 +317,8 @@ function drawLens(ctx, scene) {
     const magnified = magnify(point, lens, aperture);
     // The field stays magnified throughout. Only the inspected grain becomes an object.
     const alpha = scene.opacity * (p.id === lens.current.id ? 1 - lens.reveal : 1);
-    const kind = scene.locations[p.id].kind;
-    if (kind) {
-      ctx.save(); ctx.globalAlpha = opacity * alpha;
-      drawInspectionObject(ctx, magnified.x, magnified.y, markRadius(scene) * magnified.magnification, kind);
-      ctx.restore();
-    } else {
-      ctx.fillStyle = `rgba(36,78,255,${alpha})`;
-      dot(ctx, magnified.x, magnified.y, p.radius * scene.field.bounds.grainSize * magnified.magnification);
-    }
+    ctx.fillStyle = `rgba(36,78,255,${alpha})`;
+    dot(ctx, magnified.x, magnified.y, p.radius * scene.field.bounds.grainSize * magnified.magnification);
   }
   drawInspectionNetwork(ctx, scene, lens, aperture);
   if (lens.reveal > 0) {
@@ -382,9 +375,7 @@ export function drawApproach(ctx, width, height, seconds, options = {}) {
       ctx.fillStyle = `rgb(${rgb.map((v, i) => Math.round(v + (from.rgb[i] - v) * exitWeight)).join(',')})`;
     }
     const point = project(scene, p);
-    const kind = scene.phase === 0 && exitWeight < .1 && scene.locations[p.id].kind;
-    if (kind) drawInspectionObject(ctx, point.x, point.y, markRadius(scene), kind);
-    else dot(ctx, point.x, point.y, radius);
+    dot(ctx, point.x, point.y, radius);
   }
   ctx.restore();
   if (scene.phase === 0) drawLens(ctx, scene);

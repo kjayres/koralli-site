@@ -1,13 +1,13 @@
 /* One shared scene follows the three phases of the Koralli approach. */
 .work-opening { max-width:1420px; margin:auto; padding:170px var(--gutter) 85px; }
 .work-opening-copy { display:grid; grid-template-columns:1fr 1fr; column-gap:clamp(45px,7vw,100px); row-gap:24px; align-items:start; margin-top:26px; }
-.work-opening h1 { grid-column:1 / -1; max-width:none; font-size:clamp(34px,4.8vw,68px); white-space:nowrap; }
-.work-opening-copy>div { grid-column:1 / -1; width:100%; max-width:650px; justify-self:start; }
-.work-opening .intro { font-size:18px; max-width:none; }
+.work-opening h1 { grid-column:1 / -1; max-width:23ch; font-size:clamp(40px,4.3vw,60px); white-space:normal; text-wrap:balance; }
+.work-opening-copy>div { grid-column:1 / -1; width:100%; max-width:58ch; justify-self:start; }
+.work-opening .intro { font-size:17px; max-width:none; }
 .work-opening-copy>div>p+p { color:#5c5b58; margin-top:18px; }
 .work-opening .text-link { margin-top:28px; }
 .approach-section { --approach-reading-top:clamp(90px,12svh,130px); padding-top:24px; padding-bottom:24px; }
-.approach-heading h2 { margin-top:30px; max-width:none; }
+.approach-heading h2 { margin-top:0; max-width:25ch; }
 .approach-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,420px); column-gap:clamp(40px,6vw,85px); align-items:start; margin-top:30px; }
 .approach-figure { grid-column:2; grid-row:1; position:sticky; top:var(--approach-reading-top); width:100%; margin:calc(-1 * var(--approach-entry-lift,0px)) 0 0; align-self:start; }
 .approach-frame { --frame-rule:#9aa9c4; position:relative; width:100%; aspect-ratio:1; background:var(--paper); }
@@ -28,11 +28,11 @@
 .approach-step::before { content:''; position:absolute; top:calc(17px + var(--approach-copy-offset,0px)); bottom:calc(-17px - var(--approach-next-offset,0px)); left:16px; width:1px; background:#aab3cb; }
 .approach-step:last-child::before { display:none; }
 .approach-step:last-child { min-height:max(530px,65svh); padding-bottom:85px; }
-.approach-number { position:absolute; left:0; top:var(--approach-copy-offset,0px); display:flex; justify-content:center; align-items:center; width:34px; height:34px; border:1px solid #899cd8; border-radius:50%; background:var(--paper); color:var(--blue); font:11px/1 var(--mono); transition:background-color .25s,color .25s,border-color .25s; }
-.approach-number[aria-current=step] { border-color:var(--blue); background:var(--blue); color:var(--paper); }
+.approach-number { position:absolute; left:0; top:calc(var(--approach-copy-offset,0px) + 5px); display:flex; justify-content:center; align-items:center; width:34px; height:34px; border:2px solid var(--blue); border-radius:50%; background:transparent; color:var(--blue); font:500 12px/1 var(--mono); }
+.approach-number[aria-current=step] { border-color:var(--blue); background:transparent; color:var(--blue); }
 .approach-number[aria-current=step]::after { content:''; position:absolute; top:50%; right:-16px; width:7px; height:7px; border-top:1.25px solid var(--blue); border-right:1.25px solid var(--blue); transform:translateY(-50%) rotate(45deg); }
 .approach-copy .eyebrow { font-size:9px; letter-spacing:.12em; color:#696861; padding-top:2px; }
-.approach-copy h3 { margin:14px 0 19px; font-size:clamp(31px,3.1vw,44px); }
+.approach-copy h3 { margin:0 0 18px; font-size:clamp(28px,2.5vw,36px); line-height:44px; }
 .approach-copy p { max-width:435px; font-size:15px; color:#5c5b58; }
 .approach-copy .approach-lead { font-size:20px; line-height:1.4; color:var(--ink); margin-bottom:20px; }
 .approach-copy p+p { margin-top:18px; }
@@ -46,19 +46,19 @@
   .work-opening-copy { column-gap:40px; }
   .approach-layout { grid-template-columns:minmax(0,1fr) minmax(280px,360px); column-gap:35px; margin-top:calc(30px + var(--approach-entry-lift,0px)); }
   .approach-step { padding-left:54px; }
-  .approach-copy p { font-size:14px; }
+  .approach-copy p { font-size:15px; }
   .approach-copy .approach-lead { font-size:18px; }
 }
 @media (max-width:759px) {
   .work-opening { padding-top:150px; padding-bottom:50px; }
   .work-opening-copy { grid-template-columns:1fr; gap:26px; margin-top:22px; }
-  .work-opening h1 { font-size:clamp(43px,10.5vw,60px); white-space:normal; }
+  .work-opening h1 { font-size:clamp(38px,9.5vw,48px); white-space:normal; }
   .work-opening-copy>div { grid-column:1; max-width:none; }
   .work-opening .intro { font-size:16px; }
   .work-opening-copy>div>p+p { font-size:15px; }
   .work-opening .text-link { margin-top:22px; }
   .approach-section { padding-top:15px; }
-  .approach-heading h2 { margin-top:26px; font-size:34px; }
+  .approach-heading h2 { margin-top:0; font-size:29px; }
   .approach-layout { display:block; margin-top:30px; }
   .approach-figure { display:grid; grid-template-columns:50px minmax(0,435px); z-index:2; top:24px; padding:16px 0 13px; background:var(--paper); }
   .approach-frame { grid-column:2; width:clamp(220px,58vw,250px); margin:0 auto; }
@@ -66,11 +66,12 @@
   .approach-figure .figure-caption { font-size:8px; }
   .approach-detail { font-size:9px; }
   .approach-steps { margin-top:28px; }
-  .approach-step { min-height:max(430px,60svh); padding:0 0 70px 50px; scroll-margin-top:354px; }
+  .approach-step { min-height:max(430px,60svh); padding:0 0 70px 58px; scroll-margin-top:354px; }
   .approach-step:last-child { min-height:max(500px,70svh); padding-bottom:90px; }
-  .approach-copy h3 { margin:13px 0 18px; font-size:31px; }
+  .approach-copy h3 { margin:0 0 16px; font-size:28px; line-height:34px; }
+  .approach-number { top:var(--approach-copy-offset,0px); }
   .approach-copy .eyebrow { font-size:8px; }
-  .approach-copy p { font-size:14px; }
+  .approach-copy p { font-size:15px; }
   .approach-copy .approach-lead { font-size:18px; margin-bottom:17px; }
   .approach-copy p+p { margin-top:16px; }
   .engagement-phases { grid-template-columns:1fr; gap:27px; margin-top:34px; padding-top:24px; }
@@ -107,30 +108,33 @@
 .approach-next { display:none; }
 .approach-enhanced .approach-next { display:inline-block; }
 .approach-enhanced .approach-stage { position:sticky; top:var(--approach-pin-top,24px); min-height:var(--approach-stage-height,calc(100svh - 48px)); display:grid; grid-template-rows:auto 1fr auto; row-gap:24px; }
-.approach-enhanced .approach-heading h2 { margin-top:20px; }
+.approach-enhanced .approach-heading h2 { margin-top:0; }
 .approach-enhanced .approach-layout { margin-top:0; align-items:center; align-self:center; }
-.approach-enhanced .approach-continuation { display:flex; padding-top:18px; border-top:1px solid var(--rule); }
+.approach-enhanced .approach-continuation { display:flex; padding-top:18px; border-top:1px solid transparent; }
+/* Keep the cue's measured geometry; the case section supplies the single boundary. */
+.approach-continuation>i { background:none; }
 .approach-continuation>span:last-child { color:var(--blue); font-size:16px; line-height:1; }
 .approach-enhanced .approach-figure { position:relative; top:auto; margin:0; align-self:center; }
 .approach-enhanced .approach-steps { display:grid; align-items:start; }
 .approach-enhanced .approach-step { grid-area:1 / 1; min-height:0; padding:0 0 0 66px; opacity:0; visibility:hidden; pointer-events:none; }
 .approach-enhanced .approach-step.is-active { opacity:var(--approach-opacity,1); visibility:visible; pointer-events:auto; }
 .approach-enhanced .approach-step::before { display:none; }
-.approach-enhanced .approach-number { top:0; transition:none; }
+.approach-enhanced .approach-number { top:5px; transition:none; }
 .approach-enhanced .approach-emphasis { color:color-mix(in srgb, var(--blue) calc(var(--approach-emphasis,0) * 100%), #5c5b58); }
 @media (min-width:760px) and (max-width:1050px) {
   .approach-enhanced .approach-step { padding-left:54px; }
 }
 @media (max-width:759px) {
   .approach-enhanced .approach-stage { row-gap:16px; }
-  .approach-enhanced .approach-heading h2 { margin-top:12px; font-size:clamp(27px,7vw,34px); }
+  .approach-enhanced .approach-heading h2 { margin-top:0; font-size:clamp(26px,7vw,30px); }
   .approach-enhanced .approach-continuation { padding-top:12px; font-size:9px; }
   .approach-enhanced .approach-layout { display:grid; grid-template-columns:1fr; row-gap:18px; }
   .approach-enhanced .approach-figure { display:block; grid-column:1; grid-row:1; padding:0; background:none; }
   .approach-enhanced .approach-frame,.approach-enhanced .approach-figure figcaption { width:clamp(180px,53vw,220px); margin-left:auto; margin-right:auto; }
   .approach-enhanced .approach-steps { grid-column:1; grid-row:2; margin:0; }
-  .approach-enhanced .approach-step { padding-left:50px; }
-  .approach-enhanced .approach-copy h3 { margin:10px 0 14px; }
+  .approach-enhanced .approach-step { padding-left:58px; }
+  .approach-enhanced .approach-number { top:0; }
+  .approach-enhanced .approach-copy h3 { margin:0 0 14px; }
   .approach-enhanced .approach-copy p+p { margin-top:12px; }
   .approach-enhanced .approach-copy .approach-lead { margin-bottom:14px; }
   .approach-enhanced .approach-copy .text-link { margin-top:18px; }

@@ -179,8 +179,8 @@ function checkMagnification(ctx, lens, reference, selected, revealed) {
       x: lens.x + dx * magnification, y: lens.y + dy * magnification,
       radius: baseRadius * magnification,
     };
-  }).filter(p => p.inputRadius <= aperture + 1e-9 && !reference.locations[p.id].kind);
-  assert.equal(grains.length, expected.length, 'The object reveal must preserve every surrounding unclassified magnified grain');
+  }).filter(p => p.inputRadius <= aperture + 1e-9);
+  assert.equal(grains.length, expected.length, 'The object reveal must preserve every surrounding magnified grain');
   const probes = [];
   for (const grain of grains) {
     const point = grain.path[0].arc;
@@ -271,12 +271,18 @@ for (let frame = 0; frame <= 1152; frame++) {
   if (networkFrames.includes(frame)) networkSamples.set(frame, network);
   if ((frame - 246) % 240 === 0 && frame >= 246) assert.equal(network.length, inspection.edges.length, 'Every inspection must reveal its full local relationship network');
   if ([...dwellFrames, ...objectFrames, ...travelFrames].includes(frame)) {
+    const fieldGrains = lensCtx.fills.filter(fill => !fill.clip && fill.style === 'rgb(36,78,255)');
+    assert.equal(fieldGrains.length, referenceField.field.particles.length, 'Every ordinary field particle must remain a grain');
+    assert.ok(fieldGrains.every(fill => fill.path.length === 1 && fill.path[0].arc), 'Field particles must be round dots rather than miniature objects');
+    const symbols = lensCtx.strokeRecords.filter(stroke => stroke.style.toLowerCase() === '#244eff');
+    assert.ok(symbols.every(stroke => stroke.clip), 'Inspection symbols must appear only inside the lens');
     const lensPath = lensCtx.strokes.filter(path => path.length === 1 && path[0].arc)
       .reduce((largest, path) => !largest || path[0].arc.radius >= largest[0].arc.radius ? path : largest, null);
     const lens = lensPath?.[0].arc;
     assert.ok(lens, 'Go & See must show a magnifying glass');
     if (dwellFrames.includes(frame)) lensSamples.push({ ...lens, label: lensCtx.labels.at(-1) });
     if (objectFrames.includes(frame)) {
+      assert.ok(symbols.length > 0, 'A settled lens must reveal its selected symbol');
       const paths = lensCtx.strokeRecords.filter(stroke => stroke.path !== lensPath && stroke.style !== '#707783').map(({ path }) => path.map(point => {
         const p = point.arc || point;
         return [(p.x - lens.x).toFixed(2), (p.y - lens.y).toFixed(2), p.radius?.toFixed(2)];

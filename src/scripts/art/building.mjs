@@ -1,4 +1,4 @@
-import { figureDefinitions, figureMarkup } from './figures.mjs';
+import { humanParts } from './building-people.mjs';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';
@@ -12,10 +12,10 @@ const ROOF = 378 - SECTION_HEIGHTS.reduce((sum, height) => sum + height, 0);
 const sectionBase = index => ROOF + SECTION_HEIGHTS.slice(0, index + 1).reduce((sum, height) => sum + height, 0);
 
 export const buildingPhases = [
-  { title: 'Organisation', detail: 'Direction, priorities and decisions that shape the whole organisation.' },
-  { title: 'People and work', detail: 'Teams, responsibilities and the way work moves between people and agents.' },
-  { title: 'Systems and tools', detail: 'Applications, models and infrastructure that support the work.' },
-  { title: 'Data foundations', detail: 'Records, definitions, data quality and the pipelines that connect them.' }
+  { title: 'Direction and offering', detail: 'What the organisation offers, who it serves and where it chooses to focus.' },
+  { title: 'People and work', detail: 'Who does the work, how teams coordinate and who is responsible for decisions.' },
+  { title: 'Systems and tools', detail: 'The applications and infrastructure people use to do the work.' },
+  { title: 'Data foundations', detail: 'The records, definitions and checks that make information dependable.' }
 ];
 
 const number = n => Number(n.toFixed(2));
@@ -33,126 +33,153 @@ const points = ps => ps.map(p => p.join(',')).join(' ');
 const polygon = (ps, fill = PAPER, extra = '') => `<polygon points="${points(ps)}" fill="${fill}" ${extra}/>`;
 const line = (a, b, extra = '') => `<path d="M${a} L${b}" fill="none" ${extra}/>`;
 
-function room(base, angle = 0, lift = 0, figurePrefix = 'koralli-company-building') {
+// Interior dimensions are in the same world coordinates as the preserved shell.
+// A standing person is 45 units tall; desks are 20 and low storage is 26.
+function room(base, angle = 0, lift = 0) {
   const p = (x, y, z = 0) => project(x, y, z, base, angle, lift);
-  const surface = (x, y, w, d, z = 0, fill = PAPER, extra = '') => polygon([p(x,y,z),p(x+w,y,z),p(x+w,y+d,z),p(x,y+d,z)], fill, extra);
-  const box = (x, y, w, d, h, colour = PAPER, baseZ = 0) => (
-    polygon([p(x+w,y,baseZ),p(x+w,y+d,baseZ),p(x+w,y+d,h+baseZ),p(x+w,y,h+baseZ)], SHADE) +
-    polygon([p(x,y+d,baseZ),p(x+w,y+d,baseZ),p(x+w,y+d,h+baseZ),p(x,y+d,h+baseZ)], SHADE) +
-    surface(x,y,w,d,h+baseZ,colour)
+  const surface = (x, y, w, d, z = 0, fill = PAPER, extra = '') => polygon([p(x,y,z),p(x+w,y,z),p(x+w,y+d,z),p(x,y+d,z)],fill,extra);
+  const panel = (x,y,z,w,h,fill=PAPER,extra='') => polygon([p(x,y,z),p(x+w,y,z),p(x+w,y,z+h),p(x,y,z+h)],fill,extra);
+  const box = (x,y,w,d,h,colour=PAPER,baseZ=0) => (
+    polygon([p(x+w,y,baseZ),p(x+w,y+d,baseZ),p(x+w,y+d,h+baseZ),p(x+w,y,h+baseZ)],SHADE) +
+    panel(x,y+d,baseZ,w,h,colour) + surface(x,y,w,d,h+baseZ,colour)
   );
-  const person = (x, y, kind = 'man', pose = 'standing') => {
-    const [px, py] = p(x,y);
-    return `<g transform="translate(${px} ${py})">${figureMarkup(kind, pose, figurePrefix)}</g>`;
+  const planLine = (coords,extra='') => `<path d="${coords.map(([x,y,z],i)=>`${i?'L':'M'}${p(x,y,z||0)}`).join(' ')}" fill="none" ${extra}/>`;
+  const desk = (x,y,w,d) => {
+    let result='';
+    for (const [dx,dy] of [[3,3],[w-5,3],[3,d-5],[w-5,d-5]]) result+=box(x+dx,y+dy,2,2,18);
+    return result+box(x,y,w,d,2,PAPER,18);
   };
-  const desk = (x, y, w = 43, d = 28) => {
-    let result = '';
-    for (const [dx,dy] of [[3,3],[w-3,3],[3,d-3],[w-3,d-3]]) result += line(p(x+dx,y+dy),p(x+dx,y+dy,18));
-    return result + box(x,y,w,d,2,PAPER,18);
+  const chair = (x,y) => {
+    let result='';
+    for (const [dx,dy] of [[1.5,1.5],[12.5,1.5],[1.5,12.5],[12.5,12.5]]) result+=line(p(x+dx,y+dy),p(x+dx,y+dy,9.5),'stroke-opacity=".6"');
+    result+=box(x,y,14,14,1.5,PAPER,9.5);
+    return result+panel(x,y+14,11,14,12,PAPER,'stroke-opacity=".65"');
   };
-  const chair = (x, y, towardsBack = false) => {
-    let result = '';
-    for (const [dx,dy] of [[2,2],[15,2],[2,14],[15,14]]) result += line(p(x+dx,y+dy),p(x+dx,y+dy,12),'stroke-opacity=".55"');
-    result += box(x,y,17,16,2,PAPER,12);
-    const back = y + (towardsBack ? 16 : 0);
-    return result + polygon([p(x,back,14),p(x+17,back,14),p(x+17,back,29),p(x,back,29)],PAPER,'stroke-opacity=".7"');
+  const screen = (x,y,w=24,h=16) => {
+    const centre=x+w/2, z=24;
+    return box(centre-4,y-2.5,8,5,.7,PAPER,20)
+      + box(centre-.65,y-.65,1.3,1.3,3.3,PAPER,20.7)
+      + panel(x,y,z,w,h)
+      + panel(x+2,y,z+2,w-4,h-4,BLUE,'fill-opacity=".055" stroke-opacity=".35"');
   };
-  const screen = (x,y,w=26,h=18,z=20) => {
-    const a=p(x,y,z), b=p(x+w,y,z), c=p(x+w,y,z+h), d=p(x,y,z+h);
-    return polygon([a,b,c,d],PAPER)+polygon([p(x+3,y,z+3),p(x+w-3,y,z+3),p(x+w-3,y,z+h-3),p(x+3,y,z+h-3)],BLUE,'fill-opacity=".055" stroke-opacity=".35"')+line(p(x+w*.5,y,z),p(x+w*.5,y,z-5))+line(p(x+w*.3,y-2,z-5),p(x+w*.7,y+2,z-5));
-  };
-  const planLine = (coords, extra = '') => `<path d="${coords.map(([x,y,z],i)=>`${i?'L':'M'}${p(x,y,z||0)}`).join(' ')}" fill="none" ${extra}/>`;
-  return {p, surface, box, person, desk, chair, screen, planLine};
+  const paper = (x,y,w=17,d=12,z=20.35) => surface(x,y,w,d,z,PAPER,'stroke-width=".75"');
+  const keyboard = (x,y,w=22) => surface(x,y,w,6,20.35,PAPER,'stroke-opacity=".55"') + line(p(x+3,y+3,20.45),p(x+w-3,y+3,20.45),'stroke-opacity=".35"');
+  return {p,surface,panel,box,planLine,desk,chair,screen,paper,keyboard};
 }
 
 function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-company-building') {
-  const {p,surface,box,person,desk,chair,screen,planLine} = room(base - (index === 3 ? 5 : 0), angle, lift, figurePrefix);
-  let drawing = surface(0,0,220,220,0,PAPER);
-  drawing += polygon([p(0,220),p(220,220),p(220,220,-5),p(0,220,-5)],SHADE);
-  drawing += polygon([p(220,0),p(220,220),p(220,220,-5),p(220,0,-5)],SHADE);
-  drawing += surface(12,12,196,196,.2,'none','stroke-opacity=".17"');
-  drawing += planLine([[18,18,13],[18,18],[202,18],[202,18,13]],'stroke-opacity=".28"');
-  drawing += planLine([[18,18],[18,202],[18,202,13]],'stroke-opacity=".28"');
-  const paper = (x,y,w=19,d=14,z=21,colour=PAPER) => surface(x,y,w,d,z,colour,'stroke-width=".8"');
-  const check = (x,y,z,size=1) => planLine([[x,y,z],[x+3*size,y,z-3*size],[x+10*size,y,z+6*size]],`stroke="${CORAL}" stroke-width="1.6"`);
+  const {p,surface,panel,box,planLine,desk,chair,screen,paper,keyboard} = room(base - (index===3?5:0),angle,lift);
+  let drawing=surface(0,0,220,220,0,PAPER);
+  drawing+=polygon([p(0,220),p(220,220),p(220,220,-5),p(0,220,-5)],SHADE);
+  drawing+=polygon([p(220,0),p(220,220),p(220,220,-5),p(220,0,-5)],SHADE);
+  drawing+=surface(12,12,196,196,.2,'none','stroke-opacity=".17"');
+  drawing+=planLine([[18,18,13],[18,18],[202,18],[202,18,13]],'stroke-opacity=".28"');
+  drawing+=planLine([[18,18],[18,202],[18,202,13]],'stroke-opacity=".28"');
 
-  if (index === 0) {
-    // A leadership discussion, with alternatives and one agreed priority.
-    drawing += screen(37,31,132,62,8);
-    for (let option=0;option<3;option++) {
-      const x=47+option*39;
-      drawing += polygon([p(x,31,23),p(x+28,31,23),p(x+28,31,55),p(x,31,55)],
-        option===1?CORAL:PAPER,`fill-opacity="${option===1?'.10':'1'}" stroke-opacity="${option===1?'1':'.45'}"`);
-      drawing += planLine([[x+5,31,46],[x+22,31,46]],'stroke-opacity=".5"');
-      drawing += planLine([[x+5,31,39],[x+18,31,39]],'stroke-opacity=".35"');
-      if(option===1) drawing += check(x+8,31,31,.85);
+  const objects=[], contacts=[];
+  const object=(name,x,y,markup)=>objects.push({name,x,y,markup});
+  const human=(name,x,y,heading,pose,kind,target)=>{
+    for (const part of humanParts({project:p,x,y,heading,pose,kind,target,id:`${figurePrefix}-floor-${index}-${name}`})) {
+      const item={...part,name:`${name}-${part.name}`};
+      // Only the contact forearm/hand sits above its work surface. Upper arms
+      // use viewing depth; each segment masks any nearer part of its own body.
+      (part.role==='reach'?contacts:objects).push(item);
     }
-    drawing += chair(82,82)+chair(137,82);
-    drawing += person(60,77,'woman','explaining');
-    drawing += person(174,90,'man');
-    drawing += desk(57,103,120,61);
-    drawing += paper(69,117,25,17)+paper(104,130,24,17)+paper(138,115,25,17);
-    drawing += surface(109,134,14,3,21.2,CORAL,'stroke="none" fill-opacity=".55"');
-    drawing += chair(119,175,true);
-    drawing += person(103,192,'woman');
-  } else if (index === 1) {
-    // Two work areas meet at a human decision, rather than a row of machines.
-    drawing += planLine([[73,77,1],[111,77,1],[111,135,1],[156,135,1]],'stroke-opacity=".42" stroke-dasharray="3 3"');
-    drawing += planLine([[151,131,1],[156,135,1],[150,139,1]],'stroke-opacity=".65"');
-    drawing += desk(36,45,61,39);
-    drawing += screen(44,56,29,22);
-    drawing += paper(76,59,13,16);
-    drawing += chair(77,94,true);
-    drawing += person(56,111,'man');
-    drawing += desk(112,101,64,43);
-    drawing += paper(121,113,23,17)+paper(149,119,17,13);
-    drawing += planLine([[126,117,21.5],[139,117,21.5]],`stroke="${CORAL}" stroke-width="1.4"`);
-    drawing += chair(139,153,true);
-    drawing += person(107,169,'woman','explaining');
-    drawing += person(178,166,'robot');
-    drawing += screen(147,34,44,38,4);
-    drawing += planLine([[153,34,31],[170,34,31]],'stroke-opacity=".5"');
-    drawing += check(154,34,20,.9);
-  } else if (index === 2) {
-    // Infrastructure, applications and a console share one visible connection.
-    for (const [x,y] of [[37,34],[37,96]]) {
-      drawing += box(x,y,39,36,52);
-      for(let slot=0;slot<5;slot++) {
-        drawing += line(p(x+6,y+36,9+slot*8),p(x+32,y+36,9+slot*8),'stroke-opacity=".65"');
-        const [px,py]=p(x+10,y+36,12+slot*8);
-        drawing += `<circle cx="${px}" cy="${py}" r="1.15" fill="${BLUE}" stroke="none"/>`;
-      }
+  };
+  const ruledPaper=(x,y,w=18,d=13,z=20.35,checked=false)=>{
+    let result=paper(x,y,w,d,z);
+    result+=surface(x+2,y+2,w-4,2,z+.05,CORAL,'stroke="none" fill-opacity=".35"');
+    for (const dy of [6,9]) result+=line(p(x+3,y+dy,z+.1),p(x+w-3,y+dy,z+.1),'stroke-width=".65" stroke-opacity=".5"');
+    if (checked) result+=planLine([[x+w-8,y+d-5,z+.2],[x+w-6,y+d-3,z+.2],[x+w-2,y+d-8,z+.2]],`stroke="${CORAL}" stroke-width="1.1"`);
+    return result;
+  };
+
+  if(index===0) {
+    // Direction: a group chooses one of three proposals on a supported board.
+    let board='';
+    for(const x of [63,137]) board+=box(x,42,2,2,24)+line(p(x-4,43),p(x+6,43));
+    board+=panel(55,43,24,94,29);
+    for(let option=0;option<3;option++) {
+      const x=61+option*29, selected=option===2;
+      board+=panel(x,43,29,23,19,PAPER,selected?`stroke="${CORAL}" stroke-width="1.35"`:'stroke-opacity=".5"');
+      board+=line(p(x+4,43,43),p(x+18,43,43),'stroke-opacity=".5"');
+      board+=line(p(x+4,43,39),p(x+14,43,39),'stroke-opacity=".4"');
+      if(selected) board+=planLine([[x+7,43,34],[x+10,43,31],[x+17,43,37]],`stroke="${CORAL}" stroke-width="1.5"`);
     }
-    drawing += planLine([[55,148,1],[108,148,1],[108,123,1],[158,123,1]],'stroke-opacity=".5"');
-    drawing += desk(119,86,76,46);
-    drawing += screen(126,98,28,25)+screen(161,98,28,25);
-    drawing += planLine([[132,98,36],[132,98,26],[147,98,26]],'stroke-opacity=".55"');
-    drawing += planLine([[166,98,27],[172,98,33],[179,98,30],[184,98,39]],'stroke-width="1.35"');
-    drawing += chair(151,145,true);
-    drawing += person(139,169,'woman');
-    drawing += person(188,160,'man','explaining');
+    object('choices-board',102,43,board);
+    human('presenting-choice',153,49,-Math.PI/2,'pointing','woman',[140,43,34]);
+    let table=desk(69,103,88,36);
+    table+=ruledPaper(83,113,19,15)+ruledPaper(123,112,19,15,20.35,true);
+    object('meeting-table',113,121,table);
+    object('meeting-seat',92,150,chair(85,143));
+    object('meeting-seat',135,150,chair(128,143));
+    human('considering-proposal',92,149,Math.PI,'seated','man',[92,134,20.7]);
+    human('reviewing-choice',135,149,Math.PI,'seated','woman',[135,134,20.7]);
+  } else if(index===1) {
+    // People: face-to-face collaboration over one shared brief, not two offices.
+    let work=desk(68,93,87,34);
+    work+=paper(90,98,42,24);
+    work+=surface(93,101,36,3,20.5,CORAL,'stroke="none" fill-opacity=".35"');
+    work+=line(p(111,107,20.5),p(111,118,20.5),'stroke-opacity=".45"');
+    for(const x of [94,115]) for(const y of [108,113,118]) work+=line(p(x,y,20.5),p(x+12,y,20.5),'stroke-width=".75" stroke-opacity=".5"');
+    work+=box(139,102,10,15,1.5,PAPER,20);
+    object('shared-worktable',111.5,110,work);
+    human('contributing-to-brief',99,86,0,'collaborating','man',[99,100,20.7]);
+    human('reviewing-shared-brief',122,134,Math.PI,'collaborating','woman',[122,120,20.7]);
+    // A small return desk carries the next piece of work, without another screen.
+    let returnDesk=desk(155,45,36,27)+ruledPaper(161,51,22,15);
+    object('next-task-desk',173,58,returnDesk);
+  } else if(index===2) {
+    // Systems: the equipment and its application have different physical users.
+    drawing+=planLine([[54,67,.4],[54,83,.4],[112,83,.4],[112,108,.4],[145,108,.4],[145,108,18]],'stroke-opacity=".32"');
+    let rack=box(36,35,32,29,47);
+    for(let slot=0;slot<4;slot++) {
+      const z=7+slot*9;
+      rack+=panel(40,64,z,24,6,PAPER,'stroke-opacity=".65"');
+      rack+=line(p(44,64,z+3),p(57,64,z+3),'stroke-opacity=".6"');
+      const [cx,cy]=p(60,64,z+3);
+      rack+=`<circle cx="${cx}" cy="${cy}" r=".9" fill="${BLUE}" stroke="none"/>`;
+    }
+    object('equipment-rack',52,49.5,rack);
+    human('checking-equipment',62,76,Math.PI,'pointing','man',[60,64,33]);
+    let console=desk(117,94,70,34)+screen(123,103,24,16)+screen(154,103,24,16);
+    console+=panel(126,103,33,18,4,PAPER,'stroke-opacity=".5"');
+    console+=line(p(126,103,29),p(140,103,29),'stroke-opacity=".45"');
+    console+=planLine([[158,103,28],[162,103,31],[168,103,29],[174,103,35]],`stroke="${CORAL}" stroke-width="1.1"`);
+    console+=keyboard(137,117,29);
+    object('application-console',152,111,console);
+    object('operator-chair',151,139,chair(144,132));
+    human('using-applications',151,138,Math.PI,'seated','woman',[151,122,20.7]);
   } else {
-    // Differently structured source records are checked against a shared ledger.
-    drawing += desk(34,63,152,92);
-    for (const [x,y,offset] of [[46,76,0],[46,105,3],[46,132,-2]]) {
-      drawing += paper(x-2,y-2,27,18,21)+paper(x,y,27,18,23);
-      drawing += planLine([[x+5,y+6,23.5],[x+20+offset,y+6,23.5]],'stroke-opacity=".6"');
-      drawing += planLine([[x+5,y+11,23.5],[x+14,y+11,23.5]],'stroke-opacity=".4"');
-      drawing += planLine([[x+29,y+9,21.5],[92,y+9,21.5],[105,109,21.5]],'stroke-opacity=".4"');
+    // Data: low open shelves of source records, and two records checked together.
+    // No screen or tall cabinet: its horizontal silhouette differs from Systems.
+    // Build each bay from the back towards its nearer upright. The middle
+    // shelf is beneath the upper records, and the side supports occlude the
+    // records behind them rather than being painted over by those records.
+    let shelves=panel(34,37,3,86,22,PAPER,'stroke-opacity=".55"')+box(34,37,86,24,3);
+    shelves+=box(34,37,2,24,22,PAPER,3);
+    for(const [left,right,files] of [[36,75,[40,49,58]],[77,118,[81,90,99,108]]]) {
+      for(const z of [3,14.5]) {
+        if(z===14.5) shelves+=box(left,37,right-left,24,1.5,PAPER,13);
+        for(const x of files) {
+          shelves+=box(x,42,6,17,8.5,PAPER,z);
+          shelves+=panel(x+1,59,z+5,4,2,CORAL,'stroke="none" fill-opacity=".35"');
+        }
+      }
+      shelves+=box(right,37,2,24,22,PAPER,3);
     }
-    drawing += paper(108,79,63,61,23);
-    drawing += surface(109,80,61,10,23.4,CORAL,'stroke="none" fill-opacity=".16"');
-    for(let row=1;row<6;row++) drawing += planLine([[108,79+row*10,23.5],[171,79+row*10,23.5]],'stroke-opacity=".45" stroke-width=".8"');
-    for(let col=1;col<4;col++) drawing += planLine([[108+col*16,79,23.5],[108+col*16,140,23.5]],'stroke-opacity=".4" stroke-width=".8"');
-    drawing += paper(89,106,14,19,24);
-    drawing += planLine([[92,111,24.5],[95,114,24.5],[101,108,24.5]],`stroke="${CORAL}" stroke-width="1.5"`);
-    drawing += chair(70,166,true)+chair(126,166,true);
-    drawing += person(42,183,'man');
-    drawing += person(160,183,'woman','explaining');
-    drawing += box(38,28,21,20,21)+box(68,28,21,20,29)+box(98,28,21,20,24);
-    for(const x of [38,68,98]) drawing += polygon([p(x+6,48,7),p(x+15,48,7),p(x+15,48,13),p(x+6,48,13)],PAPER,'stroke-opacity=".55"');
+    shelves+=box(34,37,86,24,1.5,PAPER,25);
+    object('open-records-shelf',77,49,shelves);
+    human('selecting-source-record',93,71,Math.PI,'pointing','man',[91,60,22]);
+    let checkDesk=desk(121,110,66,36);
+    checkDesk+=ruledPaper(128,118,21,22)+ruledPaper(154,118,21,22,20.35,true);
+    checkDesk+=line(p(150,121,20.6),p(150,136,20.6),'stroke-opacity=".25"');
+    object('record-comparison-table',154,128,checkDesk);
+    human('comparing-records',163,153,Math.PI,'collaborating','woman',[163,139,20.7]);
   }
-  return `<g data-floor="${index}" data-scene="${['organisation','people-work','systems-tools','data-foundations'][index]}" opacity="0" stroke="${BLUE}" stroke-width="1.05" stroke-linejoin="round" stroke-linecap="round">${drawing}</g>`;
+  objects.sort((a,b)=>(a.depth??p(a.x,a.y)[1])-(b.depth??p(b.x,b.y)[1]));
+  for(const {name,markup} of [...objects,...contacts]) drawing+=`<g data-room-object="${name}">${markup}</g>`;
+  return `<g data-floor="${index}" data-scene="${['direction-offering','people-work','systems-tools','data-foundations'][index]}" opacity="0" stroke="${BLUE}" stroke-width="1.05" stroke-linejoin="round" stroke-linecap="round">${drawing}</g>`;
 }
 
 function cover(index, base, angle = 0, lift = 0) {
@@ -275,7 +302,7 @@ export function buildingMarkup(id='koralli-company-building') {
     const base=sectionBase(index);
     layers+=interior(index,base,0,0,safeId)+cover(index,base);
   }
-  return `<svg class="company-building" data-figure-prefix="${safeId}" xmlns="http://www.w3.org/2000/svg" viewBox="0 -160 700 860" role="img" aria-labelledby="${safeId}-title ${safeId}-desc"><title id="${safeId}-title">Inside an organisation, in a miniature inspired by Sullivan's Guaranty Building</title><desc id="${safeId}-desc">An interpretation of the Guaranty Building with twelve exterior tiers in four equal-height sections beneath a complete flat roof. The rooms show a leadership discussion, people and an agent handing work between teams, connected infrastructure and tools, and source records checked into a shared table. Scrolling lifts each exterior section to reveal its interior.</desc>${figureDefinitions(safeId)}<g data-building-world="">${layers}</g><g data-building-scale="" fill="none" stroke="${BLUE}" stroke-width=".8" stroke-opacity=".35"><path d="M104 238 V570 M99 238 h10 M99 570 h10"/>${[0,1,2,3].map(i=>`<path d="M101 ${258+i*88} h6"/>`).join('')}</g><text x="350" y="654" text-anchor="middle" fill="${BLUE}" fill-opacity=".62" font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="2.2">ONE ORGANISATION / FOUR LEVELS</text></svg>`;
+  return `<svg class="company-building" data-figure-prefix="${safeId}" xmlns="http://www.w3.org/2000/svg" viewBox="0 -160 700 860" role="img" aria-labelledby="${safeId}-title ${safeId}-desc"><title id="${safeId}-title">Inside an organisation, in a miniature inspired by Sullivan's Guaranty Building</title><desc id="${safeId}-desc">An interpretation of the Guaranty Building with twelve exterior tiers in four equal-height sections beneath a complete flat roof. The four rooms show people choosing between proposals, collaborating over a shared brief, using applications and infrastructure, and comparing source records beside low open shelves. Scrolling lifts each exterior section to reveal its interior.</desc><g data-building-world="">${layers}</g><g data-building-scale="" fill="none" stroke="${BLUE}" stroke-width=".8" stroke-opacity=".35"><path d="M104 238 V570 M99 238 h10 M99 570 h10"/>${[0,1,2,3].map(i=>`<path d="M101 ${258+i*88} h6"/>`).join('')}</g><text x="350" y="654" text-anchor="middle" fill="${BLUE}" fill-opacity=".62" font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="2.2">ONE ORGANISATION / FOUR LEVELS</text></svg>`;
 }
 
 const clamp=x=>Math.min(1,Math.max(0,x));

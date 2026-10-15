@@ -3,9 +3,9 @@
   margin:0 auto;
   padding:170px 0 90px;
 }
-.article-heading h1 { font-size:clamp(38px,4vw,58px); margin:35px 0 25px; line-height:1.08; }
+.article-heading h1 { font-size:clamp(36px,3.8vw,54px); margin:35px 0 25px; line-height:1.08; }
 .article-byline { display:flex; flex-wrap:wrap; gap:12px 28px; color:#66635e; font-size:11px; line-height:1.7; }
-.article-body { margin-top:42px; font-size:18px; line-height:1.75; overflow-wrap:anywhere; }
+.article-body { margin-top:36px; font-size:17px; line-height:1.75; overflow-wrap:anywhere; }
 .article-body p { margin:0 0 1.25em; line-height:inherit; }
 .article-body h2 { font-size:31px; margin:1.8em 0 .8em; line-height:1.2; }
 .article-body h3 { font-size:24px; margin:1.6em 0 .8em; line-height:1.3; }
