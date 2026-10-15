@@ -1,7 +1,8 @@
 // Atolla wyvillei, drawn in the journal's pale wireframe palette.
-// Crown groove and the single long trailing tentacle follow MBARI observations:
+// Crown groove and trailing filament are inspired by MBARI observations:
 // https://www.mbari.org/animal/deep-sea-crown-jelly/
 // https://www.mbari.org/wp-content/uploads/2015/10/Walker.pdf
+// The trailing filament is shortened to balance this small background drawing.
 // The motion is an illustration of pulsing and drift, not a biological simulation.
 const TAU = Math.PI * 2;
 const hash = n => {
@@ -60,7 +61,7 @@ export function jellyGeometry(time = 0, compact = false, current = 0) {
     const long = i === 20, phi = (long ? 13 : i) / 20 * TAU;
     const root = surface(7, phi);
     const count = long ? (compact ? 40 : 64) : (compact ? 16 : 24);
-    const length = long ? 6.8 : 1.45 + hash(i + 431) * .95;
+    const length = long ? 2.65 : 1.45 + hash(i + 431) * .95;
     const spread = long ? .04 : .30 + hash(i + 610) * .35;
     const points = [root];
     // Successive short segments preserve length as the trailing filament bends.
@@ -90,9 +91,9 @@ export function jellyGeometry(time = 0, compact = false, current = 0) {
 export function drawJournalJelly(ctx, width, height, time = 0, options = {}) {
   if (!ctx || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
   const pose = jellyPose(width, height, time, options);
-  // The longest fixed-length filament is 6.8 bell radii; its root and projection
-  // fit within nine radii for every pulse, tilt and current.
-  const reach = pose.radius * 9 + 2;
+  // The longest fixed-length filament is 2.65 bell radii; its root and projection
+  // fit within five radii for every pulse, tilt and current.
+  const reach = pose.radius * 5 + 2;
   if (options.viewport && (pose.y + reach < options.viewport.top || pose.y - reach > options.viewport.bottom)) return;
   const current = options.reducedMotion ? 0 : Number(options.current) || 0;
   const geometry = jellyGeometry(pose.seconds, pose.compact, current);

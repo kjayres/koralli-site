@@ -25,8 +25,10 @@ for (const compact of [false, true]) {
     const short = geometry.tentacles.filter(t => t.name === 'marginal-tentacle');
     const long = geometry.tentacles.filter(t => t.name === 'trailing-tentacle');
     assert.equal(short.length, 20, 'A crown of marginal tentacles');
-    assert.equal(long.length, 1, 'One distinctive trailing filament');
-    assert.ok(long[0].length > Math.max(...short.map(t => t.length)) * 2.7, 'Long tentacle remains recognisably different');
+    assert.equal(long.length, 1, 'Retain the trailing filament');
+    const longestMarginal = Math.max(...short.map(t => t.length));
+    assert.ok(long[0].length >= longestMarginal && long[0].length <= longestMarginal * 1.2,
+      'Trailing filament extends only slightly beyond the balanced fringe');
     assert.ok(geometry.paths.some(p => p.name === 'crown-groove'), 'Keep the defining coronal groove');
     for (const path of geometry.paths) assert.ok(path.points.every(p => p.length === 3 && p.every(Number.isFinite)), 'Finite native 3D curves');
     for (const tentacle of geometry.tentacles) {

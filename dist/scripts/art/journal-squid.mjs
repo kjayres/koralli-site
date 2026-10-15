@@ -14,8 +14,10 @@ export function squidPose(width, height, seconds = 0, { compact = false, reduced
   const phase = wrap(time + 1.2, 45), cycle = Math.floor((time + 1.2) / 45), duration = 31;
   const order = hash(Math.floor(cycle / 3) + 419) > .5 ? [0, 1, 2] : [0, 2, 1];
   const lane = reducedMotion ? 0 : order[cycle % 3], variation = hash(cycle + 127);
-  const laneY = cycle === 0 || reducedMotion ? (compact ? 164 : 145)
-    : lane === 0 ? (compact ? 155 + variation * 20 : 136 + variation * 28)
+  // The opening pass sits below the heading and introduction, with later upper
+  // passes staying in the same water column rather than returning to the header.
+  const laneY = cycle === 0 || reducedMotion ? (compact ? 530 : 600)
+    : lane === 0 ? (compact ? 510 + variation * 40 : 580 + variation * 40)
       : height * (lane === 1 ? .43 + variation * .13 : .72 + variation * .15);
   const length = compact ? Math.min(width * .86, 330) : Math.min(width * .68, 1000);
   const scale = length / 3.06, margin = 28;
