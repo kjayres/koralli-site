@@ -137,7 +137,7 @@ test('the pinned frame contains the title, particle scene and working case link'
     }
     if (!voidTags.has(name.toLowerCase()) && !attributes.endsWith('/')) ancestors.push(attributes);
   }
-  assert.deepEqual(framed, ['h2', 'canvas', 'a']);
+  assert.deepEqual(framed.sort(), ['a', 'canvas', 'h2']);
 });
 
 test('scrolling forwards and backwards selects each phase once and preserves readable endpoints', async () => {

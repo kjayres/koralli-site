@@ -1,3 +1,4 @@
+.work-page .case-section { padding-bottom:28px; }
 .delivery-study { width:360px; max-width:100%; margin:24px 0 0; }
 .delivery-study svg { display:block; width:100%; height:auto; overflow:visible; }
 .delivery-frame { fill:none; stroke:var(--blue); stroke-width:1.2; }

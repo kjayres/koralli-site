@@ -60,6 +60,12 @@ export function initApproach(selectPhase) {
     section.classList.add('approach-enhanced');
     const height = stage.getBoundingClientRect().height;
     pinned = !motion.matches && height + top * 2 <= innerHeight + 1;
+    // Centre the compact desktop composition without distributing extra space
+    // between its heading, reading panel and next-section link.
+    if (pinned && innerWidth >= 760) {
+      top = Math.max(top, (innerHeight - height) / 2);
+      section.style.setProperty('--approach-pin-top', `${top}px`);
+    }
     section.classList.toggle('approach-enhanced', pinned);
     distance = Math.max(1200, innerHeight * 2.85);
     const trackHeight = pinned ? height + distance : 0;
