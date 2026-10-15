@@ -1,5 +1,7 @@
-// One continuous image, partitioned along shared edges. Every fragment returns
-// to the identity transform, so no approximation of the painting is needed.
+import { danceOutlineMarkup } from './dance-outline.mjs?v=861ebda37a3e';
+
+// One continuous line drawing, partitioned along shared edges. Every fragment
+// returns to the identity transform so the dancers' contours meet cleanly.
 export const pictureSize = { width:660, height:435 };
 const rows = [
   [[0,0],[165,0],[330,0],[495,0],[660,0]],
@@ -29,9 +31,9 @@ export function deliveryArtwork() {
   const clipPaths=fragments.map((fragment,i)=>`<clipPath id="delivery-clip-${i}"><polygon points="${fragment.points.map(p=>p.join(',')).join(' ')}"/></clipPath>`).join('');
   const pieces=fragments.map((fragment,i)=>`<g data-delivery-piece="${i}"><g clip-path="url(#delivery-clip-${i})"><use href="#delivery-painting"/></g><polygon class="delivery-glass-edge" points="${fragment.points.map(p=>p.join(',')).join(' ')}"/></g>`).join('');
   return `<svg viewBox="0 0 900 655" role="img" aria-labelledby="delivery-art-title delivery-art-desc" xmlns="http://www.w3.org/2000/svg">
-    <title id="delivery-art-title">La Danse, assembled into one picture</title>
-    <desc id="delivery-art-desc">Fragments of Henri Matisse’s five dancers rise from a plane and join within a fine blue frame. The completed painting remains visible.</desc>
-    <defs><image id="delivery-painting" href="./assets/images/matisse-dance-1910.jpg" width="660" height="435" preserveAspectRatio="xMidYMid meet"/>${clipPaths}</defs>
+    <title id="delivery-art-title">A line study after La Danse, assembled into one picture</title>
+    <desc id="delivery-art-desc">Fragments of a blue outline drawing of Matisse’s five linked dancers join within a fine frame, then hold still.</desc>
+    <defs><g id="delivery-painting" class="delivery-dancers">${danceOutlineMarkup()}</g>${clipPaths}</defs>
     <g class="delivery-floor" data-delivery-floor opacity="0"><path d="M65 495 719 483 864 626 148 639Z"/><path d="M105 567 794 557 M284 491 377 635 M503 487 620 630" opacity=".35"/></g>
     <g transform="translate(120 38)"><rect class="delivery-frame" x="-7" y="-7" width="674" height="449"/><g data-delivery-complete><use href="#delivery-painting"/></g><g data-delivery-pieces style="display:none">${pieces}</g></g>
   </svg>`;

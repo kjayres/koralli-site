@@ -247,3 +247,103 @@ export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, 
   }
   ctx.restore();
 }
+
+// Our Work uses the actual header mark's bent stem and six rounded fingers.
+// The old logo-study SVG is a denser frond; this deliberately follows the
+// simpler published mark instead. Each record is [x, y, parent, cx1, cy1, cx2, cy2].
+// These twelve coloured anchors are illustrative roles, not a staffing ratio.
+const WORK_CORAL_NODES = [
+  [128, 379, -1],
+  [147, 323, 0, 126, 356, 135, 339],
+  [183, 263, 1, 160, 304, 184, 283],
+  [181, 207, 2, 187, 241, 188, 225],
+  [150, 157, 3, 176, 190, 161, 173],
+  [143, 65, 4, 126, 132, 116, 97],
+  [211, 129, 3, 188, 180, 197, 149],
+  [279, 68, 6, 230, 103, 252, 79],
+  [318, 175, 3, 218, 176, 265, 194],
+  [306, 254, 2, 211, 233, 264, 244],
+  [268, 314, 1, 180, 349, 211, 324],
+  [96, 204, 1, 107, 321, 126, 242],
+];
+const WORK_CORAL_OPERATORS = new Set([0, 2, 4, 7, 9, 11]);
+const WORK_CORAL_ARRIVALS = [0];
+const WORK_CORAL_BRANCHES = WORK_CORAL_NODES.slice(1).map((node, offset) => {
+  const [x, y, parent, cx1, cy1, cx2, cy2] = node;
+  const [sx, sy] = WORK_CORAL_NODES[parent];
+  const points = [[sx, sy]], lengths = [0];
+  // Fixed smooth geometry is sampled once; animation follows arc length.
+  for (let i = 1; i <= 32; i++) {
+    const t = i / 32, u = 1 - t;
+    const point = [u*u*u*sx + 3*u*u*t*cx1 + 3*u*t*t*cx2 + t*t*t*x,
+      u*u*u*sy + 3*u*u*t*cy1 + 3*u*t*t*cy2 + t*t*t*y];
+    lengths.push(lengths.at(-1) + Math.hypot(point[0] - points.at(-1)[0], point[1] - points.at(-1)[1]));
+    points.push(point);
+  }
+  const start = WORK_CORAL_ARRIVALS[parent], length = lengths.at(-1);
+  WORK_CORAL_ARRIVALS[offset + 1] = start + length;
+  return { points, lengths, start, length };
+});
+const WORK_CORAL_LENGTH = Math.max(...WORK_CORAL_ARRIVALS);
+export const WORK_CORAL_CYCLE_SECONDS = 5;
+
+/** Logo-shaped hero only. Existing coral studies retain their original timing. */
+export function drawWorkCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false } = {}) {
+  if (!(w > 0 && h > 0)) return;
+  const time = reducedMotion || !Number.isFinite(timeSeconds) ? 0 : Math.max(0, timeSeconds);
+  const phase = time % WORK_CORAL_CYCLE_SECONDS;
+  const growth = reducedMotion ? 1 : clamp((phase - .08) / 1.7);
+  const opacity = reducedMotion ? 1 : smooth(phase / .12) * (1 - smooth((phase - 4.35) / .55));
+  const scale = Math.min(w * .86 / 250, h * .86 / 342);
+  const project = ([x, y]) => [w * .5 + (x - 200) * scale, h * .5 + (y - 222) * scale];
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Colour belongs only to the twelve connected role nodes.
+  const count = Math.round(clamp(w * h / 7200, 30, 52));
+  for (let i = 0; i < count; i++) {
+    const depth = hash(i + 600);
+    const x = w * (.045 + hash(i + 71) * .91) + (reducedMotion ? 0 : Math.sin(time * .15 + i) * 1.6);
+    const y = (hash(i + 310) * (h + 24) + time * (1.1 + depth * 1.5)) % (h + 24) - 12;
+    dot(ctx, x, y, .65 + depth * .55, `rgba(17,17,17,${.07 + depth * .09})`);
+  }
+
+  const trace = () => {
+    ctx.beginPath();
+    for (const branch of WORK_CORAL_BRANCHES) {
+      const remaining = clamp(growth * WORK_CORAL_LENGTH - branch.start, 0, branch.length);
+      if (remaining <= 0) continue;
+      ctx.moveTo(...project(branch.points[0]));
+      for (let i = 1; i < branch.points.length; i++) {
+        if (branch.lengths[i] <= remaining) ctx.lineTo(...project(branch.points[i]));
+        else {
+          const amount = (remaining - branch.lengths[i - 1]) / (branch.lengths[i] - branch.lengths[i - 1]);
+          const a = branch.points[i - 1], b = branch.points[i];
+          ctx.lineTo(...project([a[0] + (b[0] - a[0]) * amount, a[1] + (b[1] - a[1]) * amount]));
+          break;
+        }
+      }
+    }
+  };
+  // Two joined strokes give the mark its rounded outline without internal seams.
+  // Drawing the paper-coloured interior after all branches keeps junctions open.
+  const bodyWidth = 20 * scale;
+  if (opacity > 0) {
+    ctx.strokeStyle = `rgba(17,17,17,${.56 * opacity})`;
+    ctx.lineWidth = bodyWidth + 1.6;
+    trace(); ctx.stroke();
+    ctx.strokeStyle = '#f3f0e8';
+    ctx.lineWidth = bodyWidth;
+    trace(); ctx.stroke();
+  }
+
+  WORK_CORAL_NODES.forEach((node, i) => {
+    const arrival = WORK_CORAL_ARRIVALS[i] / WORK_CORAL_LENGTH;
+    if (growth < arrival || !opacity) return;
+    const [x, y] = project(node);
+    const colour = WORK_CORAL_OPERATORS.has(i) ? '255,102,85' : '36,78,255';
+    dot(ctx, x, y, Math.min(3.5, Math.max(2.6, 2.8 * scale)), `rgba(${colour},${.96 * opacity})`);
+  });
+  ctx.restore();
+}

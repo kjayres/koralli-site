@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {readFileSync, existsSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import * as artwork from '../src/scripts/art/delivery-assembly.mjs';
@@ -41,9 +41,9 @@ test('shared fragments cover the painting and finish at its exact original coord
   const svg=deliveryArtwork();
   const section=readFileSync(new URL('../src/sections/work-delivery.html', import.meta.url),'utf8');
   assert.ok(section.includes(svg),'Published section matches its native artwork generator');
-  const asset=/<image\b[^>]*href="\/([^"]+)"/.exec(svg)?.[1];
-  assert.ok(asset && existsSync(new URL('../src/'+asset,import.meta.url)),'The original painting asset exists');
-  assert.match(svg,/<g data-delivery-complete><use href="#delivery-painting"\/>/,'The complete still uses the original image');
+  assert.doesNotMatch(svg,/<image\b/,'The picture is native line art, without a colour raster image');
+  assert.match(svg,/<g id="delivery-painting" class="delivery-dancers">/,'The shared drawing uses the site’s outline style');
+  assert.match(svg,/<g data-delivery-complete><use href="#delivery-painting"\/>/,'The complete still uses the same drawing as its fragments');
 });
 
 test('fragments remain finite, upright and inside the 655-unit viewport throughout assembly', () => {
@@ -64,8 +64,8 @@ test('fragments remain finite, upright and inside the 655-unit viewport througho
   }
 });
 
-async function setup({reduced=false,cached=false}={}) {
-  const frames=new Map(), events=new Map(), motionEvents=new Map(), images=[];
+async function setup({reduced=false}={}) {
+  const frames=new Map(), events=new Map(), motionEvents=new Map();
   let observer, nextFrame=0, now=1000;
   function element() {
     const classes=new Set();
@@ -75,26 +75,20 @@ async function setup({reduced=false,cached=false}={}) {
       getAttribute(name){return this.attributes[name]??null;},
       addEventListener(name,callback){this.events.set(name,callback);}};
   }
-  const figure=element(), pieces=fragments.map(element), moving=element(), complete=element(), floor=element(), button=element(), painting=element();
-  painting.setAttribute('href','./assets/images/matisse-dance-1910.jpg');
-  const nodes={'[data-delivery-pieces]':moving,'[data-delivery-complete]':complete,'[data-delivery-floor]':floor,'[data-delivery-replay]':button,image:painting};
+  const figure=element(), pieces=fragments.map(element), moving=element(), complete=element(), floor=element(), button=element();
+  const nodes={'[data-delivery-pieces]':moving,'[data-delivery-complete]':complete,'[data-delivery-floor]':floor,'[data-delivery-replay]':button};
   figure.querySelector=selector=>nodes[selector];
   figure.querySelectorAll=()=>pieces;
   const document={hidden:false,querySelectorAll:()=>[figure],addEventListener:(name,callback)=>events.set(name,callback)};
   const motion={matches:reduced,addEventListener:(name,callback)=>motionEvents.set(name,callback)};
   const context=vm.createContext({document,matchMedia:()=>motion,
-    Image:class {constructor(){this.complete=cached;this.naturalWidth=cached?1473:0;images.push(this);}},
     IntersectionObserver:class {constructor(callback){observer=callback;}observe(){}},
     requestAnimationFrame:callback=>{frames.set(++nextFrame,callback);return nextFrame;},cancelAnimationFrame:id=>frames.delete(id)});
   const imported=new vm.SyntheticModule(Object.keys(artwork),function(){for(const [key,value] of Object.entries(artwork))this.setExport(key,value);},{context});
   const module=new vm.SourceTextModule(controller,{context});
   await module.link(specifier=>{assert.equal(specifier,'./art/delivery-assembly.mjs');return imported;});
   await module.evaluate();
-  assert.equal(images.length,1);
-  assert.equal(images[0].src,painting.getAttribute('href'),'Preload the image actually used by this SVG');
   return {figure,pieces,moving,complete,button,frames,
-    load(){images[0].complete=true;images[0].naturalWidth=1473;images[0].onload();},
-    fail(){images[0].onerror();},
     intersect(ratio){observer([{isIntersecting:ratio>0,intersectionRatio:ratio}]);},
     tick(count=1){for(let i=0;i<count;i++){now+=1000/60;const pending=[...frames.values()];frames.clear();pending.forEach(callback=>callback(now));}},
     hide(value){document.hidden=value;events.get('visibilitychange')();},
@@ -103,14 +97,10 @@ async function setup({reduced=false,cached=false}={}) {
     pose(){return JSON.stringify(pieces.map(piece=>piece.attributes));}};
 }
 
-test('loading and visibility gate the sequence; pauses preserve position, completion holds and replay restarts', async () => {
+test('visibility gates the sequence; pauses preserve position, completion holds and replay restarts', async () => {
   const t=await setup();
-  t.intersect(.5);t.tick(300);
-  assert.equal(t.frames.size,0,'Loading must not consume the assembly');
-  assert.equal(t.moving.style.display,'none');
-  assert.equal(t.complete.style.display,'');
-  assert.equal(t.button.hidden,true);
-  t.intersect(.19);t.load();
+  assert.equal(t.frames.size,0,'An offscreen drawing must not consume the assembly');
+  t.intersect(.19);
   assert.equal(t.frames.size,0,'Less than 20% visible must not start');
   t.intersect(.2);t.tick(45);
   assert.equal(t.figure.dataset.deliveryState,'assembling');
@@ -135,16 +125,13 @@ test('loading and visibility gate the sequence; pauses preserve position, comple
   t.replay();assert.equal(t.figure.dataset.deliveryState,'assembling');assert.equal(t.frames.size,1);
 });
 
-test('cached loading, reduced motion and failed images never leave an unwanted animation loop', async () => {
-  const cached=await setup({cached:true});
-  assert.equal(cached.frames.size,0);cached.intersect(.5);assert.equal(cached.frames.size,1);
-  cached.tick(10);cached.reduce(true);
-  assert.equal(cached.figure.dataset.deliveryState,'complete');assert.equal(cached.frames.size,0);
-  assert.equal(cached.button.hidden,true);cached.replay();assert.equal(cached.frames.size,0);
-  const reduced=await setup({reduced:true});reduced.intersect(.5);reduced.load();
+test('reduced motion immediately settles the outline and prevents replay loops', async () => {
+  const changing=await setup();
+  assert.equal(changing.frames.size,0);changing.intersect(.5);assert.equal(changing.frames.size,1);
+  changing.tick(10);changing.reduce(true);
+  assert.equal(changing.figure.dataset.deliveryState,'complete');assert.equal(changing.frames.size,0);
+  assert.equal(changing.button.hidden,true);changing.replay();assert.equal(changing.frames.size,0);
+  const reduced=await setup({reduced:true});reduced.intersect(.5);
   assert.equal(reduced.figure.dataset.deliveryState,'complete');assert.equal(reduced.frames.size,0);
   assert.equal(reduced.complete.style.display,'');assert.equal(reduced.button.hidden,true);
-  const failed=await setup();failed.intersect(.5);failed.fail();failed.tick(300);
-  assert.ok(failed.figure.classList.contains('delivery-unavailable'));
-  assert.equal(failed.frames.size,0);assert.equal(failed.moving.style.display,'none');assert.equal(failed.button.hidden,true);
 });
