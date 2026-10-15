@@ -1,5 +1,8 @@
 // Hand-drawn vector study after Henri Matisse, La Danse (1910), Hermitage.
 // Pose/composition reference: src/assets/images/matisse-dance-1910.jpg (1473×970).
+// Reference photograph: Gandalf's Gallery, CC BY-SA 2.0.
+// https://commons.wikimedia.org/wiki/File:Henri_Matisse_-_Dance_1910.jpg
+// https://creativecommons.org/licenses/by-sa/2.0/
 // Museum record: https://www.hermitagemuseum.org/digital-collection/28411/
 // The drawing contains only editable paths. It does not embed the photograph.
 

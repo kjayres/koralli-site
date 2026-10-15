@@ -8,11 +8,10 @@
 .work-opening .text-link { margin-top:28px; }
 .approach-section { --approach-reading-top:clamp(90px,12svh,130px); padding-top:12px; padding-bottom:12px; }
 .work-page .case-section { padding-top:36px; }
-.approach-heading { grid-column:1 / -1; grid-row:1; }
 .approach-heading h2 { margin:0; max-width:25ch; }
-.approach-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,420px); column-gap:clamp(40px,6vw,85px); row-gap:28px; align-items:start; margin-top:0; }
+.approach-layout { --approach-scene-size:420px; display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,var(--approach-scene-size)); column-gap:clamp(40px,6vw,85px); row-gap:28px; align-items:start; margin-top:28px; }
 .approach-reading { display:contents; }
-.approach-figure { grid-column:2; grid-row:2; position:sticky; top:var(--approach-reading-top); width:100%; margin:calc(-1 * var(--approach-entry-lift,0px)) 0 0; align-self:start; }
+.approach-figure { grid-column:2; grid-row:1; position:sticky; top:var(--approach-reading-top); width:100%; margin:0; align-self:start; }
 .approach-frame { --frame-rule:#9aa9c4; position:relative; width:100%; aspect-ratio:1; background:var(--paper); }
 .approach-frame::after { content:''; position:absolute; inset:0; box-sizing:border-box; border:1px solid var(--frame-rule); pointer-events:none; }
 .approach-frame canvas { display:block; position:absolute; inset:0; width:100%; height:100%; }
@@ -26,7 +25,7 @@
 .approach-illustration { font:9px/1.4 var(--mono); color:#77746c; }
 .approach-key span+span::before { background:#e87883; }
 .approach-fallback { display:flex; flex-direction:column; justify-content:center; height:100%; gap:24px; padding:30px; color:var(--blue); font-size:18px; }
-.approach-steps { grid-column:1; grid-row:2; margin:0; padding:0; list-style:none; }
+.approach-steps { grid-column:1; grid-row:1; margin:0; padding:0; list-style:none; }
 .approach-step { position:relative; min-height:65svh; padding:var(--approach-copy-offset,0px) 0 100px 66px; scroll-margin-top:var(--approach-reading-top); }
 .approach-step::before { content:''; position:absolute; top:calc(17px + var(--approach-copy-offset,0px)); bottom:calc(-17px - var(--approach-next-offset,0px)); left:16px; width:1px; background:#aab3cb; }
 .approach-step:last-child::before { display:none; }
@@ -47,7 +46,7 @@
 .engagement-phases p+p { margin-top:16px; }
 @media (min-width:760px) and (max-width:1050px) {
   .work-opening-copy { column-gap:40px; }
-  .approach-layout { grid-template-columns:minmax(0,1fr) minmax(280px,360px); column-gap:35px; }
+  .approach-layout { --approach-scene-size:360px; grid-template-columns:minmax(0,1fr) minmax(280px,var(--approach-scene-size)); column-gap:35px; }
   .approach-step { padding-left:54px; }
   .approach-copy p { font-size:15px; }
   .approach-copy .approach-lead { font-size:18px; }
@@ -63,12 +62,12 @@
   .approach-section { padding-top:10px; padding-bottom:10px; }
   .approach-heading h2 { margin-top:0; font-size:29px; }
   .approach-layout { grid-template-columns:1fr; row-gap:24px; }
-  .approach-figure { display:grid; grid-column:1; grid-row:2; grid-template-columns:50px minmax(0,435px); z-index:2; top:24px; padding:16px 0 13px; background:var(--paper); }
+  .approach-figure { display:grid; grid-column:1; grid-row:1; grid-template-columns:50px minmax(0,435px); z-index:2; top:24px; padding:16px 0 13px; background:var(--paper); }
   .approach-frame { grid-column:2; width:clamp(220px,58vw,250px); margin:0 auto; }
   .approach-figure figcaption { grid-column:2; width:clamp(220px,58vw,250px); margin:auto; padding-top:10px; min-height:41px; gap:4px; }
   .approach-figure .figure-caption { font-size:8px; }
   .approach-detail { font-size:9px; }
-  .approach-steps { grid-row:3; margin-top:0; }
+  .approach-steps { grid-row:2; margin-top:0; }
   .approach-step { min-height:max(430px,60svh); padding:0 0 70px 58px; scroll-margin-top:354px; }
   .approach-step:last-child { min-height:max(500px,70svh); padding-bottom:90px; }
   .approach-copy h3 { margin:0 0 16px; font-size:28px; line-height:34px; }
@@ -93,7 +92,7 @@
 @media (min-width:600px) and (max-width:759px) and (max-height:620px) {
   .approach-layout { display:grid; grid-template-columns:minmax(0,1fr) 180px; gap:28px; }
   .approach-figure { display:block; grid-column:2; top:25px; padding:0; }
-  .approach-steps { grid-row:2; margin-top:0; }
+  .approach-steps { grid-row:1; margin-top:0; }
   .approach-step { scroll-margin-top:25px; }
 }
 @media (max-width:599px) and (max-height:480px) {
@@ -105,21 +104,21 @@
   .approach-number,.approach-frame::after { transition:none; }
 }
 
-/* The reading stack stays at the top; the artwork determines the compact stage height. */
+/* A separate heading introduces a compact row; copy and cue share the canvas height. */
 .approach-scroll { margin-top:0; }
 .approach-continuation { display:none; }
 .approach-next { display:none; }
 .approach-enhanced .approach-next { display:inline-block; }
 .approach-enhanced .approach-stage { position:sticky; top:var(--approach-pin-top,24px); min-height:0; }
 .approach-enhanced .approach-heading h2 { margin-top:0; }
-.approach-enhanced .approach-layout { margin-top:0; align-items:start; }
-.approach-enhanced .approach-reading { display:flex; flex-direction:column; grid-column:1; grid-row:1; min-width:0; align-self:start; }
-.approach-enhanced .approach-continuation { display:flex; margin-top:24px; padding-top:0; border-top:0; }
+.approach-enhanced .approach-layout { margin-top:28px; align-items:start; }
+.approach-enhanced .approach-reading { display:flex; flex-direction:column; justify-content:center; grid-column:1; grid-row:1; min-width:0; min-height:var(--approach-scene-size); align-self:start; }
+.approach-enhanced .approach-continuation { display:flex; margin-top:64px; padding-top:0; border-top:0; }
 /* The cue belongs to the reading stack; the case section supplies the boundary. */
 .approach-continuation>i { background:none; }
 .approach-continuation>span:last-child { color:var(--blue); font-size:16px; line-height:1; }
 .approach-enhanced .approach-figure { position:relative; grid-row:1; top:auto; margin:0; align-self:start; }
-.approach-enhanced .approach-steps { display:grid; align-items:start; margin-top:28px; }
+.approach-enhanced .approach-steps { display:grid; align-items:start; margin-top:0; }
 .approach-enhanced .approach-step { grid-area:1 / 1; min-height:0; padding:0 0 0 66px; opacity:0; visibility:hidden; pointer-events:none; }
 .approach-enhanced .approach-step.is-active { opacity:var(--approach-opacity,1); visibility:visible; pointer-events:auto; }
 .approach-enhanced .approach-step::before { display:none; }
@@ -131,11 +130,11 @@
 @media (max-width:759px) {
   .approach-enhanced .approach-reading { display:contents; }
   .approach-enhanced .approach-heading h2 { margin-top:0; font-size:clamp(26px,7vw,30px); }
-  .approach-enhanced .approach-continuation { grid-column:1; grid-row:4; margin-top:0; padding-top:0; font-size:9px; }
-  .approach-enhanced .approach-layout { display:grid; grid-template-columns:1fr; row-gap:24px; }
-  .approach-enhanced .approach-figure { display:block; grid-column:1; grid-row:2; padding:0; background:none; }
+  .approach-enhanced .approach-continuation { grid-column:1; grid-row:3; margin-top:0; padding-top:0; font-size:9px; }
+  .approach-enhanced .approach-layout { display:grid; grid-template-columns:1fr; margin-top:24px; row-gap:24px; }
+  .approach-enhanced .approach-figure { display:block; grid-column:1; grid-row:1; padding:0; background:none; }
   .approach-enhanced .approach-frame,.approach-enhanced .approach-figure figcaption { width:clamp(180px,53vw,220px); margin-left:auto; margin-right:auto; }
-  .approach-enhanced .approach-steps { grid-column:1; grid-row:3; margin:0; }
+  .approach-enhanced .approach-steps { grid-column:1; grid-row:2; margin:0; }
   .approach-enhanced .approach-step { padding-left:58px; }
   .approach-enhanced .approach-number { top:0; }
   .approach-enhanced .approach-copy h3 { margin:0 0 14px; }
