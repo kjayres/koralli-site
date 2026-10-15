@@ -248,38 +248,58 @@ export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, 
   ctx.restore();
 }
 
-// Our Work borrows the header mark's asymmetric branching, drawn as a sparse
-// graph of fine edges rather than a solid or outlined silhouette.
-// Each record is [x, y, parent].
-// These twelve coloured anchors are illustrative roles, not a staffing ratio.
-const WORK_CORAL_NODES = [
-  [128, 379, -1],
-  [147, 323, 0],
-  [183, 263, 1],
-  [181, 207, 2],
-  [150, 157, 3],
-  [143, 65, 4],
-  [211, 129, 3],
-  [279, 68, 6],
-  [318, 175, 3],
-  [306, 244, 2],
-  [268, 299, 1],
-  [96, 204, 1],
-];
+// Our Work grows a small new coral graph each cycle. The divided canopy gives
+// branches room to spread without crossings; seeded variation changes their
+// lengths, lean and fork structure. Roles do not imply a staffing ratio.
 const WORK_CORAL_OPERATORS = new Set([0, 2, 4, 7, 9, 11]);
 export const WORK_CORAL_CYCLE_SECONDS = 5;
+let workCoralCache;
 
 function workCoralGeometry(cycle) {
-  const points = [], arrivals = [0];
-  WORK_CORAL_NODES.forEach(([x, y, parent], i) => {
-    // A new seed changes the pose only between cycles, never during a trace.
-    const dx = i ? (hash(cycle * 31 + i * 7 + 1200) - .5) * 24 : 0;
-    const dy = i ? (hash(cycle * 43 + i * 11 + 1600) - .5) * 18 : 0;
-    const point = [x + dx, parent < 0 ? y : Math.min(y + dy, points[parent][1] - 12)];
-    points.push(point);
-    if (parent >= 0) arrivals[i] = arrivals[parent] + Math.hypot(point[0] - points[parent][0], point[1] - points[parent][1]);
+  if (workCoralCache?.cycle === cycle) return workCoralCache;
+  let seed = (cycle + 1) * 179;
+  const random = () => hash(seed++);
+  const between = (a, b) => a + (b - a) * random();
+  const lean = between(-.09, .09);
+  const points = [[between(-.045, .045), .94, -1]];
+  points.push([points[0][0] + between(-.055, .055), between(.71, .77), 0]);
+  points.push([between(-.085, .085), between(.49, .58), 1]);
+
+  const branch = (parent, left, right, top, budget) => {
+    const x = between(left + (right - left) * .22, right - (right - left) * .22);
+    const proposedY = budget === 1 ? top + between(0, .075) : top + (points[parent][1] - top) * between(.48, .63);
+    const remainingDepth = budget === 1 ? 0 : budget === 2 ? 1 : 2;
+    const y = Math.min(Math.max(proposedY, top + remainingDepth * .075), points[parent][1] - .055);
+    const index = points.push([x, y, parent]) - 1;
+    if (budget === 1) return;
+    if (budget === 2 || (budget === 3 && random() < .32)) {
+      branch(index, left, right, top, budget - 1);
+      return;
+    }
+    const split = between(left + (right - left) * .4, left + (right - left) * .6);
+    const remaining = budget - 1;
+    const leftBudget = Math.max(1, Math.min(remaining - 1, Math.floor(remaining / 2) + (random() < .45 ? 1 : 0)));
+    branch(index, left, split, top, leftBudget);
+    branch(index, split, right, top, remaining - leftBudget);
+  };
+
+  const budgets = random() < .35 ? [3, 3, 3] : random() < .5 ? [4, 2, 3] : [2, 4, 3];
+  if (random() < .5) budgets.reverse();
+  const leftJoin = random() < .5 ? 1 : 2;
+  const leftSplit = between(-.19, -.12), rightSplit = between(.11, .19);
+  branch(leftJoin, -.44, leftSplit, between(.04, .20), budgets[0]);
+  branch(2, leftSplit, rightSplit, between(.025, .08), budgets[1]);
+  branch(leftJoin === 1 ? 2 : 1, rightSplit, .44, between(.04, .20), budgets[2]);
+  const arrivals = [0];
+  points.forEach((point, i) => {
+    point[0] += lean * (.94 - point[1]);
+    if (i) {
+      const parent = point[2];
+      arrivals[i] = arrivals[parent] + Math.hypot(point[0] - points[parent][0], point[1] - points[parent][1]);
+    }
   });
-  return { points, arrivals, length: Math.max(...arrivals) };
+  workCoralCache = { cycle, points, arrivals, length: Math.max(...arrivals) };
+  return workCoralCache;
 }
 
 /** Sparse hero graph only. Existing coral studies retain their original timing. */
@@ -290,8 +310,11 @@ export function drawWorkCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = fal
   const growth = reducedMotion ? 1 : clamp((phase - .08) / 1.7);
   const opacity = reducedMotion ? 1 : smooth(phase / .12) * (1 - smooth((phase - 4.35) / .55));
   const geometry = workCoralGeometry(Math.floor(time / WORK_CORAL_CYCLE_SECONDS));
-  const scale = Math.min(w * .86 / 250, h * .86 / 342);
-  const project = ([x, y]) => [w * .5 + (x - 200) * scale, h * .5 + (y - 222) * scale];
+  const scale = Math.min(w * .96, h * 1.08);
+  const points = geometry.points.map(([x, y], i) => [
+    w * .5 + x * scale + (reducedMotion ? 0 : Math.sin(time * .16 + i * 1.7) * 1.4),
+    h * (.02 + y * .94) + (reducedMotion ? 0 : Math.sin(time * .12 + i * .8) * 1.1),
+  ]);
 
   ctx.save();
   ctx.lineCap = 'round';
@@ -304,29 +327,31 @@ export function drawWorkCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = fal
     const y = (hash(i + 310) * (h + 24) + time * (1.1 + depth * 1.5)) % (h + 24) - 12;
     dot(ctx, x, y, .65 + depth * .55, `rgba(17,17,17,${.07 + depth * .09})`);
   }
+  // The trace reaches dots already present in the plankton, colouring each one
+  // as it arrives. All anchors drift smoothly together with their fine edges.
+  points.forEach(([x, y]) => dot(ctx, x, y, 1.05, `rgba(17,17,17,${.16 * opacity})`));
 
   if (opacity > 0) {
     ctx.strokeStyle = `rgba(17,17,17,${.60 * opacity})`;
     ctx.lineWidth = 1.12;
     ctx.beginPath();
-    for (let i = 1; i < geometry.points.length; i++) {
-      const parent = WORK_CORAL_NODES[i][2];
+    for (let i = 1; i < points.length; i++) {
+      const parent = geometry.points[i][2];
       const start = geometry.arrivals[parent], end = geometry.arrivals[i];
       const progress = clamp((growth * geometry.length - start) / (end - start));
       if (progress <= 0) continue;
-      const a = geometry.points[parent], b = geometry.points[i];
-      ctx.moveTo(...project(a));
-      ctx.lineTo(...project([a[0] + (b[0] - a[0]) * progress, a[1] + (b[1] - a[1]) * progress]));
+      const a = points[parent], b = points[i];
+      ctx.moveTo(...a);
+      ctx.lineTo(a[0] + (b[0] - a[0]) * progress, a[1] + (b[1] - a[1]) * progress);
     }
     ctx.stroke();
   }
 
-  geometry.points.forEach((point, i) => {
+  points.forEach(([x, y], i) => {
     const arrival = geometry.arrivals[i] / geometry.length;
     if (growth < arrival || !opacity) return;
-    const [x, y] = project(point);
     const colour = WORK_CORAL_OPERATORS.has(i) ? '255,102,85' : '36,78,255';
-    dot(ctx, x, y, Math.min(3.5, Math.max(2.6, 2.8 * scale)), `rgba(${colour},${.96 * opacity})`);
+    dot(ctx, x, y, Math.min(3.5, Math.max(2.6, w * .0067)), `rgba(${colour},${.96 * opacity})`);
   });
   ctx.restore();
 }

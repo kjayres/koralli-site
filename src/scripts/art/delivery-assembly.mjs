@@ -1,4 +1,5 @@
 import { danceOutlineMarkup } from './dance-outline.mjs';
+import { humanParts } from './building-people.mjs';
 
 // Use the building's exact unrotated projection: x=.9(X-Y), y=.45(X+Y)-Z.
 // The completed picture occupies a vertical wall; loose fragments begin flat
@@ -34,6 +35,27 @@ export function fragmentPose(fragment,elapsed,reducedMotion=false) {
   return {matrix:[a,b,c,d,x-a*fragment.centre[0]-c*fragment.centre[1],y-b*fragment.centre[0]-d*fragment.centre[1]],opacity:.68+.32*t,progress:t};
 }
 
+// Still viewers occupy the ground in front of the wall. Render the building's
+// figures at their native size first so their limb-depth masks keep the same
+// projection, then scale the complete figure uniformly into this larger scene.
+const audience = [
+  {x:190,y:225,scale:3.4,kind:'woman'},
+  {x:405,y:220,scale:3.3,kind:'man'},
+  {x:620,y:215,scale:3.4,kind:'woman'},
+];
+const projectAudiencePoint = (x,y,z=0) => [.9*(x-y),.45*(x+y)-z];
+function audienceMarkup() {
+  return audience.map(({x,y,scale,kind},i)=>{
+    const heading=Math.atan2(pictureSize.width/2-x,-y);
+    const parts=humanParts({project:projectAudiencePoint,x:0,y:0,heading,pose:'standing',kind,id:`delivery-viewer-${i}`});
+    // Body and limbs use their actual viewing depth. The head remains above
+    // the shoulders; existing body masks hide any far arm through the torso.
+    parts.sort((a,b)=>(a.depth??projectAudiencePoint(a.x,a.y,0)[1])-(b.depth??projectAudiencePoint(b.x,b.y,0)[1]));
+    const [px,py]=[220+.9*(x-y),495+.45*(x+y)];
+    return `<g data-delivery-viewer="${i}" transform="translate(${px} ${py}) scale(${scale})"><ellipse cx="0" cy="1" rx="8" ry="3.2" fill="var(--building-coral, #FF6655)" opacity=".045"/>${parts.map(part=>part.markup).join('')}</g>`;
+  }).join('');
+}
+
 export function deliveryArtwork() {
   const clipPaths=fragments.map((fragment,i)=>`<clipPath id="delivery-clip-${i}"><polygon points="${fragment.points.map(p=>p.join(',')).join(' ')}"/></clipPath>`).join('');
   const pieces=fragments.map((fragment,i)=>`<g data-delivery-piece="${i}"><g clip-path="url(#delivery-clip-${i})"><use href="#delivery-painting"/></g><polygon class="delivery-glass-edge" points="${fragment.points.map(p=>p.join(',')).join(' ')}"/></g>`).join('');
@@ -43,12 +65,13 @@ export function deliveryArtwork() {
   const edge=points=>`<polygon class="delivery-frame-depth" points="${points.map(p=>p.join(',')).join(' ')}"/>`;
   return `<svg viewBox="0 0 850 960" role="img" aria-labelledby="delivery-art-title delivery-art-desc" xmlns="http://www.w3.org/2000/svg">
     <title id="delivery-art-title">A line study after La Danse, assembled into one picture</title>
-    <desc id="delivery-art-desc">Blue outline fragments of Matisse’s five linked dancers lift from the floor into a wall-mounted frame, viewed from the same isometric angle as the Koralli building.</desc>
+    <desc id="delivery-art-desc">Blue outline fragments of Matisse’s five linked dancers lift from the floor into a hanging frame. Three small coral figures stand below and look towards the completed picture, all viewed from the same isometric angle as the Koralli building.</desc>
     <defs><g id="delivery-painting" class="delivery-dancers">${danceOutlineMarkup()}</g>${clipPaths}</defs>
     <g data-delivery-floor opacity="0"></g>
     <g class="delivery-hanging" transform="${plane}"><path d="M130 -7 330 -48 530 -7"/><circle cx="330" cy="-48" r="2.5"/></g>
     ${edge([back[0],back[1],front[1],front[0]])}${edge([back[1],back[2],front[2],front[1]])}
     <rect class="delivery-frame" transform="${plane}" x="-7" y="-7" width="674" height="449"/>
     <g data-delivery-complete transform="${plane}"><use href="#delivery-painting"/></g><g data-delivery-pieces style="display:none">${pieces}</g>
+    <g class="delivery-audience">${audienceMarkup()}</g>
   </svg>`;
 }
