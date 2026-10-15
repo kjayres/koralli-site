@@ -18,9 +18,9 @@
 .work-coral-key span::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--blue); }
 .work-coral-key span+span::before { background:var(--coral); }
 @media(min-width:901px) {
-  /* Let the copy set the opening's height. Fit the illustration into its grid
-     area so a wide canvas cannot add empty space beneath the text. */
-  .work-coral { position:absolute; inset:0; display:grid; grid-template-rows:minmax(0,1fr) auto; align-self:stretch; justify-self:stretch; height:100%; max-width:none; }
+  /* Let the copy set the opening's height. Extend only the illustration upwards,
+     keeping its bottom edge and colour key at the same position. */
+  .work-coral { position:absolute; inset:-36px 0 0; display:grid; grid-template-rows:minmax(0,1fr) auto; align-self:stretch; justify-self:stretch; height:calc(100% + 36px); max-width:none; }
   .work-coral-frame { height:100%; min-height:0; aspect-ratio:auto; }
 }
 @media(max-width:900px) {

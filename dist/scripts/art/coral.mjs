@@ -307,7 +307,7 @@ export function drawWorkCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = fal
   if (!(w > 0 && h > 0)) return;
   const time = reducedMotion || !Number.isFinite(timeSeconds) ? 0 : Math.max(0, timeSeconds);
   const phase = time % WORK_CORAL_CYCLE_SECONDS;
-  const growth = reducedMotion ? 1 : clamp((phase - .08) / 1.7);
+  const growth = reducedMotion ? 1 : clamp((phase - .08) / .8);
   const opacity = reducedMotion ? 1 : smooth(phase / .12) * (1 - smooth((phase - 4.35) / .55));
   const geometry = workCoralGeometry(Math.floor(time / WORK_CORAL_CYCLE_SECONDS));
   const scale = Math.min(w * .96, h * 1.08);
