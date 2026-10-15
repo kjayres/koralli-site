@@ -1,5 +1,5 @@
-import { danceOutlineMarkup } from './dance-outline.mjs?v=8deca49eabd0';
-import { humanParts } from './building-people.mjs?v=8deca49eabd0';
+import { danceOutlineMarkup } from './dance-outline.mjs?v=4e32fd7d9697';
+import { humanParts } from './building-people.mjs?v=4e32fd7d9697';
 
 // Use the building's exact unrotated projection: x=.9(X-Y), y=.45(X+Y)-Z.
 // The completed picture occupies a vertical wall; loose fragments begin flat
