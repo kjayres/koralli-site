@@ -4,7 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import * as artwork from '../src/scripts/art/delivery-assembly.mjs';
 
-const {fragments, fragmentPose, assemblyDuration, pictureSize, deliveryArtwork} = artwork;
+const {fragments, fragmentPose, assemblyDuration, pictureSize, pictureProjection, deliveryArtwork} = artwork;
 const controller = readFileSync(new URL('../src/scripts/delivery-view.mjs', import.meta.url), 'utf8');
 const close = (actual, expected, message) => assert.ok(Math.abs(actual-expected)<1e-8, message);
 
@@ -22,7 +22,7 @@ test('shared fragments cover the painting and finish at its exact original coord
       edges.get(key).push([a,b]);
     }
     for (const pose of [fragmentPose(fragment,assemblyDuration),fragmentPose(fragment,0,true)]) {
-      pose.matrix.forEach((value,i)=>close(value,[1,0,0,1,0,0][i],'Final transform is the identity'));
+      pose.matrix.forEach((value,i)=>close(value,pictureProjection[i],'Final transform matches the building’s wall projection'));
       assert.equal(pose.opacity,1);
     }
   }
@@ -43,14 +43,12 @@ test('shared fragments cover the painting and finish at its exact original coord
   assert.ok(section.includes(svg),'Published section matches its native artwork generator');
   assert.doesNotMatch(svg,/<image\b/,'The picture is native line art, without a colour raster image');
   assert.match(svg,/<g id="delivery-painting" class="delivery-dancers">/,'The shared drawing uses the site’s outline style');
-  assert.match(svg,/<g data-delivery-complete><use href="#delivery-painting"\/>/,'The complete still uses the same drawing as its fragments');
+  assert.match(svg,/<g data-delivery-complete transform="matrix\([^"]+\)"><use href="#delivery-painting"\/>/,'The complete still uses the same projected drawing as its fragments');
 });
 
-test('fragments remain finite, upright and inside the 655-unit viewport throughout assembly', () => {
+test('fragments lift from the floor into the wall plane without clipping or inversion', () => {
   const svg=deliveryArtwork();
   const [,left,top,width,height]=/viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/.exec(svg).map(Number);
-  const [,offsetX,offsetY]=/<g transform="translate\(([\d.]+) ([\d.]+)\)">/.exec(svg).map(Number);
-  assert.equal(height,655);
   for (let frame=0; frame<=240; frame++) for (const fragment of fragments) {
     const {matrix,opacity}=fragmentPose(fragment,assemblyDuration*frame/240);
     assert.ok(matrix.every(Number.isFinite));
@@ -58,7 +56,7 @@ test('fragments remain finite, upright and inside the 655-unit viewport througho
     assert.ok(a*d-b*c>0,'No collapsed or mirrored fragment');
     assert.ok(opacity>=0 && opacity<=1);
     for (const [x,y] of fragment.points) {
-      const px=a*x+c*y+e+offsetX, py=b*x+d*y+f+offsetY;
+      const px=a*x+c*y+e, py=b*x+d*y+f;
       assert.ok(px>=left && px<=left+width && py>=top && py<=top+height,'No clipped moving fragment');
     }
   }
