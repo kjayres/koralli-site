@@ -25,12 +25,9 @@
 .journal-waterline .text-link:hover { color:var(--water-accent); }
 .journal-field-note { max-width:230px; text-align:right; font-size:8px; line-height:1.8; letter-spacing:.12em; color:#9baecb; }
 .journal-articles { position:relative; padding:30px clamp(60px,12vw,180px) 180px; max-width:1420px; scroll-margin-top:30px; border-top:0; }
-.journal-articles .section-label { color:var(--water-muted); }
-.journal-articles .section-label h2 { font:400 10px/1.6 var(--mono); letter-spacing:.14em; }
-.journal-articles .article-list { margin-top:26px; border:0; }
-.journal-articles .article-row { position:relative; display:grid; grid-template-columns:54px minmax(0,1fr); gap:20px; padding:42px 0 46px; border-top:1px solid var(--rule); border-bottom:0; transition:border-color .2s; }
+.journal-articles .article-list { margin-top:0; border:0; }
+.journal-articles .article-row { position:relative; padding:42px 0 46px; border-top:1px solid var(--rule); border-bottom:0; transition:border-color .2s; }
 .journal-articles .article-row:last-child { border-bottom:1px solid var(--rule); }
-.journal-articles .article-row>span { padding-top:2px; color:#96aef8; font-size:10px; }
 .article-meta { display:flex; gap:18px; flex-wrap:wrap; margin:0 44px 15px 0; }
 .article-topic { color:#adc0ff; }
 .journal-articles .article-meta .eyebrow { font-size:9px; letter-spacing:.1em; }
@@ -52,7 +49,7 @@
   .journal-waterline { margin-top:40px; display:block; }
   .journal-field-note { display:none; }
   .journal-articles { padding:30px 32px 105px; }
-  .journal-articles .article-row { grid-template-columns:20px minmax(0,1fr); gap:12px; padding:29px 0 34px; }
+  .journal-articles .article-row { padding:29px 0 34px; }
   .article-meta { display:block; margin:0 20px 14px 0; }
   .journal-articles .article-row .article-meta .article-date { margin-top:7px; }
   .journal-articles .article-row h3 { font-size:27px; padding-right:0; }

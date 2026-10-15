@@ -1,4 +1,4 @@
-import { humanParts } from './building-people.mjs?v=9147ed36621b';
+import { humanParts } from './building-people.mjs?v=bbfafdd11215';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';

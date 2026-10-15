@@ -145,10 +145,11 @@ function dot(ctx, x, y, radius, colour) {
  * Draw into CSS-pixel coordinates; callers own clearing, DPR scaling and RAF.
  * Time is in seconds. `variant` is optional and zero-based; omission cycles all
  * five forms. Reduced motion displays the chosen coral complete and stationary.
- * Pass `labels: false` when a visible DOM caption already names the project.
+ * Pass `labels: false` when the caller supplies its own caption. `neutralField`
+ * keeps the drifting field grey, so coloured nodes identify connected roles.
  * Node roles illustrate collaboration, not literal team sizes or staffing ratios.
  */
-export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, variant, labels = true } = {}) {
+export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, variant, labels = true, neutralField = false } = {}) {
   if (!(w > 0 && h > 0)) return;
   const { time, phase, index, growth, opacity: fade } = coralTraceState(timeSeconds, { reducedMotion, variant });
   const study = STUDIES[index];
@@ -176,7 +177,7 @@ export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, 
     const x = w * (0.055 + hash(i + 71) * 0.89) + Math.sin(time * 0.15 + i) * 2.2 * motion;
     const y0 = hash(i + 310) * (h + 24);
     const y = ((y0 + time * (1.3 + depth * 1.6)) % (h + 24)) - 12;
-    const colour = i % 19 === 0 ? `rgba(255,102,85,${0.18 + depth * 0.12})` : `rgba(17,17,17,${0.10 + depth * 0.13})`;
+    const colour = !neutralField && i % 19 === 0 ? `rgba(255,102,85,${0.18 + depth * 0.12})` : `rgba(17,17,17,${0.10 + depth * 0.13})`;
     dot(ctx, x, y, 0.7 + depth * 0.65, colour);
   }
 

@@ -1,0 +1,22 @@
+/* The opening illustration is separate from the three-phase approach scene. */
+.work-opening--with-coral .work-opening-copy {
+  grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);
+  column-gap:clamp(36px,5vw,72px);
+}
+.work-opening--with-coral .work-opening-copy>h1 { grid-column:1; grid-row:1; }
+.work-opening--with-coral .work-opening-copy>div { grid-column:1; grid-row:2; }
+.work-coral { grid-column:2; grid-row:1 / span 2; align-self:center; justify-self:center; width:100%; max-width:420px; margin:0; }
+.work-coral-frame { position:relative; width:100%; aspect-ratio:1.2; overflow:hidden; contain:paint; }
+.work-coral-frame canvas,.work-coral-still { display:block; position:absolute; inset:0; width:100%; height:100%; }
+.work-coral-frame canvas { opacity:0; }
+.work-coral-frame.art-ready canvas { opacity:1; }
+.work-coral-frame.art-ready .work-coral-still { visibility:hidden; }
+.work-coral-key { display:flex; justify-content:center; flex-wrap:wrap; gap:12px 24px; margin-top:7px; color:#5c5b58; font:11px/1.5 var(--mono); }
+.work-coral-key span { display:inline-flex; align-items:center; gap:8px; }
+.work-coral-key span::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--blue); }
+.work-coral-key span+span::before { background:var(--coral); }
+@media(max-width:900px) {
+  .work-opening--with-coral .work-opening-copy { grid-template-columns:minmax(0,1fr); row-gap:26px; }
+  .work-opening--with-coral .work-opening-copy>h1,.work-opening--with-coral .work-opening-copy>div { grid-column:1; grid-row:auto; }
+  .work-coral { grid-column:1; grid-row:auto; max-width:330px; }
+}

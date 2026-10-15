@@ -12,6 +12,7 @@ const artworkLoaders = {
   research: () => import('./art/research.mjs'),
   approach: () => import('./art/approach.mjs'),
   coral: () => import('./art/coral.mjs'),
+  'work-coral': () => import('./art/coral.mjs'),
   reef: () => import('./art/reef.mjs'),
   'journal-water': () => import('./art/journal-water.mjs')
 };
@@ -106,6 +107,9 @@ function paint(state, dt = 0) {
       state.art.drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
       const study = state.art.coralTraceState(state.time, options);
       if (coralName && coralName.textContent !== study.name) coralName.textContent = study.name;
+    }
+    if (kind === 'work-coral') {
+      state.art.drawCoralTrace(ctx, w, h, state.time, { ...options, labels: false, neutralField: true });
     }
     if (kind === 'reef' && state.reef) {
       if (motion.matches || state.paused) state.reef.drawReef(state);

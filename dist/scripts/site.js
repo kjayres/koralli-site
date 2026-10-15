@@ -8,12 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=9147ed36621b'),
-  research: () => import('./art/research.mjs?v=9147ed36621b'),
-  approach: () => import('./art/approach.mjs?v=9147ed36621b'),
-  coral: () => import('./art/coral.mjs?v=9147ed36621b'),
-  reef: () => import('./art/reef.mjs?v=9147ed36621b'),
-  'journal-water': () => import('./art/journal-water.mjs?v=9147ed36621b')
+  wave: () => import('./art/wave.mjs?v=bbfafdd11215'),
+  research: () => import('./art/research.mjs?v=bbfafdd11215'),
+  approach: () => import('./art/approach.mjs?v=bbfafdd11215'),
+  coral: () => import('./art/coral.mjs?v=bbfafdd11215'),
+  'work-coral': () => import('./art/coral.mjs?v=bbfafdd11215'),
+  reef: () => import('./art/reef.mjs?v=bbfafdd11215'),
+  'journal-water': () => import('./art/journal-water.mjs?v=bbfafdd11215')
 };
 
 function artworkFailed(state, error) {
@@ -60,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=9147ed36621b');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=bbfafdd11215');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -106,6 +107,9 @@ function paint(state, dt = 0) {
       state.art.drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
       const study = state.art.coralTraceState(state.time, options);
       if (coralName && coralName.textContent !== study.name) coralName.textContent = study.name;
+    }
+    if (kind === 'work-coral') {
+      state.art.drawCoralTrace(ctx, w, h, state.time, { ...options, labels: false, neutralField: true });
     }
     if (kind === 'reef' && state.reef) {
       if (motion.matches || state.paused) state.reef.drawReef(state);
@@ -214,7 +218,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=9147ed36621b').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=bbfafdd11215').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -344,7 +348,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=9147ed36621b').then(module => {
+if (building && svg) import('./art/building.mjs?v=bbfafdd11215').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -403,10 +407,10 @@ document.addEventListener('visibilitychange', () => {
 document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
-if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=9147ed36621b')
+if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=bbfafdd11215')
   .then(({ initWorkflows }) => initWorkflows())
   .catch(error => console.error('Unable to initialise the workflow examples:', error));
-if (document.querySelector('#team-question')) import('./team.mjs?v=9147ed36621b')
+if (document.querySelector('#team-question')) import('./team.mjs?v=bbfafdd11215')
   .then(({ initTeam }) => initTeam())
   .catch(error => console.error('Unable to initialise the team examples:', error));
 if (tracksScroll) onScroll();
