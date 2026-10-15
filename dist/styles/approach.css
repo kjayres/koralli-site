@@ -103,12 +103,14 @@
   .approach-number,.approach-frame::after { transition:none; }
 }
 
-/* The heading and following section boundary frame one fixed reading position. */
+/* Pin the real page together so its neighbouring sections remain visible.
+   The outer shell carries the scroll distance, never a gap within the page. */
+.approach-page-pinned>[data-approach-page] { position:sticky; top:var(--approach-page-top); }
 .approach-scroll { margin-top:0; }
 .approach-continuation { display:none; }
 .approach-next { display:none; }
 .approach-enhanced .approach-next { display:inline-block; }
-.approach-enhanced .approach-stage { position:sticky; top:var(--approach-pin-top,24px); min-height:calc(100svh - var(--approach-pin-top,24px) - var(--approach-pin-top,24px)); display:grid; grid-template-rows:auto 1fr auto; row-gap:24px; }
+.approach-enhanced .approach-stage { display:grid; grid-template-rows:auto auto auto; row-gap:8px; }
 .approach-enhanced .approach-heading h2 { margin-top:0; }
 .approach-enhanced .approach-layout { margin-top:0; align-items:center; align-self:center; }
 .approach-enhanced .approach-continuation { display:flex; padding-top:18px; border-top:1px solid transparent; }
