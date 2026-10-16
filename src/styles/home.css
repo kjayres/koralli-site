@@ -60,10 +60,6 @@
 .home-page .building-heading h2 { max-width:none; }
 .home-page .building-intro { max-width:76ch; }
 .home-page .home-footer { padding:0; }
-.home-footer-details { max-width:1420px; margin:auto; padding:0 var(--gutter) 25px; }
-.home-footer .footer-main,
-.home-footer .footer-bottom { max-width:none; }
-.home-footer .footer-definition { max-width:62ch; margin-top:0; font-size:15px; line-height:1.65; color:#bdc7d8; }
 .home-footer .reef-editorial .text-link { color:#b7c6ff; }
 .home-footer .reef-editorial > div + div { padding-top:37px; }
 @media(max-width:759px) {
