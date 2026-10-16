@@ -17,6 +17,7 @@
 .home-page .building-section { height:320svh; }
 .home-page .building-sticky { background:var(--paper); }
 .home-page .building-heading h2 { max-width:none; }
+.home-page .building-intro { max-width:76ch; margin-top:12px; font-size:15px; line-height:1.5; }
 .home-page .building-instruction { position:static; margin-top:16px; }
 .home-page .building-layout { height:calc(100% - 125px); }
 .home-page .depth-gauge[hidden] { display:none; }
