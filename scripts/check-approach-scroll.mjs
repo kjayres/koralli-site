@@ -211,10 +211,10 @@ test('the pinned frame contains the title, particle scene and working case link'
       assert.ok(!ids.has(id), `The real page must not duplicate #${id}`);
       ids.add(id);
     }
-    if (/\bclass="[^"]*(?:work-opening|case-section|outcomes-section)/.test(attributes) && name === 'section') {
+    if (/\bclass="[^"]*(?:work-opening|case-section)/.test(attributes) && name === 'section') {
       assert.ok(ancestors.some(parent => /\bdata-approach-page\b/.test(parent)), 'Actual neighbours must share the sticky page');
       assert.ok(ancestors.some(parent => /\bdata-approach-shell\b/.test(parent)), 'The page must live within the outer runway');
-      neighbours.push(id || 'opening-or-outcomes');
+      neighbours.push(id || 'opening');
     }
     if (/\bid="approach-title"|\bdata-art="approach"|\bclass="[^"]*approach-continuation/.test(attributes)) {
       assert.ok(ancestors.some(parent => /\bdata-approach-stage\b/.test(parent)), 'The heading, shared scene and following boundary must move as one frame');
@@ -224,7 +224,7 @@ test('the pinned frame contains the title, particle scene and working case link'
     if (!voidTags.has(name.toLowerCase()) && !attributes.endsWith('/')) ancestors.push(attributes);
   }
   assert.deepEqual(framed, ['h2', 'canvas', 'a']);
-  assert.equal(neighbours.length, 3, 'One real opening, bank and outcomes section must share the page');
+  assert.equal(neighbours.length, 2, 'One real opening and bank section must share the page');
 });
 
 test('the outer runway holds real neighbours and the stage together without an inner spacer', async () => {

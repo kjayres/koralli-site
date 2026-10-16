@@ -7,7 +7,7 @@
 .work-opening-copy>div>p+p { color:#5c5b58; margin-top:18px; }
 .work-opening .text-link { margin-top:28px; }
 .approach-section { --approach-reading-top:clamp(90px,12svh,130px); padding-top:12px; padding-bottom:12px; }
-.work-page .case-section { padding-top:36px; padding-bottom:28px; }
+.work-page .case-section { padding-top:36px; }
 .approach-heading h2 { margin-top:0; max-width:25ch; }
 .approach-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,420px); column-gap:clamp(40px,6vw,85px); align-items:start; margin-top:30px; }
 .approach-figure { grid-column:2; grid-row:1; position:sticky; top:var(--approach-reading-top); width:100%; margin:calc(-1 * var(--approach-entry-lift,0px)) 0 0; align-self:start; }
