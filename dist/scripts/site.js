@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=29e630a0480b'),
-  research: () => import('./art/research.mjs?v=29e630a0480b'),
-  approach: () => import('./art/approach.mjs?v=29e630a0480b'),
-  coral: () => import('./art/coral.mjs?v=29e630a0480b'),
-  'work-coral': () => import('./art/coral.mjs?v=29e630a0480b'),
-  reef: () => import('./art/reef.mjs?v=29e630a0480b'),
-  'journal-water': () => import('./art/journal-water.mjs?v=29e630a0480b')
+  wave: () => import('./art/wave.mjs?v=5e71ff2252a5'),
+  research: () => import('./art/research.mjs?v=5e71ff2252a5'),
+  approach: () => import('./art/approach.mjs?v=5e71ff2252a5'),
+  coral: () => import('./art/coral.mjs?v=5e71ff2252a5'),
+  'work-coral': () => import('./art/coral.mjs?v=5e71ff2252a5'),
+  reef: () => import('./art/reef.mjs?v=5e71ff2252a5'),
+  'journal-water': () => import('./art/journal-water.mjs?v=5e71ff2252a5')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=29e630a0480b');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=5e71ff2252a5');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -218,7 +218,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=29e630a0480b').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=5e71ff2252a5').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -250,11 +250,19 @@ const chamber = building?.querySelector('.building-sticky');
 let staticDepth = 0;
 let scrollFrame = 0;
 let buildingProgress = 0;
+let lastBuildingKey = '';
+let lastBuildingLayer = -1;
 let updateBuilding;
 const buildingOriginal = svg ? { content: svg.innerHTML, viewBox: svg.getAttribute('viewBox') } : null;
 const mixColour = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
+const BUILDING_COLOURS = {
+  paper: [[243, 240, 232], [23, 36, 71]],
+  line: [[36, 78, 255], [183, 198, 255]],
+  shade: [[229, 232, 237], [32, 48, 82]],
+  glass: [[215, 223, 239], [41, 61, 105]]
+};
 
-function colourDepth(progress) {
+function colourDepth(progress, force = false) {
   const p = clamp(progress);
   const stops = [[0,[243,240,232]],[.25,[202,213,231]],[.48,[65,91,142]],[.75,[24,44,82]],[1,[12,22,48]]];
   const upper = stops.findIndex(([at]) => at >= p);
@@ -266,16 +274,12 @@ function colourDepth(progress) {
   // Choose the readable side of the palette as the water darkens.
   const text = luminance < .19 ? 1 : 0;
   chamber.style.backgroundColor = `rgb(${background.join(',')})`;
+  if (!force && chamber.dataset.depthTheme === String(text)) return;
+  chamber.dataset.depthTheme = String(text);
   chamber.style.color = mixColour([17,17,17], [243,240,232], text);
   chamber.style.setProperty('--depth-muted', mixColour([95,95,96], [177,187,209], text));
   chamber.style.setProperty('--depth-accent', mixColour([36,78,255], [183,198,255], text));
-  const colours = {
-    paper:[[243,240,232],[23,36,71]],
-    line:[[36,78,255],[183,198,255]],
-    shade:[[229,232,237],[32,48,82]],
-    glass:[[215,223,239],[41,61,105]]
-  };
-  for (const [name, [start,end]] of Object.entries(colours)) chamber.style.setProperty(`--building-${name}`, mixColour(start,end,text));
+  for (const [name, [start,end]] of Object.entries(BUILDING_COLOURS)) chamber.style.setProperty(`--building-${name}`, mixColour(start,end,text));
 }
 
 function preserveReadingPosition(change) {
@@ -295,8 +299,11 @@ function preserveReadingPosition(change) {
 function buildingFailed(error) {
   preserveReadingPosition(() => {
     updateBuilding = undefined;
+    lastBuildingKey = '';
+    lastBuildingLayer = -1;
     building.classList.remove('building-enhanced');
     chamber.removeAttribute('style');
+    delete chamber.dataset.depthTheme;
     svg.innerHTML = buildingOriginal.content;
     svg.setAttribute('viewBox', buildingOriginal.viewBox);
     panels.forEach(panel => {
@@ -314,25 +321,33 @@ function renderBuilding(force = false) {
     const rect = building.getBoundingClientRect();
     if (!force && !motion.matches && (rect.top > innerHeight || rect.bottom < 0)) return;
     const progress = motion.matches ? (staticDepth + .6) / panels.length : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
+    const compact = innerWidth < 760;
+    const renderKey = `${progress}|${motion.matches}|${compact}`;
+    if (!force && renderKey === lastBuildingKey) return;
+    lastBuildingKey = renderKey;
     const focus = clamp((progress - .25) / .75);
-    svg.setAttribute('viewBox', innerWidth < 760 ? `130 ${-160 + 320 * focus} 440 ${800 - 440 * focus}` : '0 -160 700 860');
+    const viewBox = compact ? `130 ${-160 + 320 * focus} 440 ${800 - 440 * focus}` : '0 -160 700 860';
+    if (svg.getAttribute('viewBox') !== viewBox) svg.setAttribute('viewBox', viewBox);
     buildingProgress = progress;
-    colourDepth(progress);
+    colourDepth(progress, force);
     const { phase } = updateBuilding(svg, progress, motion.matches);
     const layer = phase;
-    panels.forEach((panel, i) => {
-      const active = i === layer;
-      const opacity = 1;
-      panel.style.opacity = active ? String(opacity) : '0';
-      panel.style.visibility = active ? 'visible' : 'hidden';
-      panel.style.transform = `translateY(${active ? (1 - opacity) * 8 : 8}px)`;
-      panel.setAttribute('aria-hidden', String(!active));
-    });
-    depths.forEach((button, i) => {
-      if (i === layer) button.setAttribute('aria-current', 'step');
-      else button.removeAttribute('aria-current');
-      button.classList.toggle('visited', i < layer);
-    });
+    if (force || layer !== lastBuildingLayer) {
+      lastBuildingLayer = layer;
+      panels.forEach((panel, i) => {
+        const active = i === layer;
+        const opacity = 1;
+        panel.style.opacity = active ? String(opacity) : '0';
+        panel.style.visibility = active ? 'visible' : 'hidden';
+        panel.style.transform = `translateY(${active ? (1 - opacity) * 8 : 8}px)`;
+        panel.setAttribute('aria-hidden', String(!active));
+      });
+      depths.forEach((button, i) => {
+        if (i === layer) button.setAttribute('aria-current', 'step');
+        else button.removeAttribute('aria-current');
+        button.classList.toggle('visited', i < layer);
+      });
+    }
   } catch (error) { buildingFailed(error); }
 }
 
@@ -348,7 +363,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=29e630a0480b').then(module => {
+if (building && svg) import('./art/building.mjs?v=5e71ff2252a5').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -390,7 +405,7 @@ motion.addEventListener('change', () => {
     state.variant = undefined;
   });
   canvasStates.forEach(state => paint(state));
-  renderBuilding();
+  renderBuilding(true);
   schedule();
 });
 document.addEventListener('visibilitychange', () => {
@@ -407,10 +422,4 @@ document.addEventListener('visibilitychange', () => {
 document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
-if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=29e630a0480b')
-  .then(({ initWorkflows }) => initWorkflows())
-  .catch(error => console.error('Unable to initialise the workflow examples:', error));
-if (document.querySelector('#team-question')) import('./team.mjs?v=29e630a0480b')
-  .then(({ initTeam }) => initTeam())
-  .catch(error => console.error('Unable to initialise the team examples:', error));
 if (tracksScroll) onScroll();

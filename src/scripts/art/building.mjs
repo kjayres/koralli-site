@@ -67,7 +67,10 @@ function room(base, angle = 0, lift = 0) {
   return {p,surface,panel,box,planLine,desk,chair,screen,paper,keyboard};
 }
 
+const interiorCache = new Map();
 function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-company-building') {
+  const cacheKey = `${index}|${base}|${angle}|${lift}|${figurePrefix}`;
+  if (interiorCache.has(cacheKey)) return interiorCache.get(cacheKey);
   const {p,surface,panel,box,planLine,desk,chair,screen,paper,keyboard} = room(base - (index===3?5:0),angle,lift);
   let drawing=surface(0,0,220,220,0,PAPER);
   drawing+=polygon([p(0,220),p(220,220),p(220,220,-5),p(0,220,-5)],SHADE);
@@ -179,7 +182,10 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
   }
   objects.sort((a,b)=>(a.depth??p(a.x,a.y)[1])-(b.depth??p(b.x,b.y)[1]));
   for(const {name,markup} of [...objects,...contacts]) drawing+=`<g data-room-object="${name}">${markup}</g>`;
-  return `<g data-floor="${index}" data-scene="${['direction-offering','people-work','systems-tools','data-foundations'][index]}" opacity="0" stroke="${BLUE}" stroke-width="1.05" stroke-linejoin="round" stroke-linecap="round">${drawing}</g>`;
+  const result = `<g data-floor="${index}" data-scene="${['direction-offering','people-work','systems-tools','data-foundations'][index]}" opacity="0" stroke="${BLUE}" stroke-width="1.05" stroke-linejoin="round" stroke-linecap="round">${drawing}</g>`;
+  if (interiorCache.size >= 64) interiorCache.delete(interiorCache.keys().next().value);
+  interiorCache.set(cacheKey, result);
+  return result;
 }
 
 function cover(index, base, angle = 0, lift = 0) {

@@ -4,7 +4,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { buildingMarkup } from '../src/scripts/art/building.mjs';
-import { workbenchMarkup, escapeHTML } from '../src/scripts/workflow-view.mjs';
+
+const escapeHTML = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const sourceDir = resolve(projectDir, 'src');
@@ -89,10 +90,10 @@ export function renderSite(basePath = './') {
   }).join('\n');
   for (const name of pages) files.set(name, Buffer.from(expand(name)
     .replace('<!-- content: articles -->', articlesMarkup())
-    .replace('<!-- content: workbench -->', workbenchMarkup())
     .replace('<!-- content: people -->', profiles)));
   function walk(directory) {
     for (const entry of readdirSync(resolve(sourceDir, directory), { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue;
       const name = `${directory}/${entry.name}`;
       if (entry.isDirectory()) walk(name);
       else files.set(name, readFileSync(resolve(sourceDir, name)));
@@ -143,6 +144,7 @@ export function checkOutputFiles(files, directory = outputDir) {
   const destination = checkedOutputDir(directory);
   function visit(folder = '') {
     for (const entry of readdirSync(resolve(destination, folder), { withFileTypes: true })) {
+      if (entry.name.startsWith('.')) continue;
       const name = folder ? `${folder}/${entry.name}` : entry.name;
       if (entry.isDirectory()) visit(name);
       else if (!files.has(name)) throw new Error(`Unexpected build file: ${name}. Archive or remove this stale output explicitly.`);

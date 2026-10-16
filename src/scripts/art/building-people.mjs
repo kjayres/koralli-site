@@ -8,21 +8,35 @@ const TAU = Math.PI * 2;
 const geometryCache=new Map();
 const cachedGeometry=(key,create)=>{
   if(!geometryCache.has(key)) {
-    if(geometryCache.size>=160) geometryCache.delete(geometryCache.keys().next().value);
+    if(geometryCache.size>=512) geometryCache.delete(geometryCache.keys().next().value);
     geometryCache.set(key,create());
   }
   return geometryCache.get(key);
 };
-const add = (a,b) => a.map((v,i) => v+b[i]);
-const sub = (a,b) => a.map((v,i) => v-b[i]);
-const mul = (a,s) => a.map(v => v*s);
-const dot = (a,b) => a.reduce((sum,v,i) => sum+v*b[i],0);
+const add = (a,b) => a.length===2 ? [a[0]+b[0],a[1]+b[1]] : [a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const sub = (a,b) => a.length===2 ? [a[0]-b[0],a[1]-b[1]] : [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const mul = (a,s) => a.length===2 ? [a[0]*s,a[1]*s] : [a[0]*s,a[1]*s,a[2]*s];
+const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const cross = (a,b) => [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
-const length = a => Math.hypot(...a);
+const length = a => Math.hypot(a[0],a[1],a[2]);
 const unit = a => mul(a,1/(length(a)||1));
-const mix = (a,b,t) => add(mul(a,1-t),mul(b,t));
+const mix = (a,b,t) => a.length===2
+  ? [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t]
+  : [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t,a[2]*(1-t)+b[2]*t];
 const number = n => Number(n.toFixed(3));
-const pair = point => point.map(number).join(',');
+const pair = point => `${number(point[0])},${number(point[1])}`;
+
+function bounds(points) {
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  for (let i=0; i<points.length; i++) {
+    const x=points[i][0], y=points[i][1];
+    if (x<minX) minX=x;
+    if (y<minY) minY=y;
+    if (x>maxX) maxX=x;
+    if (y>maxY) maxY=y;
+  }
+  return [minX,minY,maxX,maxY];
+}
 
 function hull(points) {
   const sorted = points.map(p => [p[0],p[1]]).sort((a,b) => a[0]-b[0] || a[1]-b[1]);
@@ -58,8 +72,9 @@ function surfaceMesh(rings, outward) {
   const faces=[];
   const addFace=(a,b,c)=>{
     const centre=mul(add(add(a,b),c),1/3);
-    if(dot(cross(sub(b,a),sub(c,a)),outward(centre))<0) [b,c]=[c,b];
-    faces.push([a,b,c]);
+    let n=cross(sub(b,a),sub(c,a));
+    if(dot(n,outward(centre))<0) { [b,c]=[c,b]; n=[-n[0],-n[1],-n[2]]; }
+    faces.push([a,b,c,n]);
   };
   for(let row=1;row<rings.length;row++) for(let i=0;i<rings[row].length;i++) {
     const j=(i+1)%rings[row].length;
@@ -93,43 +108,65 @@ function capsuleMesh(a,b,ra,rb) {
 function projectedFaces(mesh,project,depth,view) {
   const result=[], vertices=new Map();
   const vertex=point=>{
-    if(!vertices.has(point)) vertices.set(point,[...project(point),depth(point)]);
-    return vertices.get(point);
+    let v=vertices.get(point);
+    if(!v) {
+      const p=project(point);
+      v=[p[0],p[1],depth(point)];
+      vertices.set(point,v);
+    }
+    return v;
   };
   for(const face of mesh) {
-    if(dot(cross(sub(face[1],face[0]),sub(face[2],face[0])),view)<=1e-9) continue;
-    const points=face.map(vertex);
-    const [a,b,c]=points, determinant=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+    const normal=face[3]||cross(sub(face[1],face[0]),sub(face[2],face[0]));
+    if(dot(normal,view)<=1e-9) continue;
+    const a=vertex(face[0]), b=vertex(face[1]), c=vertex(face[2]);
+    const determinant=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
     if(Math.abs(determinant)<1e-6) continue;
     const dx=((b[2]-a[2])*(c[1]-a[1])-(c[2]-a[2])*(b[1]-a[1]))/determinant;
     const dy=((b[0]-a[0])*(c[2]-a[2])-(c[0]-a[0])*(b[2]-a[2]))/determinant;
-    result.push({points,at:p=>a[2]+dx*(p[0]-a[0])+dy*(p[1]-a[1]),
-      sign:Math.sign(determinant),bounds:[Math.min(...points.map(p=>p[0])),Math.min(...points.map(p=>p[1])),Math.max(...points.map(p=>p[0])),Math.max(...points.map(p=>p[1]))]});
+    result.push({points:[a,b,c],at:p=>a[2]+dx*(p[0]-a[0])+dy*(p[1]-a[1]),
+      sign:Math.sign(determinant),bounds:[Math.min(a[0],b[0],c[0]),Math.min(a[1],b[1],c[1]),Math.max(a[0],b[0],c[0]),Math.max(a[1],b[1],c[1])]});
   }
   return result;
 }
 
-function clipHalfPlane(points,inside) {
-  const result=[];
-  for(let i=0;i<points.length;i++) {
-    const a=points[i], b=points[(i+1)%points.length], da=inside(a), db=inside(b);
+function clipEdge(points,u,v,sign) {
+  const result=[], vx=v[0]-u[0], vy=v[1]-u[1], ux=u[0], uy=u[1], len=points.length;
+  for(let i=0;i<len;i++) {
+    const a=points[i], b=points[(i+1)%len];
+    const da=sign*(vx*(a[1]-uy)-vy*(a[0]-ux)), db=sign*(vx*(b[1]-uy)-vy*(b[0]-ux));
     if(da>=0) result.push(a);
     if((da<0)!==(db<0)) result.push(mix(a,b,da/(da-db)));
   }
   return result;
 }
 
+function clipDepth(points,b,a) {
+  const result=[], len=points.length;
+  for(let i=0;i<len;i++) {
+    const p=points[i], q=points[(i+1)%len];
+    const da=b.at(p)-a.at(p)-.015, db=b.at(q)-a.at(q)-.015;
+    if(da>=0) result.push(p);
+    if((da<0)!==(db<0)) result.push(mix(p,q,da/(da-db)));
+  }
+  return result;
+}
+
 function hiddenSurface(arm,body) {
   let path='';
-  for(const a of arm) for(const b of body) {
-    if(a.bounds[2]<b.bounds[0] || b.bounds[2]<a.bounds[0] || a.bounds[3]<b.bounds[1] || b.bounds[3]<a.bounds[1]) continue;
-    let polygon=a.points.map(p=>p.slice(0,2));
-    for(let edge=0;edge<3 && polygon.length;edge++) {
-      const u=b.points[edge], v=b.points[(edge+1)%3];
-      polygon=clipHalfPlane(polygon,p=>b.sign*((v[0]-u[0])*(p[1]-u[1])-(v[1]-u[1])*(p[0]-u[0])));
+  for(const a of arm) {
+    const [a0,a1,a2]=a.points;
+    for(const b of body) {
+      if(a.bounds[2]<b.bounds[0] || b.bounds[2]<a.bounds[0] || a.bounds[3]<b.bounds[1] || b.bounds[3]<a.bounds[1]) continue;
+      if(b.at(a0)-a0[2]<.014999 && b.at(a1)-a1[2]<.014999 && b.at(a2)-a2[2]<.014999) continue;
+      let polygon=[a0,a1,a2];
+      const [b0,b1,b2]=b.points, s=b.sign;
+      polygon=clipEdge(polygon,b0,b1,s);
+      if(polygon.length) polygon=clipEdge(polygon,b1,b2,s);
+      if(polygon.length) polygon=clipEdge(polygon,b2,b0,s);
+      if(polygon.length) polygon=clipDepth(polygon,b,a);
+      if(polygon.length>2) path+=`M${polygon.map(pair).join('L')}Z`;
     }
-    if(polygon.length) polygon=clipHalfPlane(polygon,p=>b.at(p)-a.at(p)-.015);
-    if(polygon.length>2) path+=`M${polygon.map(pair).join('L')}Z`;
   }
   return path;
 }
@@ -187,8 +224,8 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
     }
       return {points:rings.flat(),mesh:mesh?surfaceMesh(rings,point=>sub(point,centre)):null};
     });
-    const points=geometry.points.map(projected);
-    return {d:roundedPath(hull(points)),mesh:geometry.mesh,bounds:bounds(points)};
+    const points=geometry.points.map(projected), outline=hull(points);
+    return {d:roundedPath(outline),outline,mesh:geometry.mesh,bounds:bounds(outline)};
   };
   const ellipsoid=(centre,radii,shade=.065)=>painted(ellipsoidGeometry(centre,radii).d,shade);
 
@@ -216,7 +253,6 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
     const paths=contours.map(d=>`<path d="${d}"/>`).join('');
     return `<g fill="${CORAL}" stroke="${CORAL}" stroke-width="1.44" stroke-linejoin="round"${strokeMask?` mask="url(#${strokeMask})"`:''}>${paths}</g><g fill="${PAPER}" stroke="none">${paths}</g><g fill="${CORAL}" stroke="none" opacity="${shade}">${paths}</g>`;
   };
-  const bounds=points=>[Math.min(...points.map(p=>p[0])),Math.min(...points.map(p=>p[1])),Math.max(...points.map(p=>p[0])),Math.max(...points.map(p=>p[1]))];
   const overlaps=(a,b)=>a[2]>=b[0] && b[2]>=a[0] && a[3]>=b[1] && b[3]>=a[1];
   const maskedSegment=(name,markup,outline,mesh,restrict=true)=>{
     const extent=bounds(outline);
@@ -228,8 +264,7 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
       return {i,path:hiddenSurface(faces,body.faces)};
     }).filter(body=>body.path);
     const maskId=`${prefix}-${name}-visibility`;
-    const xs=outline.map(p=>p[0]), ys=outline.map(p=>p[1]);
-    const left=Math.min(...xs)-2, top=Math.min(...ys)-2, width=Math.max(...xs)-left+2, height=Math.max(...ys)-top+2;
+    const left=extent[0]-2, top=extent[1]-2, width=extent[2]-left+2, height=extent[3]-top+2;
     const mask=`<mask id="${maskId}" maskUnits="userSpaceOnUse" x="${number(left)}" y="${number(top)}" width="${number(width)}" height="${number(height)}" style="mask-type:luminance"><path d="${roundedPath(hull(outline))}" fill="white" stroke="white" stroke-width="1.6"/>${hidden.map(({i,path})=>`<g clip-path="url(#${prefix}-body-surface-${i})"><path d="${path}" fill="black" stroke="black" stroke-width="1.6" stroke-linejoin="round"/></g>`).join('')}</mask>`;
     return {markup:`<defs>${mask}</defs><g mask="url(#${maskId})">${markup}</g>`,hiddenFaces:hidden.reduce((count,item)=>count+(item.path.match(/M/g)||[]).length,0)};
   };
@@ -240,26 +275,33 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
     const foot=local(side*3,seated?10.7:2,1);
     body.push({at:foot,markup:ellipsoid(foot,[1.45,3,1],.1)});
   }
-  const torso=[], torsoRings=[];
-  for (const [z,uRadius,vRadius,v] of [[hipZ,3.6,2.3,0],[hipZ+5,3.25,2.2,leanForward*.4],[shoulderZ,4.6,2.4,leanForward],[shoulderZ+1,3.8,2.1,leanForward]]) {
-    const ring=[];
-    for(let i=0;i<16;i++) {
-      const theta=TAU*i/16;
-      ring.push(local(uRadius*Math.cos(theta),v+vRadius*Math.sin(theta),z));
+  const {torso,torsoCentre,torsoMesh}=cachedGeometry(`torso:${x}:${y}:${heading}:${pose}`,()=>{
+    const torso=[], torsoRings=[];
+    for (const [z,uRadius,vRadius,v] of [[hipZ,3.6,2.3,0],[hipZ+5,3.25,2.2,leanForward*.4],[shoulderZ,4.6,2.4,leanForward],[shoulderZ+1,3.8,2.1,leanForward]]) {
+      const ring=[];
+      for(let i=0;i<16;i++) {
+        const theta=TAU*i/16;
+        ring.push(local(uRadius*Math.cos(theta),v+vRadius*Math.sin(theta),z));
+      }
+      torso.push(...ring);torsoRings.push(ring);
     }
-    torso.push(...ring);torsoRings.push(ring);
-  }
-  const torsoCentre=local(0,leanForward*.5,(hipZ+shoulderZ)/2);
-  const torsoD=roundedPath(hull(torso.map(projected)));
-  // The painted torso is a convex silhouette. Its waist ring sits inside that
-  // solid, so it must not make a hollow occluder underneath the visible fill.
-  const torsoMesh=surfaceMesh([torsoRings[0],...torsoRings.slice(2)],point=>[point[0]-torsoCentre[0],point[1]-torsoCentre[1],0]);
-  const top=torsoRings.at(-1), topCentre=local(0,leanForward,shoulderZ+1);
-  for(let i=0;i<top.length;i++) torsoMesh.push([topCentre,top[i],top[(i+1)%top.length]]);
+    const torsoCentre=local(0,leanForward*.5,(hipZ+shoulderZ)/2);
+    // The painted torso is a convex silhouette. Its waist ring sits inside that
+    // solid, so it must not make a hollow occluder underneath the visible fill.
+    const torsoMesh=surfaceMesh([torsoRings[0],...torsoRings.slice(2)],point=>[point[0]-torsoCentre[0],point[1]-torsoCentre[1],0]);
+    const top=torsoRings.at(-1), topCentre=local(0,leanForward,shoulderZ+1);
+    for(let i=0;i<top.length;i++) {
+      const a=topCentre, b=top[i], c=top[(i+1)%top.length];
+      torsoMesh.push([a,b,c,cross(sub(b,a),sub(c,a))]);
+    }
+    return {torso,torsoCentre,torsoMesh};
+  });
+  const projectedTorso=torso.map(projected);
+  const torsoD=roundedPath(hull(projectedTorso));
   body.push({at:torsoCentre,markup:painted(torsoD,.075)});
   const neck=local(0,leanForward,shoulderZ+2.7), head=local(0,leanForward+.2,headZ);
   const neckGeometry=ellipsoidGeometry(neck,[1.45,1.4,1.7],true), headGeometry=ellipsoidGeometry(head,[3.0,3.25,3.5],true);
-  for(const geometry of [{d:torsoD,mesh:torsoMesh,bounds:bounds(torso.map(projected))},neckGeometry,headGeometry]) {
+  for(const geometry of [{d:torsoD,mesh:torsoMesh,bounds:bounds(projectedTorso)},neckGeometry,headGeometry]) {
     occluders.push({d:geometry.d,mesh:geometry.mesh,bounds:geometry.bounds});
   }
   body.sort((a,b) => depth(a.at)-depth(b.at));
@@ -312,7 +354,7 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
         visibility:{hiddenFaces:visibility.hiddenFaces},...(segment==='forearm'?{hand:handMetadata}:{})});
     }
     const handGeometry=ellipsoidGeometry(hand,[.9,1.05,.9],true);
-    const handVisibility=maskedSegment(`${armName}-hand`,painted(handGeometry.d,.055),hull(handGeometry.mesh.flat().map(projected)),handGeometry.mesh,false);
+    const handVisibility=maskedSegment(`${armName}-hand`,painted(handGeometry.d,.055),handGeometry.outline,handGeometry.mesh,false);
     parts.push({name:`${armName}-hand`,x:hand[0],y:hand[1],z:hand[2],depth:depth(hand),role:reaching?'reach':'arm',markup:handVisibility.markup});
   }
   if(pose==='holding-records') {
