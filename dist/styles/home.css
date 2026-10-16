@@ -62,6 +62,8 @@
 .home-page .home-footer { padding:0; }
 .home-footer .reef-editorial .text-link { color:#b7c6ff; }
 .home-footer .reef-editorial > div + div { padding-top:37px; }
+.home-footer .reef-definition { max-width:1420px; margin:auto; padding:16px var(--gutter) 32px; }
+.home-footer .reef-definition p { max-width:68ch; font-size:14px; line-height:1.65; color:#bdc7d8; }
 @media(max-width:759px) {
   .home-page .hero {
     display:flex;
