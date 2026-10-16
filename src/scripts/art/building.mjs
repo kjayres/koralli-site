@@ -334,15 +334,81 @@ function extractShapeValues(markup) {
   return values;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function parseViewBox(viewBox) {
+  const nums = String(viewBox || '0 -160 700 860').trim().split(/\s+/).map(Number);
+  return nums.length === 4 && nums.every(Number.isFinite) ? nums : [0, -160, 700, 860];
+}
+
+function promoteLayers(svg, state) {
+  if (state.layered || !svg.closest?.('.building-enhanced')) return;
+  const doc = svg.ownerDocument;
+  const host = svg.parentElement;
+  if (!doc?.createElementNS || !host || !state.world) return;
+  host.querySelectorAll?.('.company-building-layer')?.forEach(node => node.remove());
+  const viewBox = svg.getAttribute?.('viewBox') || '0 -160 700 860';
+  const [, , vbWidth, vbHeight] = parseViewBox(viewBox);
+  state.viewBox = viewBox;
+  state.vbWidth = vbWidth;
+  state.vbHeight = vbHeight;
+  state.world.removeAttribute('transform');
+  for (let index = 3; index >= 0; index--) {
+    for (const [kind, node, slot] of [['floor', state.floors[index], index + 4], ['cover', state.covers[index], index]]) {
+      if (!node) continue;
+      const layerSvg = doc.createElementNS(SVG_NS, 'svg');
+      layerSvg.setAttribute('class', 'company-building company-building-layer');
+      layerSvg.setAttribute('viewBox', viewBox);
+      layerSvg.setAttribute('aria-hidden', 'true');
+      layerSvg.setAttribute('focusable', 'false');
+      layerSvg.dataset.buildingLayer = `${kind}-${index}`;
+      node.removeAttribute('transform');
+      node.removeAttribute('opacity');
+      if (node.style) node.style.display = '';
+      layerSvg.appendChild(node);
+      host.insertBefore(layerSvg, svg);
+      state.layerSvgs[slot] = layerSvg;
+    }
+  }
+  state.layered = true;
+  state.clientWidth = svg.clientWidth || 0;
+  state.clientHeight = svg.clientHeight || 0;
+  state.worldTransform = '';
+  state.liftKeys.fill(null);
+  state.opacityKeys.fill(null);
+  if (typeof ResizeObserver === 'function' && !state.resizeObserver) {
+    state.resizeObserver = new ResizeObserver(() => {
+      state.clientWidth = svg.clientWidth || 0;
+      state.clientHeight = svg.clientHeight || 0;
+      state.liftKeys.fill(null);
+    });
+    state.resizeObserver.observe(svg);
+  }
+}
+
 function parts(svg) {
   if (!cache.has(svg)) {
     const covers = [...svg.querySelectorAll('[data-cover]')].sort((a,b) => +a.dataset.cover - +b.dataset.cover);
     const floors = [...svg.querySelectorAll('[data-floor]')].sort((a,b) => +a.dataset.floor - +b.dataset.floor);
+    const viewBox = svg.getAttribute?.('viewBox') || '0 -160 700 860';
+    const [, , vbWidth, vbHeight] = parseViewBox(viewBox);
     cache.set(svg, {
       covers,
       floors,
+      layerSvgs: Array(8).fill(null),
+      layered: false,
+      resizeObserver: null,
       world: svg.querySelector('[data-building-world]'),
+      worldTransform: '',
+      viewBox,
+      vbWidth,
+      vbHeight,
+      clientWidth: 0,
+      clientHeight: 0,
       geometryKeys: [...covers, ...floors].map(node => node?.innerHTML ? '0' : null),
+      liftKeys: Array(8).fill(null),
+      turnKeys: Array(8).fill(null),
+      opacityKeys: Array(8).fill(null),
       shapes: Array(8).fill(null),
       figurePrefix: svg.dataset.figurePrefix || 'koralli-company-building'
     });
@@ -354,12 +420,12 @@ function pose(local) {
   return {
     // First rise evenly; turning begins once almost all upward travel is complete.
     lift: 94 * smooth(.02, .36, local),
-    angle: number(24 * smooth(.38, .88, local)),
+    angle: Math.round(24 * smooth(.38, .88, local) * 2) / 2,
     opacity: 1 - smooth(.52, .94, local)
   };
 }
 
-function setGeometry(state, kind, index, angle, lift) {
+function setGeometry(state, kind, index, angle, lift, worldDy = 0, scale = 0) {
   const node = state[kind === 'cover' ? 'covers' : 'floors'][index];
   if (!node) return;
   const slot = index + (kind === 'floor' ? 4 : 0);
@@ -367,19 +433,24 @@ function setGeometry(state, kind, index, angle, lift) {
   if (state.geometryKeys[slot] !== key) {
     const base = sectionBase(index);
     const markup = kind === 'cover' ? cover(index, base, angle, 0) : interior(index, base, angle, 0, state.figurePrefix);
-    if (kind === 'cover' && typeof node.querySelectorAll === 'function') {
+    if (typeof node.querySelectorAll === 'function') {
       const shapes = state.shapes[slot] ||= [...node.querySelectorAll('polygon, path, circle, text')];
       const valKey = `${kind}|${index}|${angle}`;
       let values = shapeValueCache.get(valKey);
       if (!values) {
         values = extractShapeValues(markup);
-        if (shapeValueCache.size >= 256) shapeValueCache.delete(shapeValueCache.keys().next().value);
+        if (shapeValueCache.size >= 800) shapeValueCache.delete(shapeValueCache.keys().next().value);
         shapeValueCache.set(valKey, values);
       }
       if (shapes.length === values.length) {
         for (let i = 0; i < shapes.length; i++) {
           const entry = values[i];
-          shapes[i].setAttribute(entry[0], entry[1]);
+          if (entry[0] === 'circle') {
+            shapes[i].setAttribute('cx', entry[1]);
+            shapes[i].setAttribute('cy', entry[2]);
+          } else {
+            shapes[i].setAttribute(entry[0], entry[1]);
+          }
         }
       } else {
         node.innerHTML = markup.slice(markup.indexOf('>') + 1, markup.lastIndexOf('</g>'));
@@ -390,10 +461,30 @@ function setGeometry(state, kind, index, angle, lift) {
     }
     state.geometryKeys[slot] = key;
   }
-  if (lift) node.setAttribute('transform', `translate(0 ${number(-lift)})`);
-  else node.removeAttribute('transform');
-  node.setAttribute('data-world-lift', String(number(lift)));
-  node.setAttribute('data-world-turn', String(number(angle)));
+  const roundedLift = number(lift);
+  const layerSvg = state.layerSvgs[slot];
+  if (layerSvg && scale > 0) {
+    const dyPx = number((worldDy - roundedLift) * scale);
+    const liftKey = `${dyPx}|${roundedLift}`;
+    if (state.liftKeys[slot] !== liftKey) {
+      state.liftKeys[slot] = liftKey;
+      layerSvg.style.transform = `translate3d(0,${dyPx}px,0)`;
+      node.setAttribute('data-world-lift', String(roundedLift));
+    }
+  } else {
+    const liftKey = String(roundedLift);
+    if (state.liftKeys[slot] !== liftKey) {
+      state.liftKeys[slot] = liftKey;
+      if (roundedLift) node.setAttribute('transform', `translate(0 ${number(-roundedLift)})`);
+      else node.removeAttribute('transform');
+      node.setAttribute('data-world-lift', liftKey);
+    }
+  }
+  const turnKey = String(number(angle));
+  if (state.turnKeys[slot] !== turnKey) {
+    state.turnKeys[slot] = turnKey;
+    node.setAttribute('data-world-turn', turnKey);
+  }
 }
 
 export function updateBuilding(svg, progress, reducedMotion = false) {
@@ -401,7 +492,32 @@ export function updateBuilding(svg, progress, reducedMotion = false) {
   const phase = Math.min(3, Math.floor(p * 4));
   const local = p === 1 ? 1 : p * 4 - phase;
   const state = parts(svg);
-  state.world?.setAttribute('transform', `translate(0 ${number(reducedMotion ? -54 : -108 * p)})`);
+  promoteLayers(svg, state);
+  const worldDy = number(reducedMotion ? -54 : -108 * p);
+  let scale = 0;
+  if (state.layered) {
+    const viewBox = svg.getAttribute?.('viewBox') || '0 -160 700 860';
+    if (state.viewBox !== viewBox) {
+      state.viewBox = viewBox;
+      [, , state.vbWidth, state.vbHeight] = parseViewBox(viewBox);
+      for (const layerSvg of state.layerSvgs) layerSvg?.setAttribute('viewBox', viewBox);
+      state.liftKeys.fill(null);
+    }
+    if (!state.clientWidth || !state.clientHeight) {
+      state.clientWidth = svg.clientWidth || 0;
+      state.clientHeight = svg.clientHeight || 0;
+    }
+    if (state.clientWidth > 0 && state.clientHeight > 0) {
+      scale = Math.min(state.clientWidth / state.vbWidth, state.clientHeight / state.vbHeight);
+    }
+  }
+  if (!state.layered || scale <= 0) {
+    const worldTransform = `translate(0 ${worldDy})`;
+    if (state.worldTransform !== worldTransform) {
+      state.worldTransform = worldTransform;
+      state.world?.setAttribute('transform', worldTransform);
+    }
+  }
   for (let index = 0; index < 4; index++) {
     const now = clamp(p * 4 - index);
     const next = clamp(p * 4 - index - 1);
@@ -409,16 +525,33 @@ export function updateBuilding(svg, progress, reducedMotion = false) {
     const followingPose = reducedMotion ? {angle: 0, lift: 0, opacity: 1} : pose(next);
     const coverNode = state.covers[index];
     const floorNode = state.floors[index];
-    const floorOpacity = reducedMotion ? (index === phase ? 1 : 0) : smooth(.03, .23, now) * (index === 3 ? 1 : followingPose.opacity);
-    if (currentPose.opacity > 0 || !coverNode?.innerHTML) setGeometry(state, 'cover', index, currentPose.angle, currentPose.lift);
-    if (floorOpacity > 0 || !floorNode?.innerHTML) setGeometry(state, 'floor', index, followingPose.angle, followingPose.lift);
-    if (coverNode) {
-      coverNode.setAttribute('opacity', String(currentPose.opacity));
-      if (coverNode.style) coverNode.style.display = currentPose.opacity === 0 ? 'none' : '';
+    const coverOpacity = number(currentPose.opacity);
+    const floorOpacity = number(reducedMotion ? (index === phase ? 1 : 0) : smooth(.03, .23, now) * (index === 3 ? 1 : followingPose.opacity));
+    if (coverOpacity > 0 || !coverNode?.innerHTML) setGeometry(state, 'cover', index, currentPose.angle, currentPose.lift, worldDy, scale);
+    else state.liftKeys[index] = null;
+    if (floorOpacity > 0 || !floorNode?.innerHTML) setGeometry(state, 'floor', index, followingPose.angle, followingPose.lift, worldDy, scale);
+    else state.liftKeys[index + 4] = null;
+    const coverOpacityKey = String(coverOpacity);
+    if (coverNode && state.opacityKeys[index] !== coverOpacityKey) {
+      state.opacityKeys[index] = coverOpacityKey;
+      const coverLayerSvg = state.layerSvgs[index];
+      if (coverLayerSvg) {
+        coverLayerSvg.style.opacity = coverOpacityKey;
+      } else {
+        coverNode.setAttribute('opacity', coverOpacityKey);
+        if (coverNode.style) coverNode.style.display = coverOpacity === 0 ? 'none' : '';
+      }
     }
-    if (floorNode) {
-      floorNode.setAttribute('opacity', String(floorOpacity));
-      if (floorNode.style) floorNode.style.display = floorOpacity === 0 ? 'none' : '';
+    const floorOpacityKey = String(floorOpacity);
+    if (floorNode && state.opacityKeys[index + 4] !== floorOpacityKey) {
+      state.opacityKeys[index + 4] = floorOpacityKey;
+      const floorLayerSvg = state.layerSvgs[index + 4];
+      if (floorLayerSvg) {
+        floorLayerSvg.style.opacity = floorOpacityKey;
+      } else {
+        floorNode.setAttribute('opacity', floorOpacityKey);
+        if (floorNode.style) floorNode.style.display = floorOpacity === 0 ? 'none' : '';
+      }
     }
   }
   svg.dataset.activeFloor = String(phase);

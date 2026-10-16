@@ -312,6 +312,7 @@ function buildingFailed(error) {
     building.classList.remove('building-enhanced');
     chamber.removeAttribute('style');
     delete chamber.dataset.depthTheme;
+    building.querySelectorAll?.('.company-building-layer')?.forEach(layer => layer.remove());
     svg.innerHTML = buildingOriginal.content;
     svg.setAttribute('viewBox', buildingOriginal.viewBox);
     panels.forEach(panel => {
@@ -385,24 +386,27 @@ const gauge = document.querySelector('.depth-gauge');
 const gaugeMarker = gauge?.querySelector('b');
 const gaugeValue = gauge?.querySelector('[data-depth-value]');
 let lastScrollAt = -1e9;
+let maxScrollCache = 0;
 function onScroll(event) {
   if (event && typeof performance !== 'undefined') lastScrollAt = performance.now();
+  if (!event || event.type === 'resize') maxScrollCache = 0;
   journalViewportDirty = true;
   if (scrollFrame) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
     const rect = building?.getBoundingClientRect();
-    const maxScroll = gauge ? Math.max(1, document.documentElement.scrollHeight - innerHeight) : 1;
+    const maxScroll = gauge ? (maxScrollCache ||= Math.max(1, document.documentElement.scrollHeight - innerHeight)) : 1;
     updateJournalViewport();
     renderBuilding(false, rect);
     updateApproach();
     if (!gauge) return;
     gauge.hidden = !building?.classList.contains('building-enhanced') || !rect || rect.top > 0;
     const p = clamp(scrollY / maxScroll);
-    if (gaugeMarker) gaugeMarker.style.top = `${p * 104}px`;
+    if (gaugeMarker) gaugeMarker.style.transform = `translate3d(0,${(p * 104).toFixed(2)}px,0)`;
     const label = `−${String(Math.round(p * 120)).padStart(3, '0')} M`;
     if (gaugeValue && gaugeValue.textContent !== label) gaugeValue.textContent = label;
-    gauge.style.color = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
+    const gaugeColor = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
+    if (gauge.style.color !== gaugeColor) gauge.style.color = gaugeColor;
   });
 }
 const tracksScroll = Boolean(building || gauge || journalState || document.querySelector('[data-approach]'));

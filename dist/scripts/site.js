@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=0596755a3247'),
-  research: () => import('./art/research.mjs?v=0596755a3247'),
-  approach: () => import('./art/approach.mjs?v=0596755a3247'),
-  coral: () => import('./art/coral.mjs?v=0596755a3247'),
-  'work-coral': () => import('./art/coral.mjs?v=0596755a3247'),
-  reef: () => import('./art/reef.mjs?v=0596755a3247'),
-  'journal-water': () => import('./art/journal-water.mjs?v=0596755a3247')
+  wave: () => import('./art/wave.mjs?v=8c716b9cfdb8'),
+  research: () => import('./art/research.mjs?v=8c716b9cfdb8'),
+  approach: () => import('./art/approach.mjs?v=8c716b9cfdb8'),
+  coral: () => import('./art/coral.mjs?v=8c716b9cfdb8'),
+  'work-coral': () => import('./art/coral.mjs?v=8c716b9cfdb8'),
+  reef: () => import('./art/reef.mjs?v=8c716b9cfdb8'),
+  'journal-water': () => import('./art/journal-water.mjs?v=8c716b9cfdb8')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=0596755a3247');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=8c716b9cfdb8');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -225,7 +225,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=0596755a3247').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=8c716b9cfdb8').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -312,6 +312,7 @@ function buildingFailed(error) {
     building.classList.remove('building-enhanced');
     chamber.removeAttribute('style');
     delete chamber.dataset.depthTheme;
+    building.querySelectorAll?.('.company-building-layer')?.forEach(layer => layer.remove());
     svg.innerHTML = buildingOriginal.content;
     svg.setAttribute('viewBox', buildingOriginal.viewBox);
     panels.forEach(panel => {
@@ -371,7 +372,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=0596755a3247').then(module => {
+if (building && svg) import('./art/building.mjs?v=8c716b9cfdb8').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -385,24 +386,27 @@ const gauge = document.querySelector('.depth-gauge');
 const gaugeMarker = gauge?.querySelector('b');
 const gaugeValue = gauge?.querySelector('[data-depth-value]');
 let lastScrollAt = -1e9;
+let maxScrollCache = 0;
 function onScroll(event) {
   if (event && typeof performance !== 'undefined') lastScrollAt = performance.now();
+  if (!event || event.type === 'resize') maxScrollCache = 0;
   journalViewportDirty = true;
   if (scrollFrame) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
     const rect = building?.getBoundingClientRect();
-    const maxScroll = gauge ? Math.max(1, document.documentElement.scrollHeight - innerHeight) : 1;
+    const maxScroll = gauge ? (maxScrollCache ||= Math.max(1, document.documentElement.scrollHeight - innerHeight)) : 1;
     updateJournalViewport();
     renderBuilding(false, rect);
     updateApproach();
     if (!gauge) return;
     gauge.hidden = !building?.classList.contains('building-enhanced') || !rect || rect.top > 0;
     const p = clamp(scrollY / maxScroll);
-    if (gaugeMarker) gaugeMarker.style.top = `${p * 104}px`;
+    if (gaugeMarker) gaugeMarker.style.transform = `translate3d(0,${(p * 104).toFixed(2)}px,0)`;
     const label = `−${String(Math.round(p * 120)).padStart(3, '0')} M`;
     if (gaugeValue && gaugeValue.textContent !== label) gaugeValue.textContent = label;
-    gauge.style.color = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
+    const gaugeColor = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
+    if (gauge.style.color !== gaugeColor) gauge.style.color = gaugeColor;
   });
 }
 const tracksScroll = Boolean(building || gauge || journalState || document.querySelector('[data-approach]'));
