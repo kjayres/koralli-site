@@ -1,4 +1,4 @@
-import { humanParts } from './building-people.mjs?v=130dadd68599';
+import { humanParts } from './building-people.mjs?v=b9689e0d24ef';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';
@@ -113,7 +113,7 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
     human('presenting-choice',153,49,-Math.PI/2,'pointing','woman',[140,43,34]);
     let table=desk(69,103,88,36);
     table+=ruledPaper(83,113,19,15)+ruledPaper(123,112,19,15,20.35,true);
-    object('meeting-table',113,121,table);
+    object('meeting-table',90,121,table);
     object('meeting-seat',92,150,chair(85,143));
     object('meeting-seat',135,150,chair(128,143));
     human('considering-proposal',92,149,Math.PI,'seated','man',[92,134,20.7]);
@@ -180,15 +180,18 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
     object('record-comparison-table',154,128,checkDesk);
     human('comparing-records',163,153,Math.PI,'collaborating','woman',[163,139,20.7]);
   }
-  objects.sort((a,b)=>(a.depth??p(a.x,a.y)[1])-(b.depth??p(b.x,b.y)[1]));
+  objects.sort((a,b)=>(a.depth??.45*(a.x+a.y))-(b.depth??.45*(b.x+b.y)));
   for(const {name,markup} of [...objects,...contacts]) drawing+=`<g data-room-object="${name}">${markup}</g>`;
   const result = `<g data-floor="${index}" data-scene="${['direction-offering','people-work','systems-tools','data-foundations'][index]}" opacity="0" stroke="${BLUE}" stroke-width="1.05" stroke-linejoin="round" stroke-linecap="round">${drawing}</g>`;
-  if (interiorCache.size >= 64) interiorCache.delete(interiorCache.keys().next().value);
+  if (interiorCache.size >= 256) interiorCache.delete(interiorCache.keys().next().value);
   interiorCache.set(cacheKey, result);
   return result;
 }
 
+const coverCache = new Map();
 function cover(index, base, angle = 0, lift = 0) {
+  const cacheKey = `${index}|${base}|${angle}|${lift}`;
+  if (coverCache.has(cacheKey)) return coverCache.get(cacheKey);
   const height = SECTION_HEIGHTS[index];
   const p = (x,y,z=0) => project(x,y,z,base,angle,lift);
   const plane = (xy,z) => xy.map(([x,y])=>p(x,y,z));
@@ -298,7 +301,10 @@ function cover(index, base, angle = 0, lift = 0) {
     drawing += polygon(plane([[12,12],[208,12],[208,208],[12,208]],height+.1),'none','stroke-opacity=".15" stroke-width=".6"');
   }
   const storeys=['10-12','7-9','4-6','1-3'][index];
-  return `<g data-cover="${index}" data-section-height="${height}" data-architectural-storeys="${storeys}" stroke="${BLUE}" stroke-width="1" stroke-linejoin="round" stroke-linecap="round">${drawing}</g>`;
+  const result = `<g data-cover="${index}" data-section-height="${height}" data-architectural-storeys="${storeys}" stroke="${BLUE}" stroke-width="1" stroke-linejoin="round" stroke-linecap="round">${drawing}</g>`;
+  if (coverCache.size >= 256) coverCache.delete(coverCache.keys().next().value);
+  coverCache.set(cacheKey, result);
+  return result;
 }
 
 export function buildingMarkup(id='koralli-company-building') {
@@ -314,14 +320,33 @@ export function buildingMarkup(id='koralli-company-building') {
 const clamp=x=>Math.min(1,Math.max(0,x));
 const smooth=(from,to,x)=>{ const v=clamp((x-from)/(to-from)); return v*v*(3-2*v); };
 const cache = new WeakMap();
+const shapeValueCache = new Map();
+const SHAPE_TAG_RE = /<(polygon|path|circle|text)\b[^>]*/g;
+
+function extractShapeValues(markup) {
+  const values = [];
+  for (const [tag, kind] of markup.matchAll(SHAPE_TAG_RE)) {
+    if (kind === 'path') values.push(['d', /\bd="([^"]*)"/.exec(tag)?.[1] || '']);
+    else if (kind === 'polygon') values.push(['points', /\bpoints="([^"]*)"/.exec(tag)?.[1] || '']);
+    else if (kind === 'circle') values.push(['circle', /\bcx="([^"]*)"/.exec(tag)?.[1] || '', /\bcy="([^"]*)"/.exec(tag)?.[1] || '']);
+    else if (kind === 'text') values.push(['transform', /\btransform="([^"]*)"/.exec(tag)?.[1] || '']);
+  }
+  return values;
+}
+
 function parts(svg) {
-  if (!cache.has(svg)) cache.set(svg, {
-    covers: [...svg.querySelectorAll('[data-cover]')].sort((a,b) => +a.dataset.cover - +b.dataset.cover),
-    floors: [...svg.querySelectorAll('[data-floor]')].sort((a,b) => +a.dataset.floor - +b.dataset.floor),
-    world: svg.querySelector('[data-building-world]'),
-    geometryKeys: Array(8).fill(null),
-    figurePrefix: svg.dataset.figurePrefix || 'koralli-company-building'
-  });
+  if (!cache.has(svg)) {
+    const covers = [...svg.querySelectorAll('[data-cover]')].sort((a,b) => +a.dataset.cover - +b.dataset.cover);
+    const floors = [...svg.querySelectorAll('[data-floor]')].sort((a,b) => +a.dataset.floor - +b.dataset.floor);
+    cache.set(svg, {
+      covers,
+      floors,
+      world: svg.querySelector('[data-building-world]'),
+      geometryKeys: [...covers, ...floors].map(node => node?.innerHTML ? '0' : null),
+      shapes: Array(8).fill(null),
+      figurePrefix: svg.dataset.figurePrefix || 'koralli-company-building'
+    });
+  }
   return cache.get(svg);
 }
 
@@ -329,7 +354,7 @@ function pose(local) {
   return {
     // First rise evenly; turning begins once almost all upward travel is complete.
     lift: 94 * smooth(.02, .36, local),
-    angle: 24 * smooth(.38, .88, local),
+    angle: Math.round(24 * smooth(.38, .88, local)),
     opacity: 1 - smooth(.52, .94, local)
   };
 }
@@ -338,25 +363,43 @@ function setGeometry(state, kind, index, angle, lift) {
   const node = state[kind === 'cover' ? 'covers' : 'floors'][index];
   if (!node) return;
   const slot = index + (kind === 'floor' ? 4 : 0);
-  const key = `${angle}|${lift}`;
+  const key = String(angle);
   if (state.geometryKeys[slot] !== key) {
     const base = sectionBase(index);
-    const markup = kind === 'cover' ? cover(index, base, angle, lift) : interior(index, base, angle, lift, state.figurePrefix);
-    node.innerHTML = markup.slice(markup.indexOf('>') + 1, markup.lastIndexOf('</g>'));
+    const markup = kind === 'cover' ? cover(index, base, angle, 0) : interior(index, base, angle, 0, state.figurePrefix);
+    if (typeof node.querySelectorAll === 'function') {
+      const shapes = state.shapes[slot] ||= [...node.querySelectorAll('polygon, path, circle, text')];
+      const valKey = `${kind}|${index}|${angle}`;
+      let values = shapeValueCache.get(valKey);
+      if (!values) {
+        values = extractShapeValues(markup);
+        shapeValueCache.set(valKey, values);
+      }
+      if (shapes.length === values.length) {
+        for (let i = 0; i < shapes.length; i++) {
+          const entry = values[i];
+          if (entry[0] === 'circle') {
+            shapes[i].setAttribute('cx', entry[1]);
+            shapes[i].setAttribute('cy', entry[2]);
+          } else {
+            shapes[i].setAttribute(entry[0], entry[1]);
+          }
+        }
+      } else {
+        node.innerHTML = markup.slice(markup.indexOf('>') + 1, markup.lastIndexOf('</g>'));
+        state.shapes[slot] = null;
+      }
+    } else {
+      node.innerHTML = markup.slice(markup.indexOf('>') + 1, markup.lastIndexOf('</g>'));
+    }
     state.geometryKeys[slot] = key;
   }
-  node.removeAttribute('transform');
+  if (lift) node.setAttribute('transform', `translate(0 ${number(-lift)})`);
+  else node.removeAttribute('transform');
   node.setAttribute('data-world-lift', String(number(lift)));
   node.setAttribute('data-world-turn', String(number(angle)));
 }
 
-/**
- * Scrolling selects a pose, so backwards scrolling exactly restores every point.
- * The geometry is projected again after turning in world XY and lifting in world Z.
- * SVG screen-plane rotation is deliberately never used: walls remain vertical,
- * and all four slab corners share the same upward displacement.
- * Reduced motion presents one stationary cutaway selected by the caller.
- */
 export function updateBuilding(svg, progress, reducedMotion = false) {
   const p = clamp(Number.isFinite(progress) ? progress : 0);
   const phase = Math.min(3, Math.floor(p * 4));
@@ -368,11 +411,19 @@ export function updateBuilding(svg, progress, reducedMotion = false) {
     const next = clamp(p * 4 - index - 1);
     const currentPose = reducedMotion ? {angle: 0, lift: 0, opacity: index <= phase ? 0 : 1} : pose(now);
     const followingPose = reducedMotion ? {angle: 0, lift: 0, opacity: 1} : pose(next);
-    setGeometry(state, 'cover', index, currentPose.angle, currentPose.lift);
-    setGeometry(state, 'floor', index, followingPose.angle, followingPose.lift);
-    state.covers[index]?.setAttribute('opacity', String(currentPose.opacity));
+    const coverNode = state.covers[index];
+    const floorNode = state.floors[index];
     const floorOpacity = reducedMotion ? (index === phase ? 1 : 0) : smooth(.03, .23, now) * (index === 3 ? 1 : followingPose.opacity);
-    state.floors[index]?.setAttribute('opacity', String(floorOpacity));
+    if (currentPose.opacity > 0 || !coverNode?.innerHTML) setGeometry(state, 'cover', index, currentPose.angle, currentPose.lift);
+    if (floorOpacity > 0 || !floorNode?.innerHTML) setGeometry(state, 'floor', index, followingPose.angle, followingPose.lift);
+    if (coverNode) {
+      coverNode.setAttribute('opacity', String(currentPose.opacity));
+      if (coverNode.style) coverNode.style.display = currentPose.opacity === 0 ? 'none' : '';
+    }
+    if (floorNode) {
+      floorNode.setAttribute('opacity', String(floorOpacity));
+      if (floorNode.style) floorNode.style.display = floorOpacity === 0 ? 'none' : '';
+    }
   }
   svg.dataset.activeFloor = String(phase);
   const textOpacity = reducedMotion ? 1 : smooth(.06, .25, local) * (phase === 3 ? 1 : 1 - smooth(.84, 1, local));

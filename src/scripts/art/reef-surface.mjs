@@ -194,20 +194,24 @@ export function* reefActorPreparationSteps(ctx, width, height, underlay = null, 
     work.underlay = underlay; work.underlayBuffer = underlay?.depthBuffer;
     work.staticScaleX = underlay ? underlay.rasterWidth / width : 1;
     work.staticScaleY = underlay ? underlay.rasterHeight / height : 1;
-    for (let y = 0; y < rasterHeight; y++) {
-      if(y%16===0)yield;
-      for (let x = 0; x < rasterWidth; x++) {
-      let nearest = 0;
-      if (underlay) {
-        const x0 = Math.floor(x * work.staticScaleX), x1 = Math.min(underlay.rasterWidth - 1, Math.ceil((x + 1) * work.staticScaleX) - 1);
-        const y0 = Math.floor(y * work.staticScaleY), y1 = Math.min(underlay.rasterHeight - 1, Math.ceil((y + 1) * work.staticScaleY) - 1);
-        for (let sy = y0; sy <= y1; sy++) for (let sx = x0; sx <= x1; sx++) {
-          nearest = Math.max(nearest, underlay.depthBuffer[sy * underlay.rasterWidth + sx]);
+    if (underlay && underlay.rasterWidth === rasterWidth && underlay.rasterHeight === rasterHeight) {
+      baseDepth.set(underlay.depthBuffer);
+    } else if (!underlay) {
+      baseDepth.fill(0);
+    } else {
+      for (let y = 0; y < rasterHeight; y++) {
+        if(y%16===0)yield;
+        for (let x = 0; x < rasterWidth; x++) {
+          let nearest = 0;
+          const x0 = Math.floor(x * work.staticScaleX), x1 = Math.min(underlay.rasterWidth - 1, Math.ceil((x + 1) * work.staticScaleX) - 1);
+          const y0 = Math.floor(y * work.staticScaleY), y1 = Math.min(underlay.rasterHeight - 1, Math.ceil((y + 1) * work.staticScaleY) - 1);
+          for (let sy = y0; sy <= y1; sy++) for (let sx = x0; sx <= x1; sx++) {
+            nearest = Math.max(nearest, underlay.depthBuffer[sy * underlay.rasterWidth + sx]);
+          }
+          // Conservative downsampling prevents a rear actor leaking through the
+          // half-pixel boundary of a foreground branch at the higher static DPR.
+          baseDepth[y * rasterWidth + x] = nearest;
         }
-      }
-      // Conservative downsampling prevents a rear actor leaking through the
-      // half-pixel boundary of a foreground branch at the higher static DPR.
-      baseDepth[y * rasterWidth + x] = nearest;
       }
     }
   }

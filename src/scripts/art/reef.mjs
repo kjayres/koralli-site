@@ -263,8 +263,10 @@ export class Reef {
       let result;
       do {
         if(!isCurrent()){steps.return();return null;}
+        if(s.waitForIdle)await s.waitForIdle();
+        if(!isCurrent()){steps.return();return null;}
         const start=performance.now();
-        do { result=steps.next(); } while(!result.done&&performance.now()-start<8);
+        do { result=steps.next(); } while(!result.done&&performance.now()-start<2);
         stats.slices++;stats.maxSliceMs=Math.max(stats.maxSliceMs,performance.now()-start);
         if(!result.done)await new Promise(resolve=>setTimeout(resolve,0));
       } while(!result.done);

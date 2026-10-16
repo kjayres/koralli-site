@@ -178,7 +178,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       const rect = state.kind === 'approach'
         ? { width: canvas.parentElement.clientWidth, height: canvas.parentElement.clientHeight }
         : canvas.parentElement.getBoundingClientRect();
-      const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : 2);
+      const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : state.kind === 'reef' ? 1 : 2);
       if (state.w === rect.width && state.h === rect.height && state.dpr === dpr) return;
       state.w = rect.width;
       state.h = rect.height;
@@ -193,6 +193,13 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       else paint(state);
     } catch (error) { artworkFailed(state, error); }
   };
+  if (state.kind === 'reef' && typeof performance !== 'undefined' && typeof setTimeout === 'function') {
+    state.waitForIdle = async () => {
+      while (!state.visible && !state.failed && !document.hidden && performance.now() - lastScrollAt < 180) {
+        await new Promise(resolve => setTimeout(resolve, 60));
+      }
+    };
+  }
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(entries => {
     state.visible = entries[0].isIntersecting;
@@ -273,7 +280,8 @@ function colourDepth(progress, force = false) {
   const luminance = linear.reduce((sum,v,i) => sum+v*[.2126,.7152,.0722][i],0);
   // Choose the readable side of the palette as the water darkens.
   const text = luminance < .19 ? 1 : 0;
-  chamber.style.backgroundColor = `rgb(${background.join(',')})`;
+  const bg = `rgb(${background.join(',')})`;
+  if (chamber.style.backgroundColor !== bg) chamber.style.backgroundColor = bg;
   if (!force && chamber.dataset.depthTheme === String(text)) return;
   chamber.dataset.depthTheme = String(text);
   chamber.style.color = mixColour([17,17,17], [243,240,232], text);
@@ -315,10 +323,10 @@ function buildingFailed(error) {
   console.error('Unable to initialise the building artwork:', error);
 }
 
-function renderBuilding(force = false) {
+function renderBuilding(force = false, preReadRect = null) {
   if (!updateBuilding || !building?.classList.contains('building-enhanced')) return;
   try {
-    const rect = building.getBoundingClientRect();
+    const rect = preReadRect || building.getBoundingClientRect();
     if (!force && !motion.matches && (rect.top > innerHeight || rect.bottom < 0)) return;
     const progress = motion.matches ? (staticDepth + .6) / panels.length : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
     const compact = innerWidth < 760;
@@ -326,7 +334,7 @@ function renderBuilding(force = false) {
     if (!force && renderKey === lastBuildingKey) return;
     lastBuildingKey = renderKey;
     const focus = clamp((progress - .25) / .75);
-    const viewBox = compact ? `130 ${-160 + 320 * focus} 440 ${800 - 440 * focus}` : '0 -160 700 860';
+    const viewBox = compact ? `130 ${Math.round(-160 + 320 * focus)} 440 ${Math.round(800 - 440 * focus)}` : '0 -160 700 860';
     if (svg.getAttribute('viewBox') !== viewBox) svg.setAttribute('viewBox', viewBox);
     buildingProgress = progress;
     colourDepth(progress, force);
@@ -374,20 +382,26 @@ if (building && svg) import('./art/building.mjs').then(module => {
 }).catch(buildingFailed);
 
 const gauge = document.querySelector('.depth-gauge');
-function onScroll() {
+const gaugeMarker = gauge?.querySelector('b');
+const gaugeValue = gauge?.querySelector('[data-depth-value]');
+let lastScrollAt = -1e9;
+function onScroll(event) {
+  if (event && typeof performance !== 'undefined') lastScrollAt = performance.now();
   journalViewportDirty = true;
   if (scrollFrame) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
+    const rect = building?.getBoundingClientRect();
+    const maxScroll = gauge ? Math.max(1, document.documentElement.scrollHeight - innerHeight) : 1;
     updateJournalViewport();
-    renderBuilding();
+    renderBuilding(false, rect);
     updateApproach();
     if (!gauge) return;
-    const rect = building?.getBoundingClientRect();
     gauge.hidden = !building?.classList.contains('building-enhanced') || !rect || rect.top > 0;
-    const p = clamp(scrollY / Math.max(1, document.documentElement.scrollHeight - innerHeight));
-    gauge.querySelector('b').style.top = `${p * 104}px`;
-    gauge.querySelector('[data-depth-value]').textContent = `−${String(Math.round(p * 120)).padStart(3, '0')} M`;
+    const p = clamp(scrollY / maxScroll);
+    if (gaugeMarker) gaugeMarker.style.top = `${p * 104}px`;
+    const label = `−${String(Math.round(p * 120)).padStart(3, '0')} M`;
+    if (gaugeValue && gaugeValue.textContent !== label) gaugeValue.textContent = label;
     gauge.style.color = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
   });
 }

@@ -1,10 +1,10 @@
-import { ORGANIC_CORALS } from './reef-organic.mjs?v=130dadd68599';
-import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs?v=130dadd68599';
-import { reefTerrain, reefRockFragments } from './reef-terrain.mjs?v=130dadd68599';
-import { reefCurrent, reefPlankton } from './reef-current.mjs?v=130dadd68599';
-import { movingTurtle } from './reef-turtle.mjs?v=130dadd68599';
-import { fishPose } from './reef-fish-motion.mjs?v=130dadd68599';
-import { reefSurfaceSteps, reefActorPreparationSteps, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs?v=130dadd68599';
+import { ORGANIC_CORALS } from './reef-organic.mjs?v=b9689e0d24ef';
+import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs?v=b9689e0d24ef';
+import { reefTerrain, reefRockFragments } from './reef-terrain.mjs?v=b9689e0d24ef';
+import { reefCurrent, reefPlankton } from './reef-current.mjs?v=b9689e0d24ef';
+import { movingTurtle } from './reef-turtle.mjs?v=b9689e0d24ef';
+import { fishPose } from './reef-fish-motion.mjs?v=b9689e0d24ef';
+import { reefSurfaceSteps, reefActorPreparationSteps, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs?v=b9689e0d24ef';
 
 const TAU = Math.PI * 2;
 const WATER = [12, 22, 48];
@@ -263,8 +263,10 @@ export class Reef {
       let result;
       do {
         if(!isCurrent()){steps.return();return null;}
+        if(s.waitForIdle)await s.waitForIdle();
+        if(!isCurrent()){steps.return();return null;}
         const start=performance.now();
-        do { result=steps.next(); } while(!result.done&&performance.now()-start<8);
+        do { result=steps.next(); } while(!result.done&&performance.now()-start<2);
         stats.slices++;stats.maxSliceMs=Math.max(stats.maxSliceMs,performance.now()-start);
         if(!result.done)await new Promise(resolve=>setTimeout(resolve,0));
       } while(!result.done);
