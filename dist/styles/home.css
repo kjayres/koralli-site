@@ -1,0 +1,88 @@
+/* A shared type scale and reading grid for the homepage. */
+.home-page {
+  --home-body:clamp(16px,1.2vw,17px);
+  --home-heading:clamp(29px,3vw,40px);
+}
+.home-page .hero-copy {
+  left:50%;
+  right:auto;
+  transform:translateX(-50%);
+  width:calc(100% - 2 * var(--gutter));
+  max-width:1276px;
+}
+.home-page .hero-strapline {
+  max-width:54ch;
+  font-size:15px;
+  line-height:1.5;
+  color:var(--blue);
+}
+.home-page .hero .intro,
+.home-page .hero-definition,
+.home-page .editorial-grid p:not(.eyebrow):not(.quote-attribution),
+.home-page .invitation-copy p,
+.home-page .building-intro,
+.home-page .reef-editorial p:not(.eyebrow) {
+  font-size:var(--home-body);
+  line-height:1.65;
+  letter-spacing:normal;
+}
+.home-page .hero .intro,
+.home-page .hero-definition { max-width:60ch; }
+.home-page .editorial-grid,
+.home-page .invitation-copy,
+.home-page .reef-editorial { align-items:start; }
+.home-page .editorial-grid h2,
+.home-page .invitation-copy h2,
+.home-page .building-heading h2,
+.home-page .reef-editorial h2 {
+  font-size:var(--home-heading);
+  line-height:1.15;
+  letter-spacing:-.035em;
+  margin-top:0;
+  text-wrap:balance;
+}
+.home-page .client-quote { margin:0; max-width:none; }
+.home-page .client-quote h2 { max-width:20ch; }
+.home-page .proof-section .quote-attribution {
+  margin:18px 0 0 22px;
+  font:13px/1.6 'Instrument Sans',sans-serif;
+  letter-spacing:normal;
+}
+.home-page .building-heading,
+.home-page .building-layout { max-width:1276px; margin-left:auto; margin-right:auto; }
+.home-page .building-caption {
+  margin-bottom:22px;
+  max-width:34ch;
+  font-size:14px;
+  line-height:1.5;
+  color:var(--depth-muted);
+}
+.home-page .building-heading h2 { max-width:none; }
+.home-page .building-intro { max-width:76ch; }
+.home-page .home-footer { padding:0; }
+.home-footer-details { max-width:1420px; margin:auto; padding:0 var(--gutter) 25px; }
+.home-footer .footer-main,
+.home-footer .footer-bottom { max-width:none; }
+.home-footer .footer-definition { max-width:62ch; margin-top:0; font-size:15px; line-height:1.65; color:#bdc7d8; }
+.home-footer .reef-editorial .text-link { color:#b7c6ff; }
+.home-footer .reef-editorial > div + div { padding-top:37px; }
+@media(max-width:759px) {
+  .home-page .hero {
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    min-height:100svh;
+    height:auto;
+    padding:180px var(--gutter) 60px;
+  }
+  .home-page .hero-copy {
+    position:relative;
+    left:auto;
+    bottom:auto;
+    transform:none;
+    width:100%;
+  }
+  .home-page .hero-strapline { max-width:36ch; font-size:14px; }
+  .home-page .building-caption { margin-bottom:16px; font-size:13px; }
+  .home-footer .reef-editorial > div + div { padding-top:0; }
+}
