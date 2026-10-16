@@ -26,6 +26,7 @@
 .deep-water .section-label,.deep-water .home-journal p { color:#b1bbd1; }
 .deep-water .section-label i { background:var(--rule); }
 .deep-water .editorial-grid p:not(.lead),.deep-water .invitation-copy p:not(.lead) { color:#bdc7d8; }
+.deep-water .proof-section .quote-attribution { color:#bdc7d8; }
 .deep-water .text-link { color:#b7c6ff; }
 .deep-water .text-link:hover { color:var(--coral); }
 .deep-water :focus-visible { outline-color:#b7c6ff; }

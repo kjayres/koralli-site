@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=2d4cdc57dd41'),
-  research: () => import('./art/research.mjs?v=2d4cdc57dd41'),
-  approach: () => import('./art/approach.mjs?v=2d4cdc57dd41'),
-  coral: () => import('./art/coral.mjs?v=2d4cdc57dd41'),
-  'work-coral': () => import('./art/coral.mjs?v=2d4cdc57dd41'),
-  reef: () => import('./art/reef.mjs?v=2d4cdc57dd41'),
-  'journal-water': () => import('./art/journal-water.mjs?v=2d4cdc57dd41')
+  wave: () => import('./art/wave.mjs?v=bfdfd34c14de'),
+  research: () => import('./art/research.mjs?v=bfdfd34c14de'),
+  approach: () => import('./art/approach.mjs?v=bfdfd34c14de'),
+  coral: () => import('./art/coral.mjs?v=bfdfd34c14de'),
+  'work-coral': () => import('./art/coral.mjs?v=bfdfd34c14de'),
+  reef: () => import('./art/reef.mjs?v=bfdfd34c14de'),
+  'journal-water': () => import('./art/journal-water.mjs?v=bfdfd34c14de')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=2d4cdc57dd41');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=bfdfd34c14de');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -218,7 +218,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=2d4cdc57dd41').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=bfdfd34c14de').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -348,7 +348,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=2d4cdc57dd41').then(module => {
+if (building && svg) import('./art/building.mjs?v=bfdfd34c14de').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -407,10 +407,10 @@ document.addEventListener('visibilitychange', () => {
 document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
-if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=2d4cdc57dd41')
+if (document.querySelector('[data-workbench]')) import('./workflow-view.mjs?v=bfdfd34c14de')
   .then(({ initWorkflows }) => initWorkflows())
   .catch(error => console.error('Unable to initialise the workflow examples:', error));
-if (document.querySelector('#team-question')) import('./team.mjs?v=2d4cdc57dd41')
+if (document.querySelector('#team-question')) import('./team.mjs?v=bfdfd34c14de')
   .then(({ initTeam }) => initTeam())
   .catch(error => console.error('Unable to initialise the team examples:', error));
 if (tracksScroll) onScroll();
