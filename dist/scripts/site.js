@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=8c716b9cfdb8'),
-  research: () => import('./art/research.mjs?v=8c716b9cfdb8'),
-  approach: () => import('./art/approach.mjs?v=8c716b9cfdb8'),
-  coral: () => import('./art/coral.mjs?v=8c716b9cfdb8'),
-  'work-coral': () => import('./art/coral.mjs?v=8c716b9cfdb8'),
-  reef: () => import('./art/reef.mjs?v=8c716b9cfdb8'),
-  'journal-water': () => import('./art/journal-water.mjs?v=8c716b9cfdb8')
+  wave: () => import('./art/wave.mjs?v=147b1a2175a9'),
+  research: () => import('./art/research.mjs?v=147b1a2175a9'),
+  approach: () => import('./art/approach.mjs?v=147b1a2175a9'),
+  coral: () => import('./art/coral.mjs?v=147b1a2175a9'),
+  'work-coral': () => import('./art/coral.mjs?v=147b1a2175a9'),
+  reef: () => import('./art/reef.mjs?v=147b1a2175a9'),
+  'journal-water': () => import('./art/journal-water.mjs?v=147b1a2175a9')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=8c716b9cfdb8');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=147b1a2175a9');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -193,13 +193,6 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       else paint(state);
     } catch (error) { artworkFailed(state, error); }
   };
-  if (state.kind === 'reef' && typeof performance !== 'undefined' && typeof setTimeout === 'function') {
-    state.waitForIdle = async () => {
-      while (!state.visible && !state.failed && !document.hidden && performance.now() - lastScrollAt < 180) {
-        await new Promise(resolve => setTimeout(resolve, 60));
-      }
-    };
-  }
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(entries => {
     state.visible = entries[0].isIntersecting;
@@ -225,7 +218,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=8c716b9cfdb8').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=147b1a2175a9').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -372,7 +365,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=8c716b9cfdb8').then(module => {
+if (building && svg) import('./art/building.mjs?v=147b1a2175a9').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);

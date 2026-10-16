@@ -30,6 +30,8 @@ function midpoint(a, b) {
     y: (a.y * a.z + b.y * b.z) / total, z: total / 2 };
 }
 
+let surfaceRunId = 0;
+
 // This runs only when the static reef cache is rebuilt. Inverse depth is
 // linear across a projected triangle, unlike ordinary camera-space depth.
 export function paintReefSurface(ctx, triangles, width, height) {
@@ -41,6 +43,7 @@ export function paintReefSurface(ctx, triangles, width, height) {
 
 export function* reefSurfaceSteps(ctx, triangles, width, height) {
   if (!(width > 0 && height > 0 && Number.isFinite(width + height))) return null;
+  const runId = ++surfaceRunId;
   const transform = ctx.getTransform?.();
   const requested = transform ? Math.max(Math.hypot(transform.a, transform.b), Math.hypot(transform.c, transform.d)) : 1;
   const dpr = Math.min(2, Math.max(1, requested || 1), Math.sqrt(MAX_PIXELS / (width * height)), 8192 / Math.max(width, height));
@@ -51,27 +54,40 @@ export function* reefSurfaceSteps(ctx, triangles, width, height) {
   const paint = surface.getContext('2d'), image = paint.createImageData(rasterWidth, rasterHeight);
   const pixels = new Uint32Array(image.data.buffer, image.data.byteOffset, rasterWidth * rasterHeight);
   const depth = new Float32Array(rasterWidth * rasterHeight), colours = new Map();
-  const edges = new Map(), vertexIds = new WeakMap(), positions = new Map();
+  const edges = new Map(), midpoints = new Map(), positions = new Map();
   let nextId = 0, triangleCount = 0;
   function vertexId(point) {
-    if (vertexIds.has(point)) return vertexIds.get(point);
+    if (point._vrun === runId) return point._vid;
     const key = `${point.x.toFixed(5)},${point.y.toFixed(5)},${point.z.toFixed(5)}`;
     let id = positions.get(key);
     if (id === undefined) { id = nextId++; positions.set(key, id); }
-    vertexIds.set(point, id);
+    point._vrun = runId;
+    point._vid = id;
     return id;
   }
-  function addEdge(a, b, triangle, slope, lineWidth = triangle.width) {
-    const ai = vertexId(a), bi = vertexId(b), key = ai < bi ? `${ai}:${bi}` : `${bi}:${ai}`;
+  function addEdge(a, b, ai, bi, triangle, slope, lineWidth = triangle.width) {
+    const key = ai < bi ? ai * 67108864 + bi : bi * 67108864 + ai;
     const previous = edges.get(key);
-    if (previous) { previous.slope = Math.max(previous.slope, slope); return; }
+    if (previous) { previous.slope = Math.max(previous.slope, slope); return key; }
     edges.set(key, { a, b, stroke: triangle.stroke, width: lineWidth, slope });
+    return key;
+  }
+  function edgeMidpoint(a, b, key) {
+    let mp = midpoints.get(key);
+    if (!mp) {
+      mp = midpoint(a, b);
+      mp._vrun = runId;
+      mp._vid = nextId++;
+      midpoints.set(key, mp);
+    }
+    return mp;
   }
   let processed = 0;
   for (const triangle of triangles) {
-    if (++processed % 256 === 0) yield;
+    if (++processed % 1024 === 0) yield;
     const { a, b, c } = triangle;
-    if (![a, b, c].every(p => p && Number.isFinite(p.x + p.y + p.z) && p.z > 0)) continue;
+    if (!a || !b || !c || !Number.isFinite(a.x + a.y + a.z + b.x + b.y + b.z + c.x + c.y + c.z)
+      || a.z <= 0 || b.z <= 0 || c.z <= 0) continue;
     const ax = a.x * dpr, ay = a.y * dpr, bx = b.x * dpr, by = b.y * dpr, cx = c.x * dpr, cy = c.y * dpr;
     const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
     if (Math.abs(den) < 1e-8) continue;
@@ -96,10 +112,15 @@ export function* reefSurfaceSteps(ctx, triangles, width, height) {
     }
     // Allow for the offset from an edge sample to the depth pixel's centre.
     const slope = .55 * (Math.abs(dx) + Math.abs(dy));
-    addEdge(a, b, triangle, slope); addEdge(b, c, triangle, slope); addEdge(c, a, triangle, slope);
+    const ai = vertexId(a), bi = vertexId(b), ci = vertexId(c);
+    const abKey = addEdge(a, b, ai, bi, triangle, slope);
+    const bcKey = addEdge(b, c, bi, ci, triangle, slope);
+    const caKey = addEdge(c, a, ci, ai, triangle, slope);
     if (triangle.subdivide) {
-      const ab = midpoint(a, b), bc = midpoint(b, c), ca = midpoint(c, a);
-      addEdge(ab, bc, triangle, slope, .24); addEdge(bc, ca, triangle, slope, .24); addEdge(ca, ab, triangle, slope, .24);
+      const ab = edgeMidpoint(a, b, abKey), bc = edgeMidpoint(b, c, bcKey), ca = edgeMidpoint(c, a, caKey);
+      addEdge(ab, bc, ab._vid, bc._vid, triangle, slope, .24);
+      addEdge(bc, ca, bc._vid, ca._vid, triangle, slope, .24);
+      addEdge(ca, ab, ca._vid, ab._vid, triangle, slope, .24);
     }
     triangleCount++;
   }
@@ -109,11 +130,12 @@ export function* reefSurfaceSteps(ctx, triangles, width, height) {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const groups = new Map();
   for (const edge of edges.values()) {
-    if (++processed % 1024 === 0) yield;
+    if (++processed % 2048 === 0) yield;
     if (!(Number.isFinite(edge.width) && edge.width > 0)) continue;
     const key = `${edge.stroke}:${edge.width}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(edge);
+    let group = groups.get(key);
+    if (!group) { group = []; groups.set(key, group); }
+    group.push(edge);
   }
   let visibleEdges = 0, visibleSegments = 0;
   for (const group of groups.values()) {
@@ -121,19 +143,15 @@ export function* reefSurfaceSteps(ctx, triangles, width, height) {
     ctx.beginPath();
     let pathCount = 0;
     for (const { a, b, slope } of group) {
-      if (++processed % 256 === 0) yield;
-      const clip = clipLine(a, b, width, height);
-      if (!clip) continue;
-      const [lo, hi] = clip, dx = b.x - a.x, dy = b.y - a.y;
+      if (++processed % 1024 === 0) yield;
+      const inside = a.x >= 0 && a.y >= 0 && a.x <= width && a.y <= height
+        && b.x >= 0 && b.y >= 0 && b.x <= width && b.y <= height;
+      const clip = inside ? null : clipLine(a, b, width, height);
+      if (!inside && !clip) continue;
+      const lo = inside ? 0 : clip[0], hi = inside ? 1 : clip[1], dx = b.x - a.x, dy = b.y - a.y;
       const za = 1 / a.z, dz = 1 / b.z - za;
       const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) * (hi - lo) * dpr / .6));
       let start = null, wasVisible = false;
-      function finish(end) {
-        ctx.moveTo(a.x + dx * start, a.y + dy * start);
-        ctx.lineTo(a.x + dx * end, a.y + dy * end);
-        visibleSegments++; pathCount++; wasVisible = true; start = null;
-        if (pathCount >= 4096) { ctx.stroke(); ctx.beginPath(); pathCount = 0; }
-      }
       for (let i = 0; i < steps; i++) {
         const t = lo + (hi - lo) * (i + .5) / steps;
         const x = Math.min(rasterWidth - 1, Math.max(0, Math.floor((a.x + dx * t) * dpr)));
@@ -141,9 +159,20 @@ export function* reefSurfaceSteps(ctx, triangles, width, height) {
         const inverse = za + dz * t;
         const visible = inverse + slope + inverse * .00002 >= depth[y * rasterWidth + x];
         if (visible && start === null) start = lo + (hi - lo) * i / steps;
-        if (!visible && start !== null) finish(lo + (hi - lo) * i / steps);
+        if (!visible && start !== null) {
+          const end = lo + (hi - lo) * i / steps;
+          ctx.moveTo(a.x + dx * start, a.y + dy * start);
+          ctx.lineTo(a.x + dx * end, a.y + dy * end);
+          visibleSegments++; pathCount++; wasVisible = true; start = null;
+          if (pathCount >= 4096) { ctx.stroke(); ctx.beginPath(); pathCount = 0; }
+        }
       }
-      if (start !== null) finish(hi);
+      if (start !== null) {
+        ctx.moveTo(a.x + dx * start, a.y + dy * start);
+        ctx.lineTo(a.x + dx * hi, a.y + dy * hi);
+        visibleSegments++; pathCount++; wasVisible = true;
+        if (pathCount >= 4096) { ctx.stroke(); ctx.beginPath(); pathCount = 0; }
+      }
       if (wasVisible) visibleEdges++;
     }
     if (pathCount) ctx.stroke();
@@ -170,6 +199,7 @@ function actorWorkspace(ctx, width, height) {
     pixels: new Uint32Array(image.data.buffer, image.data.byteOffset, rasterWidth * rasterHeight),
     depthBuffer: new Float32Array(rasterWidth * rasterHeight), baseDepth: new Float32Array(rasterWidth * rasterHeight),
     colours: new Map(), groups: new Map(), edges: [], edgeLookup: new Map(),
+    dirtyMinY: rasterHeight, dirtyMaxY: -1, frameId: 0,
     // Inverse camera depth: larger means nearer, zero means no surface.
     depthAt(x, y) {
       if (x < 0 || y < 0 || x >= this.width || y >= this.height) return 0;
@@ -214,6 +244,10 @@ export function* reefActorPreparationSteps(ctx, width, height, underlay = null, 
         }
       }
     }
+    work.depthBuffer.set(baseDepth);
+    work.pixels.fill(0);
+    work.dirtyMinY = rasterHeight;
+    work.dirtyMaxY = -1;
   }
   return work;
 }
@@ -224,15 +258,20 @@ export function paintReefActors(ctx, triangles, width, height, { underlay = null
   const work=prepared.value;
   if(!work)return null;
   const { rasterWidth, rasterHeight, pixels, depthBuffer: depth, baseDepth, colours, groups, edges, edgeLookup } = work;
-  pixels.fill(0); depth.set(baseDepth);
+  const prevMinY = work.dirtyMinY, prevMaxY = work.dirtyMaxY;
+  if (prevMaxY >= prevMinY) {
+    const clearStart = prevMinY * rasterWidth, clearEnd = (prevMaxY + 1) * rasterWidth;
+    pixels.fill(0, clearStart, clearEnd);
+    depth.set(baseDepth.subarray(clearStart, clearEnd), clearStart);
+  }
+  let minY = rasterHeight, maxY = -1;
   for (const widths of groups.values()) for (const group of widths.values()) group.count = 0;
   edgeLookup.clear();
-  const vertexIds = new WeakMap();
+  const frameId = (work.frameId = (work.frameId || 0) + 1);
   let nextVertex = 1;
   function vertexId(point) {
-    let id = vertexIds.get(point);
-    if (id === undefined) { id = nextVertex++; vertexIds.set(point, id); }
-    return id;
+    if (point._vframe !== frameId) { point._vframe = frameId; point._vid = nextVertex++; }
+    return point._vid;
   }
   let edgeCount = 0, triangleCount = 0;
   function addEdge(a, b, ai, bi, slope, group) {
@@ -253,6 +292,8 @@ export function paintReefActors(ctx, triangles, width, height, { underlay = null
     const left = Math.max(0, Math.floor(Math.min(a.x, b.x, c.x))), right = Math.min(rasterWidth - 1, Math.floor(Math.max(a.x, b.x, c.x)));
     const top = Math.max(0, Math.floor(Math.min(a.y, b.y, c.y))), bottom = Math.min(rasterHeight - 1, Math.floor(Math.max(a.y, b.y, c.y)));
     if (left > right || top > bottom) continue;
+    if (top < minY) minY = top;
+    if (bottom > maxY) maxY = bottom;
     const ux = (b.y - c.y) / den, uy = (c.x - b.x) / den, vx = (c.y - a.y) / den, vy = (a.x - c.x) / den;
     const za = 1 / a.z, zb = 1 / b.z, zc = 1 / c.z;
     const dx = ux * (za - zc) + vx * (zb - zc), dy = uy * (za - zc) + vy * (zb - zc);
@@ -279,10 +320,17 @@ export function paintReefActors(ctx, triangles, width, height, { underlay = null
     }
     triangleCount++;
   }
-  work.paint.putImageData(work.image, 0, 0);
+  const dirtyY0 = Math.min(prevMinY, minY), dirtyY1 = Math.max(prevMaxY, maxY);
+  work.dirtyMinY = minY; work.dirtyMaxY = maxY;
+  if (dirtyY1 >= dirtyY0) {
+    work.paint.putImageData(work.image, 0, 0, 0, dirtyY0, rasterWidth, dirtyY1 - dirtyY0 + 1);
+  } else {
+    work.paint.putImageData(work.image, 0, 0, 0, 0, 0, 0);
+  }
   ctx.save(); ctx.drawImage(work.surface, 0, 0, rasterWidth, rasterHeight, 0, 0, width, height);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   let visibleEdges = 0, visibleSegments = 0;
+  const hasScaledUnderlay = Boolean(work.underlay && (work.underlay.rasterWidth !== rasterWidth || work.underlay.rasterHeight !== rasterHeight));
   for (const [stroke, widths] of groups) for (const [lineWidth, group] of widths) {
     if (!group.count) continue;
     ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.beginPath();
@@ -301,7 +349,10 @@ export function paintReefActors(ctx, triangles, width, height, { underlay = null
           const t = lo + (hi - lo) * (i + .5) / steps, x = a.x + dx * t, y = a.y + dy * t;
           const ix = Math.min(rasterWidth - 1, Math.max(0, Math.floor(x))), iy = Math.min(rasterHeight - 1, Math.max(0, Math.floor(y)));
           const inverse = za + dz * t;
-          visible = inverse + slope + inverse * .00002 >= Math.max(depth[iy * rasterWidth + ix], work.staticDepthAt(x, y));
+          const surfaceDepth = hasScaledUnderlay
+            ? Math.max(depth[iy * rasterWidth + ix], work.staticDepthAt(x, y))
+            : depth[iy * rasterWidth + ix];
+          visible = inverse + slope + inverse * .00002 >= surfaceDepth;
         }
         if (visible && start < 0) start = lo + (hi - lo) * i / steps;
         if (!visible && start >= 0) {

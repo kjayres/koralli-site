@@ -193,13 +193,6 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       else paint(state);
     } catch (error) { artworkFailed(state, error); }
   };
-  if (state.kind === 'reef' && typeof performance !== 'undefined' && typeof setTimeout === 'function') {
-    state.waitForIdle = async () => {
-      while (!state.visible && !state.failed && !document.hidden && performance.now() - lastScrollAt < 180) {
-        await new Promise(resolve => setTimeout(resolve, 60));
-      }
-    };
-  }
   new ResizeObserver(resize).observe(canvas.parentElement);
   new IntersectionObserver(entries => {
     state.visible = entries[0].isIntersecting;
