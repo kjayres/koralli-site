@@ -62,8 +62,9 @@
 .home-page .home-footer { padding:0; }
 .home-footer .reef-editorial .text-link { color:#b7c6ff; }
 .home-footer .reef-editorial > div + div { padding-top:37px; }
-.home-footer .reef-definition { max-width:1420px; margin:auto; padding:16px var(--gutter) 32px; }
-.home-footer .reef-definition p { max-width:68ch; font-size:14px; line-height:1.65; color:#bdc7d8; }
+.home-footer .reef-definition { max-width:1420px; margin:auto; padding:16px var(--gutter) 32px; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:clamp(24px,4vw,56px); }
+.home-footer .reef-definition p { max-width:none; font-size:13px; line-height:1.65; color:#bdc7d8; }
+.home-footer .reef-contact { justify-self:end; white-space:nowrap; font-size:13px; line-height:1.65; color:#b7c6ff; border-bottom:1px solid currentColor; padding-bottom:3px; }
 @media(max-width:759px) {
   .home-page .hero {
     display:flex;
@@ -83,4 +84,6 @@
   .home-page .hero-strapline { max-width:36ch; font-size:14px; }
   .home-page .building-caption { margin-bottom:16px; font-size:13px; }
   .home-footer .reef-editorial > div + div { padding-top:0; }
+  .home-footer .reef-definition { grid-template-columns:1fr; gap:16px; }
+  .home-footer .reef-contact { justify-self:start; }
 }
