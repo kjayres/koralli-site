@@ -1,4 +1,4 @@
-import { fragments, fragmentPose, assemblyDuration } from './art/delivery-assembly.mjs?v=3c7558a03781';
+import { fragments, fragmentPose, assemblyDuration } from './art/delivery-assembly.mjs?v=43edc699aee6';
 
 // A short, user-replayable sequence. It holds its complete still indefinitely
 // and stops requesting frames when offscreen, hidden, or motion is reduced.

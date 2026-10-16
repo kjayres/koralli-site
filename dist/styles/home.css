@@ -10,12 +10,6 @@
   width:calc(100% - 2 * var(--gutter));
   max-width:1276px;
 }
-.home-page .hero-strapline {
-  max-width:54ch;
-  font-size:15px;
-  line-height:1.5;
-  color:var(--blue);
-}
 .home-page .hero .intro,
 .home-page .hero-definition,
 .home-page .editorial-grid p:not(.eyebrow):not(.quote-attribution),
@@ -81,7 +75,6 @@
     transform:none;
     width:100%;
   }
-  .home-page .hero-strapline { max-width:36ch; font-size:14px; }
   .home-page .building-caption { margin-bottom:16px; font-size:13px; }
   .home-footer .reef-editorial > div + div { padding-top:0; }
   .home-footer .reef-definition { grid-template-columns:1fr; gap:16px; }
