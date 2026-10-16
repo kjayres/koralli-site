@@ -10,6 +10,7 @@
   width:calc(100% - 2 * var(--gutter));
   max-width:1276px;
 }
+.home-page .hero-subtitle { margin-bottom:22px; font-size:clamp(18px,1.5vw,20px); line-height:1.45; }
 .home-page .hero .intro,
 .home-page .hero-definition,
 .home-page .editorial-grid p:not(.eyebrow):not(.quote-attribution),

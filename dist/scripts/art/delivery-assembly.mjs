@@ -1,4 +1,4 @@
-import { danceOutlineMarkup } from './dance-outline.mjs?v=43edc699aee6';
+import { danceOutlineMarkup } from './dance-outline.mjs?v=88bd0189e950';
 
 // Use the building's exact unrotated projection: x=.9(X-Y), y=.45(X+Y)-Z.
 // The completed picture occupies a vertical wall; loose fragments begin flat
