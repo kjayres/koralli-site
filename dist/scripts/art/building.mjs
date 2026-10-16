@@ -1,4 +1,4 @@
-import { humanParts } from './building-people.mjs?v=b9689e0d24ef';
+import { humanParts } from './building-people.mjs?v=0596755a3247';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';
@@ -354,7 +354,7 @@ function pose(local) {
   return {
     // First rise evenly; turning begins once almost all upward travel is complete.
     lift: 94 * smooth(.02, .36, local),
-    angle: Math.round(24 * smooth(.38, .88, local)),
+    angle: number(24 * smooth(.38, .88, local)),
     opacity: 1 - smooth(.52, .94, local)
   };
 }
@@ -367,23 +367,19 @@ function setGeometry(state, kind, index, angle, lift) {
   if (state.geometryKeys[slot] !== key) {
     const base = sectionBase(index);
     const markup = kind === 'cover' ? cover(index, base, angle, 0) : interior(index, base, angle, 0, state.figurePrefix);
-    if (typeof node.querySelectorAll === 'function') {
+    if (kind === 'cover' && typeof node.querySelectorAll === 'function') {
       const shapes = state.shapes[slot] ||= [...node.querySelectorAll('polygon, path, circle, text')];
       const valKey = `${kind}|${index}|${angle}`;
       let values = shapeValueCache.get(valKey);
       if (!values) {
         values = extractShapeValues(markup);
+        if (shapeValueCache.size >= 256) shapeValueCache.delete(shapeValueCache.keys().next().value);
         shapeValueCache.set(valKey, values);
       }
       if (shapes.length === values.length) {
         for (let i = 0; i < shapes.length; i++) {
           const entry = values[i];
-          if (entry[0] === 'circle') {
-            shapes[i].setAttribute('cx', entry[1]);
-            shapes[i].setAttribute('cy', entry[2]);
-          } else {
-            shapes[i].setAttribute(entry[0], entry[1]);
-          }
+          shapes[i].setAttribute(entry[0], entry[1]);
         }
       } else {
         node.innerHTML = markup.slice(markup.indexOf('>') + 1, markup.lastIndexOf('</g>'));

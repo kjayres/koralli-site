@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=b9689e0d24ef'),
-  research: () => import('./art/research.mjs?v=b9689e0d24ef'),
-  approach: () => import('./art/approach.mjs?v=b9689e0d24ef'),
-  coral: () => import('./art/coral.mjs?v=b9689e0d24ef'),
-  'work-coral': () => import('./art/coral.mjs?v=b9689e0d24ef'),
-  reef: () => import('./art/reef.mjs?v=b9689e0d24ef'),
-  'journal-water': () => import('./art/journal-water.mjs?v=b9689e0d24ef')
+  wave: () => import('./art/wave.mjs?v=0596755a3247'),
+  research: () => import('./art/research.mjs?v=0596755a3247'),
+  approach: () => import('./art/approach.mjs?v=0596755a3247'),
+  coral: () => import('./art/coral.mjs?v=0596755a3247'),
+  'work-coral': () => import('./art/coral.mjs?v=0596755a3247'),
+  reef: () => import('./art/reef.mjs?v=0596755a3247'),
+  'journal-water': () => import('./art/journal-water.mjs?v=0596755a3247')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=b9689e0d24ef');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=0596755a3247');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -225,7 +225,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=b9689e0d24ef').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=0596755a3247').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -371,7 +371,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=b9689e0d24ef').then(module => {
+if (building && svg) import('./art/building.mjs?v=0596755a3247').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
