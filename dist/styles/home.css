@@ -66,7 +66,7 @@
   background:var(--paper);
 }
 .thesis-section.thesis-enhanced {
-  height:245svh;
+  height:275svh;
 }
 .thesis-sticky {
   max-width:1420px;
@@ -137,6 +137,22 @@
 .thesis-card-art .trace-key {
   margin-top:10px;
   justify-content:space-between;
+}
+.invitation-lead-col {
+  display:flex;
+  flex-direction:column;
+  gap:22px;
+}
+.redesigners-stage {
+  margin:4px 0 0;
+  max-width:560px;
+}
+.redesigners-stage svg {
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:580 / 296;
+  overflow:visible;
 }
 @media(max-width:960px) {
   .thesis-section.thesis-enhanced { height:auto; }

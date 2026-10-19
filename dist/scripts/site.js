@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=b9e05d308ebb'),
-  research: () => import('./art/research.mjs?v=b9e05d308ebb'),
-  approach: () => import('./art/approach.mjs?v=b9e05d308ebb'),
-  coral: () => import('./art/coral.mjs?v=b9e05d308ebb'),
-  'work-coral': () => import('./art/coral.mjs?v=b9e05d308ebb'),
-  reef: () => import('./art/reef.mjs?v=b9e05d308ebb'),
-  'journal-water': () => import('./art/journal-water.mjs?v=b9e05d308ebb')
+  wave: () => import('./art/wave.mjs?v=23564895392a'),
+  research: () => import('./art/research.mjs?v=23564895392a'),
+  approach: () => import('./art/approach.mjs?v=23564895392a'),
+  coral: () => import('./art/coral.mjs?v=23564895392a'),
+  'work-coral': () => import('./art/coral.mjs?v=23564895392a'),
+  reef: () => import('./art/reef.mjs?v=23564895392a'),
+  'journal-water': () => import('./art/journal-water.mjs?v=23564895392a')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=b9e05d308ebb');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=23564895392a');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -131,6 +131,11 @@ let thesisVisible = false;
 let thesisProgress = 0;
 let thesisTime = 0;
 
+let redesignersStage = null;
+let renderRedesigners = null;
+let redesignersVisible = false;
+let redesignersTime = 0;
+
 function tick(now) {
   frame = 0;
   const dt = lastTime ? Math.min(.05, (now - lastTime) / 1000) : 0;
@@ -140,13 +145,18 @@ function tick(now) {
     thesisTime += dt;
     renderThesis(thesisProgress, thesisTime, false);
   }
+  if (redesignersVisible && renderRedesigners && !motion.matches) {
+    redesignersTime += dt;
+    renderRedesigners(redesignersTime, false);
+  }
   schedule();
 }
 
 function schedule() {
   const activeCanvas = canvasStates.some(state => state.visible && !state.paused && state.loaded && !state.failed && (state.kind !== 'reef' || state.reefReady));
   const activeThesis = Boolean(thesisVisible && renderThesis);
-  if (!frame && !motion.matches && !document.hidden && (activeCanvas || activeThesis)) frame = requestAnimationFrame(tick);
+  const activeRedesigners = Boolean(redesignersVisible && renderRedesigners);
+  if (!frame && !motion.matches && !document.hidden && (activeCanvas || activeThesis || activeRedesigners)) frame = requestAnimationFrame(tick);
 }
 
 for (const canvas of document.querySelectorAll('canvas[data-art]')) {
@@ -230,7 +240,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=b9e05d308ebb').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=23564895392a').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -377,7 +387,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=b9e05d308ebb').then(module => {
+if (building && svg) import('./art/building.mjs?v=23564895392a').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -388,6 +398,7 @@ if (building && svg) import('./art/building.mjs?v=b9e05d308ebb').then(module => 
 }).catch(buildingFailed);
 
 thesisStage = document.querySelector('[data-thesis-stage]');
+redesignersStage = document.querySelector('[data-redesigners-stage]');
 function updateThesisScroll() {
   if (!thesisStage || !renderThesis) return;
   const compact = innerWidth <= 960;
@@ -398,22 +409,39 @@ function updateThesisScroll() {
   }
   const rect = thesisStage.getBoundingClientRect();
   if (rect.top > innerHeight || rect.bottom < 0) return;
-  const span = Math.max(1, rect.height - innerHeight);
-  thesisProgress = clamp(-rect.top / span);
+  const startTop = innerHeight * 0.42;
+  const endTop = -(rect.height - innerHeight);
+  thesisProgress = clamp((startTop - rect.top) / Math.max(1, startTop - endTop));
   renderThesis(thesisProgress, thesisTime, false);
 }
-if (thesisStage) {
-  new IntersectionObserver(entries => {
-    thesisVisible = entries[0].isIntersecting;
-    lastTime = 0;
-    if (thesisVisible) updateThesisScroll();
+if (thesisStage || redesignersStage) {
+  if (thesisStage) {
+    new IntersectionObserver(entries => {
+      thesisVisible = entries[0].isIntersecting;
+      lastTime = 0;
+      if (thesisVisible) updateThesisScroll();
+      schedule();
+    }).observe(thesisStage);
+  }
+  if (redesignersStage) {
+    new IntersectionObserver(entries => {
+      redesignersVisible = entries[0].isIntersecting;
+      lastTime = 0;
+      if (redesignersVisible && renderRedesigners) renderRedesigners(redesignersTime, motion.matches);
+      schedule();
+    }).observe(redesignersStage);
+  }
+  import('./art/thesis-cards.mjs?v=23564895392a').then(({ initThesisCards, initRedesignersMech }) => {
+    if (thesisStage) {
+      renderThesis = initThesisCards(thesisStage);
+      updateThesisScroll();
+    }
+    if (redesignersStage) {
+      renderRedesigners = initRedesignersMech(redesignersStage);
+      renderRedesigners(redesignersTime, motion.matches);
+    }
     schedule();
-  }).observe(thesisStage);
-  import('./art/thesis-cards.mjs?v=b9e05d308ebb').then(({ initThesisCards }) => {
-    renderThesis = initThesisCards(thesisStage);
-    updateThesisScroll();
-    schedule();
-  }).catch(error => console.error('Unable to initialise thesis cards:', error));
+  }).catch(error => console.error('Unable to initialise thesis/redesigners artwork:', error));
 }
 
 const gauge = document.querySelector('.depth-gauge');

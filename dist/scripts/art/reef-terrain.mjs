@@ -3,16 +3,18 @@ const cache = new Map();
 const clamp = (value, low = 0, high = 1) => Math.max(low, Math.min(high, value));
 const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 
-// Unequal banks leave the established central sand passage open. Each outcrop
-// has a broken outer shoulder, a tilted shelf and an offset raised cap.
+// Unequal banks and a stepped central mini-cliff ledge form a rockier reef
+// seafloor. Each outcrop has a steep front cliff step, angular shoulders and clefts.
 const outcrops = [
-  [-735, -275, 235, 102, 30, -.21, 1],
-  [-395, -82, 195, 112, 33, .34, 2],
-  [455, -238, 235, 98, 29, -.37, 3],
-  [820, 32, 305, 126, 43, .26, 4],
-  [-665, 182, 285, 138, 45, -.18, 5],
-  [360, 115, 262, 82, 34, .41, 6],
-  [-175, 330, 176, 96, 24, -.42, 7],
+  [-735, -275, 235, 102, 33, -.21, 1],
+  [-395, -82, 195, 112, 36, .34, 2],
+  [455, -238, 235, 98, 32, -.37, 3],
+  [820, 32, 305, 126, 45, .26, 4],
+  [-665, 182, 285, 138, 47, -.18, 5],
+  [360, 115, 262, 82, 37, .41, 6],
+  [-175, 330, 176, 96, 27, -.42, 7],
+  [-45, -18, 175, 68, 29, -.15, 8],
+  [165, 38, 155, 64, 26, .24, 9],
 ].map(([x,y,rx,ry,height,angle,seed]) => ({x,y,rx,ry,height,c:Math.cos(angle),s:Math.sin(angle),seed}));
 
 function rockHeight(x, y) {
@@ -21,16 +23,17 @@ function rockHeight(x, y) {
     const dx = (x - rock.x) / rock.rx, dy = (y - rock.y) / rock.ry;
     if (Math.abs(dx) > 1.5 || Math.abs(dy) > 1.5) continue;
     const u = dx * rock.c - dy * rock.s, v = dx * rock.s + dy * rock.c;
-    // Angular shoulders and a diagonal split, rather than identical round humps.
+    // Angular shoulders, a steeper cliff shelf and a diagonal split.
     const rim = Math.max(Math.abs(u) * .88, Math.abs(v) * .92,
       Math.abs(u * .69 + v * .72) * .88, Math.abs(u * .78 - v * .62) * .90);
-    const edge = 1 + .065 * Math.sin(u * 5.2 + rock.seed) + .045 * Math.sin(v * 7.4 - rock.seed);
-    const shoulder = smooth((edge - rim) / .31);
-    const shelf = smooth((.74 + .05 * u - rim) / .12);
-    const cap = smooth((.40 - Math.max(Math.abs(u + .19), Math.abs(v - .13) * 1.17)) / .12);
-    const split = 1 - .40 * (1 - smooth(Math.abs(v + .27 * u + .12) / .13)) * smooth((rim - .18) / .28);
+    const edge = 1 + .075 * Math.sin(u * 5.2 + rock.seed) + .055 * Math.sin(v * 7.4 - rock.seed);
+    const shoulder = smooth((edge - rim) / .29);
+    const shelf = smooth((.75 + .05 * u - rim) / .11);
+    const cap = smooth((.41 - Math.max(Math.abs(u + .19), Math.abs(v - .13) * 1.17)) / .11);
+    const split = 1 - .42 * (1 - smooth(Math.abs(v + .27 * u + .12) / .13)) * smooth((rim - .18) / .28);
+    const crag = 1 + .06 * Math.sin(u * 6.2 + v * 4.1 + rock.seed);
     const tilt = 1 + .09 * u - .07 * v;
-    highest = Math.max(highest, rock.height * (.47 * shoulder + .34 * shelf + .19 * cap) * split * tilt);
+    highest = Math.max(highest, rock.height * (.44 * shoulder + .36 * shelf + .20 * cap) * split * crag * tilt);
   }
   return highest;
 }
@@ -38,11 +41,12 @@ function rockHeight(x, y) {
 function profile(x, y, compact) {
   const xx = compact ? x * 3.2 : x, yy = compact ? y / .52 : y;
   const rise = 1 / (1 + Math.exp(-(yy + 110) / 130));
+  const cliffStep = 1 / (1 + Math.exp(-(yy - 12 + 16 * Math.sin(xx * .005)) / 32));
   const mound = (cx, cy, rx, ry) => Math.exp(-(((xx - cx) / rx) ** 2) - ((yy - cy) / ry) ** 2);
-  return (compact ? .9 : 1) * (66 + 258 * rise
+  return (compact ? .9 : 1) * (64 + 246 * rise + 14 * cliffStep
     + 48 * mound(-690, -130, 390, 205) + 54 * mound(510, 75, 440, 230)
-    + 30 * mound(-90, 290, 290, 170) - 32 * mound(-80, -90, 185, 300)
-    + 6 * Math.sin(xx * .009 + yy * .012) + 3 * Math.cos(xx * .018 - yy * .023)
+    + 30 * mound(-90, 290, 290, 170) - 26 * mound(-80, -90, 185, 300)
+    + 6.5 * Math.sin(xx * .009 + yy * .012) + 3.5 * Math.cos(xx * .018 - yy * .023)
     + rockHeight(xx, yy) * (compact ? .55 : 1));
 }
 
@@ -84,7 +88,7 @@ function terrain(compact) {
   for(let row=0;row<rows;row++)for(let column=0;column<columns;column++) {
     const a=row*(columns+1)+column,b=a+1,c=a+columns+1,d=c+1;
     cells.push([[a,b,d],[a,d,c]]);
-    for(const face of cells.at(-1))if(rockAtFace(face)>2) {
+    for(const face of cells.at(-1))if(rockAtFace(face)>5.5) {
       for(let i=0;i<3;i++) {
         const from=face[i],to=face[(i+1)%3],key=edgeKey(from,to);
         if(midpoints.has(key))continue;
@@ -107,7 +111,7 @@ function terrain(compact) {
   };
   for(let i=0;i<cells.length;i++) {
     cells[i]=cells[i].flatMap(([a,b,c])=>split(a,b,c,midpoints.get(edgeKey(a,b)),midpoints.get(edgeKey(b,c)),midpoints.get(edgeKey(c,a))));
-    for(const face of cells[i])(rockAtFace(face)>4?rocks:sand).push(face);
+    for(const face of cells[i])(rockAtFace(face)>3.2?rocks:sand).push(face);
   }
   const mesh=(name,material,faces)=>{
     const indices=new Map(),points=[];

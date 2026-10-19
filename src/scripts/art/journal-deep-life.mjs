@@ -118,5 +118,234 @@ export function drawDeepFish(ctx, scene, time = 0, current = 0, scroll = 0, view
     for(const point of item.mesh.photophores){const p=project(point);ctx.moveTo(p[0]+.65,p[1]);ctx.arc(...p,.65,0,TAU);}
     ctx.fill();
   }
+  drawDeepMechFish(ctx, scene, time, current, scroll, viewport);
   ctx.restore();
 }
+
+/**
+ * The Redesigner's Aquatic Mech Suit exploring the deep ocean in Views from the Reef:
+ * An articulated wireframe deep-sea exosuit gliding horizontally through the open water
+ * with a water-filled spherical dome cockpit housing a coral reef fish inside.
+ */
+function drawDeepMechFish(ctx, scene, time = 0, current = 0, scroll = 0, viewport) {
+  const { width, height, compact, size } = scene;
+  const scale = (compact ? 0.78 : size) * 1.05;
+  const margin = 120 * scale;
+  const speed = 9.5;
+  const phase = 1.6;
+  const travel = speed * time + 9 * Math.sin(time * 0.06 + phase);
+  const x = wrap(0.24 * width + margin + travel, width + 2 * margin) - margin;
+  if (x < -margin * 0.85 || x > width + margin * 0.85) return;
+
+  const y = 0.285 * height + 10 * Math.sin(time * 0.09 + phase) + 3.5 * Math.cos(time * 0.22 + phase) + scroll * 5;
+  const reach = 64 * scale;
+  if (viewport && (y + reach < viewport.top || y - reach > viewport.bottom)) return;
+
+  const edge = Math.min(x, width - x) / width;
+  const quiet = 1 - 0.65 * smooth(clamp((edge - 0.08) / 0.18, 0, 1));
+  const alpha = 0.46 * quiet;
+
+  // Forward-tilted deep-sea swimming trim (~18 deg pitch + gentle current sway)
+  const pitch = -0.24 + 0.03 * current + 0.04 * Math.sin(time * 0.14 + phase);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const map = (lx, ly) => [
+    x + (lx * cp - ly * sp) * scale,
+    y + (lx * sp + ly * cp) * scale,
+  ];
+  const poly = (pts, close = true) => {
+    const mapped = pts.map(([lx, ly]) => map(lx, ly));
+    trace(ctx, mapped);
+    if (close) ctx.closePath();
+  };
+
+  ctx.save();
+  ctx.strokeStyle = '#9BB2FF';
+  ctx.fillStyle = '#0E1B38';
+
+  // 1. Articulated hydro-fin legs kicking in an alternating scissor stroke
+  const kickA = Math.sin(time * 2.2) * 5.2;
+  const kickB = -kickA;
+  ctx.lineWidth = 0.65;
+  for (const [legIdx, kick] of [[-1, kickA], [1, kickB]]) {
+    const hip = [-14, 6 + legIdx * 2.2];
+    const knee = [-30, 10 + kick * 0.55 + legIdx * 2.4];
+    const ankle = [-45, 13 + kick + legIdx * 2.4];
+    const finTip1 = [-58, 11 + kick * 1.15 + legIdx * 2.0];
+    const finTip2 = [-55, 19 + kick * 1.15 + legIdx * 2.6];
+
+    ctx.globalAlpha = alpha * (legIdx < 0 ? 0.62 : 0.92);
+    ctx.beginPath();
+    poly([
+      [hip[0], hip[1] - 2.4],
+      [knee[0], knee[1] - 2.1],
+      [knee[0], knee[1] + 2.1],
+      [hip[0], hip[1] + 2.4],
+    ]);
+    poly([
+      [knee[0], knee[1] - 1.9],
+      [ankle[0], ankle[1] - 1.7],
+      [ankle[0], ankle[1] + 1.7],
+      [knee[0], knee[1] + 1.9],
+    ]);
+    poly([ankle, finTip1, finTip2]);
+    ctx.fill();
+    ctx.stroke();
+
+    // Knee & ankle servo joints
+    const [kx, ky] = map(...knee);
+    const [ax, ay] = map(...ankle);
+    ctx.beginPath();
+    ctx.moveTo(kx + 2.1 * scale, ky);
+    ctx.arc(kx, ky, 2.1 * scale, 0, TAU);
+    ctx.moveTo(ax + 1.7 * scale, ay);
+    ctx.arc(ax, ay, 1.7 * scale, 0, TAU);
+    ctx.stroke();
+  }
+
+  // 2. Pressurized Mech Torso & Hydro-Thruster Dive Pack
+  ctx.globalAlpha = alpha * 0.95;
+  ctx.fillStyle = '#101F3F';
+  ctx.lineWidth = 0.72;
+  ctx.beginPath();
+  // Main chassis hull
+  poly([
+    [-16, -9],
+    [10, -11],
+    [16, -4],
+    [12, 9],
+    [-14, 10],
+    [-19, 2],
+  ]);
+  // Dorsal hydro-thruster pack
+  poly([
+    [-22, -12],
+    [-4, -13],
+    [-2, -9],
+    [-20, -7],
+  ]);
+  ctx.fill();
+  ctx.stroke();
+
+  // Internal chassis structural ribs + thruster wake rings
+  ctx.globalAlpha = alpha * 0.55;
+  ctx.lineWidth = 0.48;
+  ctx.beginPath();
+  poly([[-8, -9], [-8, 9]], false);
+  poly([[2, -10], [2, 9]], false);
+  poly([[-15, 0], [13, 0]], false);
+  for (let w = 0; w < 2; w++) {
+    const pulse = ((time * 0.9 + w * 0.5) % 1);
+    const [wx, wy] = map(-25 - pulse * 14, -9.5);
+    const wr = (2.2 + pulse * 3.0) * scale;
+    ctx.moveTo(wx + wr, wy);
+    ctx.arc(wx, wy, wr, 0, TAU);
+  }
+  ctx.stroke();
+
+  // 3. Water-Filled Spherical Glass Dome Cockpit (front/head of the mech at [24, -2])
+  const [dx, dy] = map(24, -2);
+  const domeR = 13.5 * scale;
+  ctx.globalAlpha = alpha * 0.32;
+  ctx.fillStyle = '#1D396B';
+  ctx.beginPath();
+  ctx.moveTo(dx + domeR, dy);
+  ctx.arc(dx, dy, domeR, 0, TAU);
+  ctx.fill();
+
+  // Dome outer ring, brass/blue collar flange, and geodesic latitude/longitude ribs
+  ctx.globalAlpha = alpha * 0.98;
+  ctx.strokeStyle = '#B5C8FF';
+  ctx.lineWidth = 0.78;
+  ctx.beginPath();
+  ctx.moveTo(dx + domeR, dy);
+  ctx.arc(dx, dy, domeR, 0, TAU);
+  poly([[11, -10.5], [15, -11.5], [15, 7.5], [11, 6.5]]);
+  ctx.stroke();
+
+  // Water surface ripple & tiny air bubbles inside the dome cockpit
+  ctx.globalAlpha = alpha * 0.55;
+  ctx.lineWidth = 0.46;
+  ctx.beginPath();
+  const waterPts = [];
+  for (let i = -5; i <= 5; i++) {
+    const u = i / 5;
+    const wx = dx + u * domeR * 0.86;
+    const wy = dy - domeR * 0.42 + Math.sin(time * 2.4 + u * 3.2) * 1.1 * scale;
+    waterPts.push([wx, wy]);
+  }
+  trace(ctx, waterPts);
+  const [b1x, b1y] = [dx - 3.5 * scale, dy - (3 + ((time * 4) % 5)) * scale];
+  const [b2x, b2y] = [dx + 4.2 * scale, dy - (2 + ((time * 4 + 2.5) % 5)) * scale];
+  ctx.moveTo(b1x + 0.9 * scale, b1y);
+  ctx.arc(b1x, b1y, 0.9 * scale, 0, TAU);
+  ctx.moveTo(b2x + 0.7 * scale, b2y);
+  ctx.arc(b2x, b2y, 0.7 * scale, 0, TAU);
+  ctx.stroke();
+
+  // 4. The Coral Reef Fish (#FF6655) swimming happily inside the water-filled cockpit!
+  const fishBobX = dx + Math.sin(time * 1.7) * 2.2 * scale;
+  const fishBobY = dy + 1.0 * scale + Math.cos(time * 2.3) * 1.5 * scale;
+  const tailWag = Math.sin(time * 6.5) * 1.8 * scale;
+  const fPts = [
+    [fishBobX + 6.2 * scale, fishBobY],
+    [fishBobX + 2.2 * scale, fishBobY - 3.3 * scale],
+    [fishBobX - 3.2 * scale, fishBobY - 2.1 * scale],
+    [fishBobX - 5.2 * scale, fishBobY - 0.6 * scale + tailWag * 0.3],
+    [fishBobX - 8.4 * scale, fishBobY - 3.4 * scale + tailWag],
+    [fishBobX - 6.8 * scale, fishBobY + tailWag * 0.5],
+    [fishBobX - 8.4 * scale, fishBobY + 3.4 * scale + tailWag],
+    [fishBobX - 5.2 * scale, fishBobY + 0.6 * scale + tailWag * 0.3],
+    [fishBobX - 3.2 * scale, fishBobY + 2.1 * scale],
+    [fishBobX + 2.2 * scale, fishBobY + 3.3 * scale],
+  ];
+  ctx.globalAlpha = Math.min(0.92, alpha * 1.75);
+  ctx.fillStyle = '#FF6655';
+  ctx.strokeStyle = '#FF6655';
+  ctx.lineWidth = 0.68;
+  ctx.beginPath();
+  trace(ctx, fPts);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Fish eye & pectoral fin inside dome
+  ctx.fillStyle = '#F3F0E8';
+  ctx.beginPath();
+  ctx.moveTo(fishBobX + 4.3 * scale, fishBobY - 0.7 * scale);
+  ctx.arc(fishBobX + 3.6 * scale, fishBobY - 0.7 * scale, 0.7 * scale, 0, TAU);
+  ctx.fill();
+
+  // 5. Foreground articulated mechanical arm & manipulator claw swept along the hull
+  const armSway = Math.sin(time * 1.4 + 0.8) * 2.2;
+  const sh = [6, 5];
+  const el = [-4, 13 + armSway * 0.6];
+  const wr = [12, 15 + armSway];
+  ctx.globalAlpha = alpha * 0.92;
+  ctx.strokeStyle = '#9BB2FF';
+  ctx.fillStyle = '#101F3F';
+  ctx.lineWidth = 0.68;
+  ctx.beginPath();
+  poly([
+    [sh[0] - 2, sh[1] - 1.8],
+    [el[0] - 1.8, el[1] - 1.8],
+    [el[0] + 1.8, el[1] + 1.8],
+    [sh[0] + 2, sh[1] + 1.8],
+  ]);
+  poly([
+    [el[0] - 1.5, el[1] - 1.6],
+    [wr[0] - 1.5, wr[1] - 1.6],
+    [wr[0] + 1.5, wr[1] + 1.6],
+    [el[0] + 1.5, el[1] + 1.6],
+  ]);
+  ctx.fill();
+  ctx.stroke();
+
+  // Pincer claw tips
+  ctx.beginPath();
+  poly([[wr[0], wr[1] - 1.2], [wr[0] + 5.2, wr[1] - 2.8], [wr[0] + 7.2, wr[1] - 0.8]], false);
+  poly([[wr[0], wr[1] + 1.2], [wr[0] + 5.2, wr[1] + 2.8], [wr[0] + 7.2, wr[1] + 0.8]], false);
+  ctx.stroke();
+
+  ctx.restore();
+}
+

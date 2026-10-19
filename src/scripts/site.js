@@ -131,6 +131,11 @@ let thesisVisible = false;
 let thesisProgress = 0;
 let thesisTime = 0;
 
+let redesignersStage = null;
+let renderRedesigners = null;
+let redesignersVisible = false;
+let redesignersTime = 0;
+
 function tick(now) {
   frame = 0;
   const dt = lastTime ? Math.min(.05, (now - lastTime) / 1000) : 0;
@@ -140,13 +145,18 @@ function tick(now) {
     thesisTime += dt;
     renderThesis(thesisProgress, thesisTime, false);
   }
+  if (redesignersVisible && renderRedesigners && !motion.matches) {
+    redesignersTime += dt;
+    renderRedesigners(redesignersTime, false);
+  }
   schedule();
 }
 
 function schedule() {
   const activeCanvas = canvasStates.some(state => state.visible && !state.paused && state.loaded && !state.failed && (state.kind !== 'reef' || state.reefReady));
   const activeThesis = Boolean(thesisVisible && renderThesis);
-  if (!frame && !motion.matches && !document.hidden && (activeCanvas || activeThesis)) frame = requestAnimationFrame(tick);
+  const activeRedesigners = Boolean(redesignersVisible && renderRedesigners);
+  if (!frame && !motion.matches && !document.hidden && (activeCanvas || activeThesis || activeRedesigners)) frame = requestAnimationFrame(tick);
 }
 
 for (const canvas of document.querySelectorAll('canvas[data-art]')) {
@@ -388,6 +398,7 @@ if (building && svg) import('./art/building.mjs').then(module => {
 }).catch(buildingFailed);
 
 thesisStage = document.querySelector('[data-thesis-stage]');
+redesignersStage = document.querySelector('[data-redesigners-stage]');
 function updateThesisScroll() {
   if (!thesisStage || !renderThesis) return;
   const compact = innerWidth <= 960;
@@ -398,22 +409,39 @@ function updateThesisScroll() {
   }
   const rect = thesisStage.getBoundingClientRect();
   if (rect.top > innerHeight || rect.bottom < 0) return;
-  const span = Math.max(1, rect.height - innerHeight);
-  thesisProgress = clamp(-rect.top / span);
+  const startTop = innerHeight * 0.42;
+  const endTop = -(rect.height - innerHeight);
+  thesisProgress = clamp((startTop - rect.top) / Math.max(1, startTop - endTop));
   renderThesis(thesisProgress, thesisTime, false);
 }
-if (thesisStage) {
-  new IntersectionObserver(entries => {
-    thesisVisible = entries[0].isIntersecting;
-    lastTime = 0;
-    if (thesisVisible) updateThesisScroll();
+if (thesisStage || redesignersStage) {
+  if (thesisStage) {
+    new IntersectionObserver(entries => {
+      thesisVisible = entries[0].isIntersecting;
+      lastTime = 0;
+      if (thesisVisible) updateThesisScroll();
+      schedule();
+    }).observe(thesisStage);
+  }
+  if (redesignersStage) {
+    new IntersectionObserver(entries => {
+      redesignersVisible = entries[0].isIntersecting;
+      lastTime = 0;
+      if (redesignersVisible && renderRedesigners) renderRedesigners(redesignersTime, motion.matches);
+      schedule();
+    }).observe(redesignersStage);
+  }
+  import('./art/thesis-cards.mjs').then(({ initThesisCards, initRedesignersMech }) => {
+    if (thesisStage) {
+      renderThesis = initThesisCards(thesisStage);
+      updateThesisScroll();
+    }
+    if (redesignersStage) {
+      renderRedesigners = initRedesignersMech(redesignersStage);
+      renderRedesigners(redesignersTime, motion.matches);
+    }
     schedule();
-  }).observe(thesisStage);
-  import('./art/thesis-cards.mjs').then(({ initThesisCards }) => {
-    renderThesis = initThesisCards(thesisStage);
-    updateThesisScroll();
-    schedule();
-  }).catch(error => console.error('Unable to initialise thesis cards:', error));
+  }).catch(error => console.error('Unable to initialise thesis/redesigners artwork:', error));
 }
 
 const gauge = document.querySelector('.depth-gauge');
