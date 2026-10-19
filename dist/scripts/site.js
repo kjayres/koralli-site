@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=4acd42792b19'),
-  research: () => import('./art/research.mjs?v=4acd42792b19'),
-  approach: () => import('./art/approach.mjs?v=4acd42792b19'),
-  coral: () => import('./art/coral.mjs?v=4acd42792b19'),
-  'work-coral': () => import('./art/coral.mjs?v=4acd42792b19'),
-  reef: () => import('./art/reef.mjs?v=4acd42792b19'),
-  'journal-water': () => import('./art/journal-water.mjs?v=4acd42792b19')
+  wave: () => import('./art/wave.mjs?v=b9e05d308ebb'),
+  research: () => import('./art/research.mjs?v=b9e05d308ebb'),
+  approach: () => import('./art/approach.mjs?v=b9e05d308ebb'),
+  coral: () => import('./art/coral.mjs?v=b9e05d308ebb'),
+  'work-coral': () => import('./art/coral.mjs?v=b9e05d308ebb'),
+  reef: () => import('./art/reef.mjs?v=b9e05d308ebb'),
+  'journal-water': () => import('./art/journal-water.mjs?v=b9e05d308ebb')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=4acd42792b19');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=b9e05d308ebb');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -125,16 +125,28 @@ function paint(state, dt = 0) {
   } catch (error) { artworkFailed(state, error); }
 }
 
+let thesisStage = null;
+let renderThesis = null;
+let thesisVisible = false;
+let thesisProgress = 0;
+let thesisTime = 0;
+
 function tick(now) {
   frame = 0;
   const dt = lastTime ? Math.min(.05, (now - lastTime) / 1000) : 0;
   lastTime = now;
   canvasStates.filter(state => state.visible && !state.paused).forEach(state => paint(state, dt));
+  if (thesisVisible && renderThesis && !motion.matches) {
+    thesisTime += dt;
+    renderThesis(thesisProgress, thesisTime, false);
+  }
   schedule();
 }
 
 function schedule() {
-  if (!frame && !motion.matches && !document.hidden && canvasStates.some(state => state.visible && !state.paused && state.loaded && !state.failed && (state.kind !== 'reef' || state.reefReady))) frame = requestAnimationFrame(tick);
+  const activeCanvas = canvasStates.some(state => state.visible && !state.paused && state.loaded && !state.failed && (state.kind !== 'reef' || state.reefReady));
+  const activeThesis = Boolean(thesisVisible && renderThesis);
+  if (!frame && !motion.matches && !document.hidden && (activeCanvas || activeThesis)) frame = requestAnimationFrame(tick);
 }
 
 for (const canvas of document.querySelectorAll('canvas[data-art]')) {
@@ -218,7 +230,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=4acd42792b19').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=b9e05d308ebb').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -365,7 +377,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=4acd42792b19').then(module => {
+if (building && svg) import('./art/building.mjs?v=b9e05d308ebb').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -374,6 +386,35 @@ if (building && svg) import('./art/building.mjs?v=4acd42792b19').then(module => 
     renderBuilding(true);
   });
 }).catch(buildingFailed);
+
+thesisStage = document.querySelector('[data-thesis-stage]');
+function updateThesisScroll() {
+  if (!thesisStage || !renderThesis) return;
+  const compact = innerWidth <= 960;
+  if (motion.matches || compact) {
+    thesisProgress = 1;
+    renderThesis(1, thesisTime, motion.matches);
+    return;
+  }
+  const rect = thesisStage.getBoundingClientRect();
+  if (rect.top > innerHeight || rect.bottom < 0) return;
+  const span = Math.max(1, rect.height - innerHeight);
+  thesisProgress = clamp(-rect.top / span);
+  renderThesis(thesisProgress, thesisTime, false);
+}
+if (thesisStage) {
+  new IntersectionObserver(entries => {
+    thesisVisible = entries[0].isIntersecting;
+    lastTime = 0;
+    if (thesisVisible) updateThesisScroll();
+    schedule();
+  }).observe(thesisStage);
+  import('./art/thesis-cards.mjs?v=b9e05d308ebb').then(({ initThesisCards }) => {
+    renderThesis = initThesisCards(thesisStage);
+    updateThesisScroll();
+    schedule();
+  }).catch(error => console.error('Unable to initialise thesis cards:', error));
+}
 
 const gauge = document.querySelector('.depth-gauge');
 const gaugeMarker = gauge?.querySelector('b');
@@ -390,6 +431,7 @@ function onScroll(event) {
     const rect = building?.getBoundingClientRect();
     const maxScroll = gauge ? (maxScrollCache ||= Math.max(1, document.documentElement.scrollHeight - innerHeight)) : 1;
     updateJournalViewport();
+    updateThesisScroll();
     renderBuilding(false, rect);
     updateApproach();
     if (!gauge) return;
@@ -402,7 +444,7 @@ function onScroll(event) {
     if (gauge.style.color !== gaugeColor) gauge.style.color = gaugeColor;
   });
 }
-const tracksScroll = Boolean(building || gauge || journalState || document.querySelector('[data-approach]'));
+const tracksScroll = Boolean(building || gauge || journalState || thesisStage || document.querySelector('[data-approach]'));
 if (tracksScroll) {
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll);
@@ -416,6 +458,7 @@ motion.addEventListener('change', () => {
     state.variant = undefined;
   });
   canvasStates.forEach(state => paint(state));
+  updateThesisScroll();
   renderBuilding(true);
   schedule();
 });
