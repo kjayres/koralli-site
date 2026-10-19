@@ -605,6 +605,7 @@ h3 {
 
 .site-footer {
   background:#080E20;
+  box-shadow:0 2px 0 #080E20;
   color:var(--paper);
   padding:80px var(--gutter) 25px
 }

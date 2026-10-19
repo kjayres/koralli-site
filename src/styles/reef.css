@@ -13,7 +13,9 @@
 .reef-section .reef-canvas.art-ready > .reef-still { visibility:visible; opacity:0; transition:opacity .45s ease; }
 .reef-section .reef-still { opacity:1; }
 .reef-section .reef-canvas::after { content:''; position:absolute; inset:auto 0 0; height:52px; background:linear-gradient(transparent,#0C1630); pointer-events:none; }
-.home-page .site-footer { background:#0C1630; }
+.home-page { background:linear-gradient(var(--paper) 50%,#0C1630 50%); }
+.home-page main { background:var(--paper); }
+.home-page .site-footer { background:#0C1630; box-shadow:0 2px 0 #0C1630; }
 @media (max-width:759px) {
   .reef-editorial { grid-template-columns:1fr; gap:24px; }
   .reef-editorial p:not(.eyebrow) { font-size:16px; }

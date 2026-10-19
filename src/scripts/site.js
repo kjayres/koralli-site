@@ -178,7 +178,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       const rect = state.kind === 'approach'
         ? { width: canvas.parentElement.clientWidth, height: canvas.parentElement.clientHeight }
         : canvas.parentElement.getBoundingClientRect();
-      const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : state.kind === 'reef' ? 1 : 2);
+      const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : 2);
       if (state.w === rect.width && state.h === rect.height && state.dpr === dpr) return;
       state.w = rect.width;
       state.h = rect.height;

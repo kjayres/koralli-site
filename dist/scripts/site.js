@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=147b1a2175a9'),
-  research: () => import('./art/research.mjs?v=147b1a2175a9'),
-  approach: () => import('./art/approach.mjs?v=147b1a2175a9'),
-  coral: () => import('./art/coral.mjs?v=147b1a2175a9'),
-  'work-coral': () => import('./art/coral.mjs?v=147b1a2175a9'),
-  reef: () => import('./art/reef.mjs?v=147b1a2175a9'),
-  'journal-water': () => import('./art/journal-water.mjs?v=147b1a2175a9')
+  wave: () => import('./art/wave.mjs?v=4acd42792b19'),
+  research: () => import('./art/research.mjs?v=4acd42792b19'),
+  approach: () => import('./art/approach.mjs?v=4acd42792b19'),
+  coral: () => import('./art/coral.mjs?v=4acd42792b19'),
+  'work-coral': () => import('./art/coral.mjs?v=4acd42792b19'),
+  reef: () => import('./art/reef.mjs?v=4acd42792b19'),
+  'journal-water': () => import('./art/journal-water.mjs?v=4acd42792b19')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=147b1a2175a9');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=4acd42792b19');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -178,7 +178,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
       const rect = state.kind === 'approach'
         ? { width: canvas.parentElement.clientWidth, height: canvas.parentElement.clientHeight }
         : canvas.parentElement.getBoundingClientRect();
-      const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : state.kind === 'reef' ? 1 : 2);
+      const dpr = Math.min(devicePixelRatio || 1, state.kind === 'journal-water' ? 1.5 : 2);
       if (state.w === rect.width && state.h === rect.height && state.dpr === dpr) return;
       state.w = rect.width;
       state.h = rect.height;
@@ -218,7 +218,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=147b1a2175a9').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=4acd42792b19').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -365,7 +365,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=147b1a2175a9').then(module => {
+if (building && svg) import('./art/building.mjs?v=4acd42792b19').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);

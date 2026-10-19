@@ -331,6 +331,11 @@ export function paintReefActors(ctx, triangles, width, height, { underlay = null
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   let visibleEdges = 0, visibleSegments = 0;
   const hasScaledUnderlay = Boolean(work.underlay && (work.underlay.rasterWidth !== rasterWidth || work.underlay.rasterHeight !== rasterHeight));
+  const underlayDepth = hasScaledUnderlay ? work.underlay.depthBuffer : null;
+  const underlayWidth = hasScaledUnderlay ? work.underlay.rasterWidth : 0;
+  const underlayMaxX = underlayWidth - 1;
+  const underlayMaxY = hasScaledUnderlay ? work.underlay.rasterHeight - 1 : 0;
+  const scaleX = work.staticScaleX, scaleY = work.staticScaleY;
   for (const [stroke, widths] of groups) for (const [lineWidth, group] of widths) {
     if (!group.count) continue;
     ctx.strokeStyle = stroke; ctx.lineWidth = lineWidth; ctx.beginPath();
@@ -349,9 +354,13 @@ export function paintReefActors(ctx, triangles, width, height, { underlay = null
           const t = lo + (hi - lo) * (i + .5) / steps, x = a.x + dx * t, y = a.y + dy * t;
           const ix = Math.min(rasterWidth - 1, Math.max(0, Math.floor(x))), iy = Math.min(rasterHeight - 1, Math.max(0, Math.floor(y)));
           const inverse = za + dz * t;
-          const surfaceDepth = hasScaledUnderlay
-            ? Math.max(depth[iy * rasterWidth + ix], work.staticDepthAt(x, y))
-            : depth[iy * rasterWidth + ix];
+          let surfaceDepth = depth[iy * rasterWidth + ix];
+          if (underlayDepth) {
+            const sx = Math.min(underlayMaxX, Math.max(0, Math.floor(x * scaleX)));
+            const sy = Math.min(underlayMaxY, Math.max(0, Math.floor(y * scaleY)));
+            const sd = underlayDepth[sy * underlayWidth + sx];
+            if (sd > surfaceDepth) surfaceDepth = sd;
+          }
           visible = inverse + slope + inverse * .00002 >= surfaceDepth;
         }
         if (visible && start < 0) start = lo + (hi - lo) * i / steps;
