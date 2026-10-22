@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=347ce6a437ec'),
-  research: () => import('./art/research.mjs?v=347ce6a437ec'),
-  approach: () => import('./art/approach.mjs?v=347ce6a437ec'),
-  coral: () => import('./art/coral.mjs?v=347ce6a437ec'),
-  'work-coral': () => import('./art/coral.mjs?v=347ce6a437ec'),
-  reef: () => import('./art/reef.mjs?v=347ce6a437ec'),
-  'journal-water': () => import('./art/journal-water.mjs?v=347ce6a437ec')
+  wave: () => import('./art/wave.mjs?v=ce3bbad16b7e'),
+  research: () => import('./art/research.mjs?v=ce3bbad16b7e'),
+  approach: () => import('./art/approach.mjs?v=ce3bbad16b7e'),
+  coral: () => import('./art/coral.mjs?v=ce3bbad16b7e'),
+  'work-coral': () => import('./art/coral.mjs?v=ce3bbad16b7e'),
+  reef: () => import('./art/reef.mjs?v=ce3bbad16b7e'),
+  'journal-water': () => import('./art/journal-water.mjs?v=ce3bbad16b7e')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=347ce6a437ec');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=ce3bbad16b7e');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -240,7 +240,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=347ce6a437ec').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=ce3bbad16b7e').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -387,7 +387,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=347ce6a437ec').then(module => {
+if (building && svg) import('./art/building.mjs?v=ce3bbad16b7e').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -431,7 +431,7 @@ if (thesisStage || redesignersStage) {
       schedule();
     }).observe(redesignersStage);
   }
-  import('./art/thesis-cards.mjs?v=347ce6a437ec').then(({ initThesisCards, initRedesignersMech }) => {
+  import('./art/thesis-cards.mjs?v=ce3bbad16b7e').then(({ initThesisCards, initRedesignersMech }) => {
     if (thesisStage) {
       renderThesis = initThesisCards(thesisStage);
       updateThesisScroll();
@@ -505,53 +505,3 @@ document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
 if (tracksScroll) onScroll();
-
-// The header returns as a floating bar when the reader scrolls up. It stays tucked away
-// while a pinned scene holds the screen, and after in-page jumps, so it never covers them.
-{
-  const header = document.querySelector('.site-header');
-  const pinned = [...document.querySelectorAll('.thesis-sticky, .building-sticky, [data-approach-page]')];
-  // A sticky stage is holding the screen when it has moved down from the top of its
-  // section but has not yet reached the bottom.
-  const holding = () => pinned.some(stage => {
-    if (getComputedStyle(stage).position !== 'sticky') return false;
-    const own = stage.getBoundingClientRect(), parent = stage.parentElement.getBoundingClientRect();
-    return own.top - parent.top > 1 && parent.bottom - own.bottom > 1 && own.bottom > 0 && own.top < innerHeight;
-  });
-  // Reads the colour of the page just under the bar, so it can match light or dark sections.
-  const darkBeneath = () => {
-    const probeY = Math.min(innerHeight - 1, header.offsetHeight + 2);
-    for (let node = document.elementFromPoint(innerWidth / 2, probeY); node && node !== document.documentElement; node = node.parentElement) {
-      if (header.contains(node)) return header.classList.contains('is-dark');
-      const match = getComputedStyle(node).backgroundColor.match(/[\d.]+/g);
-      if (!match || (match.length > 3 && Number(match[3]) < .5)) continue;
-      const [r, g, b] = match.map(Number);
-      return .2126 * r + .7152 * g + .0722 * b < 110;
-    }
-    return document.body.classList.contains('journal-page');
-  };
-  let last = scrollY, travel = 0, suppressUntil = 0;
-  const update = () => {
-    const y = scrollY, delta = y - last;
-    last = y;
-    if (y <= 1) { header.classList.remove('is-floating', 'is-shown'); travel = 0; return; }
-    if (y > header.offsetHeight) header.classList.add('is-floating');
-    if (!header.classList.contains('is-floating')) return;
-    travel = Math.sign(delta) === Math.sign(travel) ? travel + delta : delta;
-    if (travel > 8 || holding() || performance.now() < suppressUntil) header.classList.remove('is-shown');
-    else if (travel < -8) header.classList.add('is-shown');
-    if (header.classList.contains('is-shown')) header.classList.toggle('is-dark', darkBeneath());
-  };
-  const tuckAway = () => { suppressUntil = performance.now() + 900; header.classList.remove('is-shown'); };
-  if (header) {
-    addEventListener('scroll', update, { passive: true });
-    addEventListener('hashchange', tuckAway);
-    document.addEventListener('click', event => {
-      const link = event.target.closest?.('a[href^="#"]');
-      if (link && !header.contains(link)) tuckAway();
-    });
-    // Keyboard users tabbing back to the menu always see it.
-    header.addEventListener('focusin', () => header.classList.add('is-shown'));
-    update();
-  }
-}
