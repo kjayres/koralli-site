@@ -43,6 +43,134 @@
   font:13px/1.6 'Instrument Sans',sans-serif;
   letter-spacing:normal;
 }
+/* The bank's outcomes open one at a time beneath ruled lines. */
+.outcome-list { margin-top:30px; border-bottom:1px solid var(--rule); interpolate-size:allow-keywords; }
+.outcome { border-top:1px solid var(--rule); }
+.outcome summary {
+  list-style:none;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+  padding:20px 0;
+  color:var(--paper);
+  font-size:clamp(17px,1.35vw,19px);
+  font-weight:500;
+  line-height:1.35;
+  letter-spacing:-.015em;
+  transition:color .2s ease;
+}
+.outcome summary::-webkit-details-marker { display:none; }
+.outcome summary:hover,.outcome[open] summary { color:#c9d4ff; }
+.outcome summary:focus-visible { outline-offset:4px; }
+.outcome-icon {
+  flex:none;
+  position:relative;
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  border:1px solid rgba(243,240,232,.3);
+  color:var(--paper);
+  transition:transform .3s ease,border-color .2s ease,color .2s ease;
+}
+.outcome-icon::before,.outcome-icon::after { content:''; position:absolute; top:50%; left:50%; background:currentColor; border-radius:1px; transform:translate(-50%,-50%); }
+.outcome-icon::before { width:11px; height:1.5px; }
+.outcome-icon::after { width:1.5px; height:11px; }
+.outcome summary:hover .outcome-icon { border-color:#b7c6ff; color:#b7c6ff; }
+.outcome[open] .outcome-icon { transform:rotate(45deg); border-color:#b7c6ff; color:#b7c6ff; }
+.home-page .outcome p { max-width:54ch; padding:0 52px 24px 0; opacity:0; transform:translateY(-6px); transition:opacity .35s ease,transform .35s ease; }
+.outcome[open] p { opacity:1; transform:none; }
+.outcome::details-content { block-size:0; overflow:hidden; transition:block-size .35s ease,content-visibility .35s allow-discrete; }
+.outcome[open]::details-content { block-size:auto; }
+/* The anchor's rope is hitched round the hero's bottom line; the anchor is lowered as the page
+   scrolls and rests on the reef's seabed. Sticky positioning lowers it; scripts/sea-anchor.mjs
+   sets the rope's run and draws the anchor. */
+.sea-anchor {
+  --rope:#8e9ac0;
+  --rope-shade:#68749c;
+  --rope-w:3px;
+  --rope-x:max(16px,calc(max(var(--gutter),(100vw - 1276px) / 2) / 2));
+  --link-w:44px;
+  --link-h:54px;
+  --anchor-gap:40px;
+  --fade:.5;
+  position:absolute;
+  right:0;
+  width:calc(var(--rope-x) + 170px);
+  pointer-events:none;
+  z-index:20;
+}
+.sea-anchor[hidden] { display:none; }
+.sea-anchor-hitch {
+  position:absolute;
+  z-index:1;
+  top:0;
+  right:calc(var(--rope-x) - 12px);
+  width:24px;
+  height:22px;
+  opacity:var(--fade);
+  transition:opacity .3s ease;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22' fill='none' stroke-linecap='round'%3E%3Cpath d='M13.2 14.4 15.4 18' stroke='%235f6b93' stroke-width='3.2'/%3E%3Cpath d='M13.2 14.4 15.4 18' stroke='%238e9ac0' stroke-width='2'/%3E%3Cpath d='M12 13C7.6 11.6 7.8 2.6 12 2.6S16.4 11.6 12 13' stroke='%235f6b93' stroke-width='3.6'/%3E%3Cpath d='M12 13C7.6 11.6 7.8 2.6 12 2.6S16.4 11.6 12 13' stroke='%238e9ac0' stroke-width='2.4'/%3E%3Cpath d='M12 13C7.6 11.6 7.8 2.6 12 2.6S16.4 11.6 12 13' stroke='%2368749c' stroke-width='2.4' stroke-linecap='butt' stroke-dasharray='.8 1.9'/%3E%3Cellipse cx='12' cy='13.4' rx='2.7' ry='2.1' fill='%238e9ac0' stroke='%235f6b93' stroke-width='.8'/%3E%3Cpath d='M10.4 12.6 13.4 14.2' stroke='%2368749c' stroke-width='.8'/%3E%3C/svg%3E") no-repeat;
+}
+.sea-anchor.at-top .sea-anchor-hitch { opacity:0; }
+.sea-anchor-run { position:absolute; inset:10px 0 0; clip-path:inset(0); }
+.sea-anchor-link {
+  position:sticky;
+  top:calc(100vh - var(--link-h) - var(--anchor-gap));
+  top:calc(100svh - var(--link-h) - var(--anchor-gap));
+  display:block;
+  width:var(--link-w);
+  height:var(--link-h);
+  margin:36px calc(var(--rope-x) - var(--link-w) / 2) 24px auto;
+  pointer-events:auto;
+  -webkit-tap-highlight-color:transparent;
+}
+/* A laid rope: light strands with darker lay lines running across them. */
+.sea-anchor-link::before {
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:calc(100% - var(--rope-tail, 0px));
+  width:var(--rope-w);
+  height:200vh;
+  margin-left:calc(var(--rope-w) / -2);
+  background:repeating-linear-gradient(-45deg,var(--rope) 0 2px,var(--rope-shade) 2px 2.83px);
+}
+/* Faded so it sits in the background; it comes forward when pointed at or focused. */
+.sea-anchor-link::before,
+.sea-anchor-canvas { opacity:var(--fade); transition:opacity .3s ease; }
+.sea-anchor-link:hover,
+.sea-anchor-link:focus-visible { --fade:1; }
+.sea-anchor-link:focus-visible { outline:1.5px solid var(--blue); outline-offset:3px; border-radius:4px; }
+.sea-anchor-canvas {
+  position:absolute;
+  top:-70px;
+  right:calc(var(--link-w) / 2 - var(--rope-x));
+  width:calc(var(--rope-x) + 130px);
+  height:150px;
+  pointer-events:none;
+}
+.sea-anchor-label {
+  position:absolute;
+  top:50%;
+  right:calc(100% + 6px);
+  padding:6px 8px;
+  white-space:nowrap;
+  font:10px/1 var(--mono);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink);
+  background:var(--paper);
+  opacity:0;
+  transform:translate(6px,-50%);
+  transition:opacity .2s ease,transform .2s ease;
+}
+.sea-anchor-link:hover .sea-anchor-label,
+.sea-anchor-link:focus-visible .sea-anchor-label { opacity:1; transform:translate(0,-50%); }
+.sea-anchor.on-deep .sea-anchor-label { color:var(--paper); background:var(--deep); }
+.sea-anchor.on-deep .sea-anchor-link:focus-visible { outline-color:#b7c6ff; }
+@media print { .sea-anchor { display:none; } }
 .home-page .building-heading,
 .home-page .building-layout { max-width:1276px; margin-left:auto; margin-right:auto; }
 .home-page .building-caption {
@@ -99,8 +227,9 @@
   padding:clamp(24px,2.6vw,34px);
   will-change:transform,opacity;
 }
+/* Sized so card 2's first sentence holds one line and both headings stay two lines tall. */
 .thesis-card-copy h2 {
-  font-size:clamp(25px,2.35vw,33px);
+  font-size:clamp(20px,2.1vw,30px);
   line-height:1.15;
   letter-spacing:-.032em;
   margin:10px 0 0;
@@ -158,6 +287,7 @@
   .thesis-section.thesis-enhanced { height:auto; }
   .thesis-section.thesis-enhanced .thesis-sticky { position:static; min-height:0; display:block; padding:48px var(--gutter); }
   .thesis-grid { grid-template-columns:1fr; gap:24px; }
+  .thesis-card-copy h2 { font-size:25px; }
 }
 @media(max-width:759px) {
   .home-page .hero {
@@ -179,8 +309,14 @@
   .home-footer .reef-editorial > div + div { padding-top:0; }
   .home-footer .reef-definition { grid-template-columns:1fr; gap:16px; }
   .home-footer .reef-contact { justify-self:start; }
+  .sea-anchor { --link-w:32px; --link-h:42px; --anchor-gap:28px; --rope-w:2.5px; }
+  .outcome summary { padding:18px 0; }
+  .home-page .outcome p { padding-right:0; }
 }
 @media(prefers-reduced-motion:reduce) {
   .thesis-section.thesis-enhanced { height:auto; }
   .thesis-section.thesis-enhanced .thesis-sticky { position:static; min-height:0; display:block; }
+  .outcome-icon,.home-page .outcome p { transition:none; }
+  .outcome::details-content { transition:none; }
+  .sea-anchor-label,.sea-anchor-hitch,.sea-anchor-link::before,.sea-anchor-canvas { transition:none; }
 }

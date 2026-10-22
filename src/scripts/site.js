@@ -443,35 +443,36 @@ if (thesisStage || redesignersStage) {
   }).catch(error => console.error('Unable to initialise thesis/redesigners artwork:', error));
 }
 
-const gauge = document.querySelector('.depth-gauge');
-const gaugeMarker = gauge?.querySelector('b');
-const gaugeValue = gauge?.querySelector('[data-depth-value]');
+// The anchor hangs over paper or deep water; the building's chamber darkens as it is explored.
+const seaAnchor = document.querySelector('[data-sea-anchor]');
+let updateSeaAnchor = () => {};
+function seaIsDarkAt(y) {
+  const within = element => { const rect = element?.getBoundingClientRect(); return rect && y >= rect.top && y <= rect.bottom; };
+  if ([...document.querySelectorAll('.deep-water, .site-footer')].some(within)) return true;
+  return within(chamber) && chamber.dataset.depthTheme === '1';
+}
+if (seaAnchor) {
+  import('./sea-anchor.mjs')
+    .then(({ initSeaAnchor }) => { updateSeaAnchor = initSeaAnchor(seaAnchor, { darkAt: seaIsDarkAt }); })
+    .catch(error => console.error('Unable to initialise the anchor:', error));
+}
+
 let lastScrollAt = -1e9;
-let maxScrollCache = 0;
 function onScroll(event) {
   if (event && typeof performance !== 'undefined') lastScrollAt = performance.now();
-  if (!event || event.type === 'resize') maxScrollCache = 0;
   journalViewportDirty = true;
   if (scrollFrame) return;
   scrollFrame = requestAnimationFrame(() => {
     scrollFrame = 0;
     const rect = building?.getBoundingClientRect();
-    const maxScroll = gauge ? (maxScrollCache ||= Math.max(1, document.documentElement.scrollHeight - innerHeight)) : 1;
     updateJournalViewport();
     updateThesisScroll();
     renderBuilding(false, rect);
     updateApproach();
-    if (!gauge) return;
-    gauge.hidden = !building?.classList.contains('building-enhanced') || !rect || rect.top > 0;
-    const p = clamp(scrollY / maxScroll);
-    if (gaugeMarker) gaugeMarker.style.transform = `translate3d(0,${(p * 104).toFixed(2)}px,0)`;
-    const label = `−${String(Math.round(p * 120)).padStart(3, '0')} M`;
-    if (gaugeValue && gaugeValue.textContent !== label) gaugeValue.textContent = label;
-    const gaugeColor = rect && (rect.bottom < innerHeight || buildingProgress > .43) ? '#F3F0E8' : '#111111';
-    if (gauge.style.color !== gaugeColor) gauge.style.color = gaugeColor;
+    updateSeaAnchor();
   });
 }
-const tracksScroll = Boolean(building || gauge || journalState || thesisStage || document.querySelector('[data-approach]'));
+const tracksScroll = Boolean(building || seaAnchor || journalState || thesisStage || document.querySelector('[data-approach]'));
 if (tracksScroll) {
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll);

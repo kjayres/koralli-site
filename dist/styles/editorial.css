@@ -14,8 +14,6 @@
 .home-page .building-intro { max-width:76ch; margin-top:12px; font-size:15px; line-height:1.5; }
 .home-page .building-instruction { position:static; margin-top:16px; }
 .home-page .building-layout { height:calc(100% - 125px); }
-.home-page .depth-gauge[hidden] { display:none; }
-.home-page .depth-gauge { color:var(--ink); }
 .deep-water { --rule:rgba(243,240,232,.2); background:var(--deep); color:var(--paper); }
 .deep-water .section-label,.deep-water .home-journal p { color:#b1bbd1; }
 .deep-water .section-label i { background:var(--rule); }
@@ -38,11 +36,17 @@
 .trace-key span::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--blue); }
 .trace-key span+span::before { background:var(--coral); }
 .case-account { margin-top:44px; padding-top:36px; border-top:1px solid var(--rule); }
+.case-account.editorial-grid { grid-template-columns:1fr; row-gap:40px; }
 .case-account h3 { max-width:20ch; font-size:clamp(24px,2.4vw,30px); line-height:1.25; }
 .case-account .client-quote { margin-top:22px; }
 .case-account p[id] { scroll-margin-top:50px; }
-.case-changed-list p { color:#4e4d49; }
-.case-changed-list strong { color:var(--ink); font-weight:600; }
+.case-account .quote-attribution { margin:18px 0 0 22px; color:#68655f; font-size:13px; line-height:1.6; }
+/* Service offerings: four ruled columns beneath the case study. */
+.service-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:clamp(24px,3vw,44px); margin-top:56px; }
+.service { padding-top:24px; border-top:1px solid var(--rule); }
+.service::before { content:''; display:block; width:7px; height:7px; margin-bottom:22px; background:var(--coral); }
+.service h3 { font-size:clamp(20px,1.6vw,23px); font-weight:500; line-height:1.25; letter-spacing:-.02em; }
+.service p { margin-top:14px; font-size:15px; line-height:1.65; color:#4e4d49; }
 .case-phase-panels { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(18px,2.8vw,30px); margin-top:44px; align-items:start; }
 .case-phase-panel { border:1px solid var(--rule); background:var(--paper); scroll-margin-top:50px; transition:border-color .2s ease; }
 .case-phase-panel:hover,.case-phase-panel[open] { border-color:var(--blue); }
@@ -68,11 +72,14 @@
   .case-phase-body { padding:16px 18px 20px; }
 }
 @media(max-width:900px) {
+  .service-list { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:40px; }
   .case-phase-panels { grid-template-columns:1fr; gap:14px; margin-top:32px; }
   .case-phase-trigger { padding:18px 20px; min-height:78px; }
   .case-phase-body { padding:16px 20px 20px; }
 }
 @media(max-width:759px) {
+  .service-list { grid-template-columns:1fr; gap:32px; margin-top:40px; }
+  .service::before { margin-bottom:18px; }
   .people-opening-detail { font-size:15px; }
   .home-page .hero { min-height:940px; height:940px; }
   .home-page .hero-copy { bottom:75px; }
@@ -98,23 +105,19 @@
   .home-page .building-instruction { font-size:0; }
   .home-page .building-section { height:auto; }
   .home-page .building-layout { height:570px; }
-  .home-page .depth-gauge,[data-art-pause] { display:none; }
+  [data-art-pause] { display:none; }
 }
 @media(prefers-reduced-motion:reduce) and (max-width:759px) {
   .home-page .building-layout { height:auto; }
 }
 
-/* Case study: the three phases read as an open timeline, then the client's words lead the outcomes. */
+/* Case study: the three phases read as an open timeline, then the client's words. */
 @media(min-width:901px) {
   .case-phase-panels { position:relative; margin-top:64px; }
   .case-phase-panels::before { content:''; position:absolute; top:-21px; left:4px; right:0; height:1px; background:var(--blue); opacity:.35; }
   .case-phase-panel { position:relative; }
   .case-phase-panel::before { content:''; position:absolute; top:-25px; left:0; width:9px; height:9px; border-radius:50%; background:var(--blue); }
-  .case-account.editorial-grid { grid-template-columns:1fr; row-gap:40px; }
   .case-account>div:first-child { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:clamp(36px,5vw,72px); align-items:start; }
   .case-account .client-quote { margin-top:0; max-width:none; }
   .case-account .client-quote p { font-size:clamp(24px,2.5vw,34px); line-height:1.25; }
-  .case-changed-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(28px,4vw,56px); padding-top:30px; border-top:1px solid var(--rule); }
-  .case-changed-list p+p { margin-top:0; }
-  .case-changed-list strong { display:block; margin-bottom:10px; font-size:17px; letter-spacing:-.01em; }
 }

@@ -33,11 +33,5 @@
     "kind": "researcher",
     "bio": "Emilie holds an MSc in Social Science of the Internet from the Oxford Internet Institute, where she studied AI regulation, algorithmic bias, digital sovereignty and the political economy of digital markets. She also holds a BASc in Arts and Sciences from UCL.\n\nShe supported the launch of ThreeFold’s decentralised cloud infrastructure in Tanzania and worked on sustainable risk pool design at Allianz Reinsurance.",
     "portrait": "/assets/images/portraits/emilie-refined.webp"
-  },
-  {
-    "name": "Oakem Kyne",
-    "field": "BIOLOGY & COMPUTATION",
-    "kind": "researcher",
-    "bio": "Oakem is completing a DPhil in Biology at Oxford, studying how bacterial pathogens evolve and adapt to antibiotics. His work draws on genetic epidemiology, phylogenetics and machine learning."
   }
 ]

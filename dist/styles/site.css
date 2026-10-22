@@ -563,45 +563,6 @@ h3 {
   transform:translateZ(0)
 }
 
-.depth-gauge {
-  position:fixed;
-  right:15px;
-  top:50%;
-  transform:translateY(-50%);
-  display:flex;
-  align-items:center;
-  flex-direction:column;
-  gap:10px;
-  pointer-events:none;
-  z-index:30;
-  font-family:var(--mono);
-  font-size:10px;
-  letter-spacing:.15em
-}
-
-.depth-gauge>span {
-  writing-mode:vertical-rl
-}
-
-.depth-gauge>i {
-  height:110px;
-  width:1px;
-  background:currentColor;
-  position:relative;
-  opacity:.7
-}
-
-.depth-gauge b {
-  position:absolute;
-  top:0;
-  left:-2px;
-  width:5px;
-  height:5px;
-  border-radius:50%;
-  background:var(--coral);
-  will-change:transform
-}
-
 .reef-canvas {
   height:560px;
   position:relative;
@@ -613,7 +574,7 @@ h3 {
   background:#080E20;
   box-shadow:0 2px 0 #080E20;
   color:var(--paper);
-  padding:80px var(--gutter) 25px
+  padding:56px var(--gutter) 25px
 }
 
 .footer-main {
@@ -624,20 +585,15 @@ h3 {
   gap:50px
 }
 
-.footer-main .eyebrow {
-  color:#8c8f98
-}
-
 .footer-main h2 {
-  font-size:clamp(32px,3.1vw,44px);
-  margin-top:25px
+  font-size:clamp(32px,3.1vw,44px)
 }
 
 .contact-email {
   font-size:clamp(23px,2.4vw,34px);
   color:var(--coral);
   display:inline-block;
-  margin-top:30px;
+  margin-top:20px;
   letter-spacing:-.025em;
   border-bottom:1px solid #ff665555;
   padding-bottom:7px
@@ -647,21 +603,6 @@ h3 {
   margin-left:35px
 }
 
-.footer-index {
-  display:flex;
-  flex-direction:column;
-  gap:20px;
-  font-family:var(--mono);
-  font-size:10px;
-  letter-spacing:.13em;
-  padding-top:16px
-}
-
-.footer-index span {
-  color:#92949c;
-  margin-top:25px
-}
-
 .site-footer a:hover {
   color:var(--coral)
 }
@@ -669,6 +610,7 @@ h3 {
 .footer-bottom {
   display:flex;
   justify-content:space-between;
+  align-items:flex-end;
   gap:15px;
   flex-wrap:wrap;
   font-size:10px;
@@ -677,7 +619,12 @@ h3 {
   border-top:1px solid #f3f0e82a;
   padding-top:20px;
   max-width:1280px;
-  margin:75px auto 0
+  margin:44px auto 0
+}
+
+.footer-place {
+  text-align:right;
+  line-height:1.9
 }
 
 @media(min-width:1600px) {
@@ -906,9 +853,6 @@ h3 {
     font-size:9px;
     bottom:13px
   }
-  .depth-gauge {
-    display:none
-  }
   .reef-canvas {
     height:440px
   }
@@ -921,21 +865,14 @@ h3 {
   .footer-main {
     display:block
   }
-  .footer-index {
-    margin-top:50px;
-    gap:16px
-  }
-  .footer-index span {
-    margin-top:10px
-  }
   .site-footer {
-    padding-top:60px
+    padding-top:48px
   }
   .contact-email span {
     margin-left:18px
   }
   .footer-bottom {
-    margin-top:45px;
+    margin-top:36px;
     font-size:9px;
     line-height:1.7;
     gap:12px

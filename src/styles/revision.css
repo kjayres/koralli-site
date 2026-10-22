@@ -20,8 +20,6 @@
 .depth-choice { opacity:.76; }
 .depth-choice[aria-current=step] { color:var(--depth-accent); border-color:var(--depth-accent); }
 .building-sticky .depth-choice:focus-visible { outline-color:var(--depth-accent); }
-.footer-invitation { max-width:390px; margin-top:24px; color:#b7bac3; font-size:15px; }
-.footer-definition { margin-top:22px; color:#92949c; font-size:13px; line-height:1.5; }
 .case-section h2 { margin-top:20px; }
 .people-hero { max-width:1420px; margin:auto; padding:180px var(--gutter) 95px; }
 .people-hero h1 { margin:30px 0 45px; max-width:1000px; }
