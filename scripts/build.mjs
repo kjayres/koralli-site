@@ -13,9 +13,39 @@ export const outputDir = resolve(projectDir, 'dist');
 // The address the site will live at. Every page names its koralli.io URL as canonical, so a
 // preview copy is never treated as the original.
 export const siteURL = 'https://www.koralli.io';
+// Where the preview is published before launch; share cards there point at preview images.
+export const previewURL = 'https://kjayres.github.io/koralli-site';
 const NOINDEX = '<meta name="robots" content="noindex,nofollow">';
 // Redirect pages point at the page they forward to.
 const canonicalPath = name => name === 'index.html' ? '/' : name === 'how-we-work.html' ? '/our-work.html' : `/${name}`;
+
+const attr = text => String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const unescape = text => text.replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'").replace(/&amp;/g, '&');
+// Tab icons and the card shown when a page is shared (LinkedIn, Slack, WhatsApp...). Articles
+// share their own illustration when one exists in assets/brand/og/; other pages share the brand card.
+function headTags(name, html, origin) {
+  const title = unescape((html.match(/<title>([^<]*)<\/title>/) || [, 'koralli'])[1]).replace(/ · Koralli$/, '');
+  const description = unescape((html.match(/<meta name="description" content="([^"]*)"/) || [, ''])[1]);
+  const slug = name.replace(/\.html$/, ''), article = html.includes('class="article-page"');
+  const image = article && existsSync(resolve(sourceDir, `assets/brand/og/${slug}.jpg`)) ? `assets/brand/og/${slug}.jpg` : 'assets/brand/og-card.jpg';
+  const published = (html.match(/<time datetime="([^"]+)"/) || [])[1];
+  return [
+    '<link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">',
+    '<link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">',
+    '<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">',
+    '<meta name="theme-color" content="#F3F0E8">',
+    `<meta property="og:type" content="${article ? 'article' : 'website'}">`,
+    '<meta property="og:site_name" content="koralli">',
+    `<meta property="og:title" content="${attr(title)}">`,
+    description && `<meta property="og:description" content="${attr(description)}">`,
+    `<meta property="og:url" content="${origin}${canonicalPath(name)}">`,
+    `<meta property="og:image" content="${origin}/${image}">`,
+    '<meta property="og:image:width" content="1200">',
+    '<meta property="og:image:height" content="630">',
+    article && published && `<meta property="article:published_time" content="${published}">`,
+    '<meta name="twitter:card" content="summary_large_image">',
+  ].filter(Boolean).map(tag => `  ${tag}\n`).join('');
+}
 
 // Addresses from the previous koralli.io site. Top-level ones get a small redirect page;
 // anything deeper (old posts, service pages) is caught by 404.html.
@@ -115,7 +145,7 @@ export function renderSite(basePath = './', { launch = false } = {}) {
       .replace('<!-- content: people -->', profiles);
     if (!html.includes(NOINDEX)) throw new Error(`${name} must carry the preview noindex tag; launch builds remove it.`);
     if (launch) html = html.replace(`  ${NOINDEX}\n`, '').replace(NOINDEX, '');
-    html = html.replace('</head>', `  <link rel="canonical" href="${siteURL}${canonicalPath(name)}">\n</head>`);
+    html = html.replace('</head>', `  <link rel="canonical" href="${siteURL}${canonicalPath(name)}">\n${headTags(name, html, launch ? siteURL : previewURL)}</head>`);
     files.set(name, Buffer.from(html));
   }
   for (const [name, target] of Object.entries(LEGACY_PAGES)) files.set(name, Buffer.from(redirectPage(target)));
@@ -135,6 +165,8 @@ export function renderSite(basePath = './', { launch = false } = {}) {
   }
   // content/ is read at build time only, so it is not published.
   ['styles', 'scripts', 'assets'].forEach(walk);
+  // Browsers ask for /favicon.ico on their own, so it lives at the root.
+  files.set('favicon.ico', readFileSync(resolve(sourceDir, 'favicon.ico')));
   for (const [name, bytes] of files) {
     if (!name.endsWith('.html')) continue;
     const html = bytes.toString();
