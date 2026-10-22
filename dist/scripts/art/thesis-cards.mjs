@@ -636,9 +636,13 @@ function card1DynamicMarkup(step) {
   d += parcelBox(card1Iso, placeAt + BELT_SPEED * (1 - placed) + BELT_SPEED * phase, PARCEL_Y, BELT_TOP, { checked: true, agent: true });
 
   // Person: lifts the parcel, turns and steps towards the agent, hands it over, turns back.
-  const humanX = keyframes(phase, [[0, 94], [0.16, 94], [0.32, 103], [0.5, 103], [0.7, 95], [1, 94]]);
+  const HUMAN_PATH = [[0, 94], [0.16, 94], [0.32, 103], [0.5, 103], [0.7, 95], [1, 94]];
+  const humanX = keyframes(phase, HUMAN_PATH);
   const humanHeading = keyframes(phase, [[0, -Math.PI * 0.42], [0.1, -Math.PI * 0.42], [0.3, Math.PI * 0.42], [0.5, Math.PI * 0.42], [0.68, -Math.PI * 0.42], [1, -Math.PI * 0.42]]);
-  const humanStride = Math.sin(Math.PI * clamp((phase - 0.16) / 0.16)) * 0.45 - Math.sin(Math.PI * clamp((phase - 0.5) / 0.2)) * 0.4;
+  // The person steps too: legs cycle with distance covered (a stride per 5.4 units at this
+  // scale), so they walk between belt and agent rather than gliding, and stand still at each end.
+  const humanSpeed = Math.abs(keyframes(Math.min(1, phase + .004), HUMAN_PATH) - keyframes(Math.max(0, phase - .004), HUMAN_PATH)) / .008;
+  const humanStride = Math.sin(humanX * TAU / 5.4) * .7 * clamp(humanSpeed / 25);
   const humanLean = keyframes(phase, [[0, 1.2], [0.1, 0.8], [0.32, 0.9], [0.44, 1.2], [0.56, 0.7], [0.9, 0.9], [1, 1.2]]);
   const holding = keyframes(phase, [[0, 1], [0.42, 1], [0.5, 0], [0.9, 0], [1, 1]]);
 
