@@ -18,9 +18,6 @@
 .approach-figure .figure-caption { color:var(--blue); font-size:10px; letter-spacing:.11em; }
 .approach-detail { color:#686660; font:10px/1.5 var(--mono); }
 .approach-frame::after { transition:opacity .7s; }
-.approach-key { visibility:hidden; }
-[data-approach][data-phase="2"] .approach-key { visibility:visible; }
-.approach-key span+span::before { background:#e87883; }
 .approach-fallback { display:flex; flex-direction:column; justify-content:center; height:100%; gap:24px; padding:30px; color:var(--blue); font-size:18px; }
 .approach-steps { grid-column:1; grid-row:1; margin:0; padding:0; list-style:none; }
 .approach-step { position:relative; min-height:65svh; padding:var(--approach-copy-offset,0px) 0 100px 66px; scroll-margin-top:var(--approach-reading-top); }

@@ -10,15 +10,13 @@ const mix = (a, b, t) => a + (b - a) * t;
 const random = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 
 const BLUE = [36, 78, 255], GREY = [112, 119, 131], CORAL = [232, 120, 131];
-export const GROW_START = 2.6, GROW_DURATION = 2.8;
+export const GROW_START = 3.4, GROW_DURATION = 3.1;
 export const FIRST_EVENT = GROW_START + GROW_DURATION + 1.4, EVENT_INTERVAL = 6;
 const EXTRA_BRANCHES = 2, RETREAT_EVERY = 3;
 const EVIDENCE = .9, REACH = 1, PRUNE_START = 2.2, PRUNE = 1;
 // How many grains fall into the heap, and how far either side of the middle they gather.
 export const HEAP = { count: 560, halfWidth: .15, height: .072 };
 const CANOPY = { left: .13, right: .87, top: .22, bottom: .74 };
-// A heap of fallen grains is low, so the coral's own grains settle this far down to stand on it.
-export const CORAL_DROP = .1;
 
 const css = rgb => `rgba(${rgb.map(Math.round).join(',')},`;
 const colour = (a, b, t) => a.map((v, i) => mix(v, b[i], t));
@@ -64,7 +62,7 @@ export function createAdaptGrow(locations, studies, reserved = new Set()) {
   const candidates = locations.map((location, id) => ({ ...location, id }))
     .filter(({ id, u, v }) => !rock.has(id) && !coralIds.has(id)
       && u > CANOPY.left && u < CANOPY.right && v > CANOPY.top && v < CANOPY.bottom);
-  const placed = locations.map((location, id) => coralIds.has(id) ? { u: location.u, v: location.v + CORAL_DROP } : location);
+  const placed = locations.map((location, id) => coralIds.has(id) ? { u: .5 + (location.u - .5) * 1.08, v: .15 + (location.v - .20) * 1.15 } : location);
   return { rock, root: ids[0], coral: coralIds, base, parents: new Map(base.map(node => [node.id, node.parent])), candidates, locations: placed, events: [], dormant: [] };
 }
 
@@ -170,13 +168,13 @@ export function adaptGrowPresentation(grow, age, reducedMotion = false) {
 }
 
 /** While the heap gathers, its grains are drawn gently towards the middle as they fall. */
-export const heapPull = age => .08 * (1 - smooth((age - 1.7) / .6));
+export const heapPull = age => smooth(age / .5) * (1 - smooth((age - 2.7) / 1.1));
 
 /** Fine branches between the grains, then the grains the coral has joined, in colour. */
 export function drawAdaptGrow(ctx, points, state, { width, height, opacity = 1 } = {}) {
-  const radius = clamp(width * .0058, 1.7, 2.5), line = clamp(Math.min(width, height) / 480, .7, 1.05);
+  const radius = clamp(width * .0041, 1.1, 1.7), line = clamp(Math.min(width, height) / 600, .55, .8);
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = `rgba(36,78,255,${(.58 * opacity).toFixed(3)})`; ctx.lineWidth = line;
+  ctx.strokeStyle = `rgba(36,78,255,${(.48 * opacity).toFixed(3)})`; ctx.lineWidth = line;
   ctx.beginPath();
   for (const { from, to, progress } of state.edges) {
     const a = points(from), b = points(to);
@@ -186,8 +184,8 @@ export function drawAdaptGrow(ctx, points, state, { width, height, opacity = 1 }
   for (const mark of state.marks) {
     const p = points(mark.id);
     if (mark.ring > 0) {
-      ctx.strokeStyle = `${css(CORAL)}${(.34 * mark.ring * (1 - mark.ringProgress) ** 2 * opacity).toFixed(3)})`; ctx.lineWidth = .65;
-      ctx.beginPath(); ctx.arc(p.x, p.y, mix(4, 14, mark.ringProgress) * Math.min(1, Math.min(width, height) / 360), 0, TAU); ctx.stroke();
+      ctx.strokeStyle = `${css(CORAL)}${(.24 * mark.ring * (1 - mark.ringProgress) ** 2 * opacity).toFixed(3)})`; ctx.lineWidth = .65;
+      ctx.beginPath(); ctx.arc(p.x, p.y, mix(3, 9, mark.ringProgress) * Math.min(1, Math.min(width, height) / 360), 0, TAU); ctx.stroke();
     }
     ctx.fillStyle = `${css(mark.rgb)}${(.95 * mark.alpha * opacity).toFixed(3)})`;
     ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, TAU); ctx.fill();
