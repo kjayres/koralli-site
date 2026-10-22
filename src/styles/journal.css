@@ -44,8 +44,15 @@
 .journal-articles .article-row:hover { border-color:#8fa5ff; }
 .journal-articles .article-row a:hover { color:#c9d4ff; }
 .journal-articles .article-row:hover .article-arrow { transform:translate(3px,-3px); }
+.reef-crab { position:absolute; z-index:1; left:calc(4.8vw + 36px); bottom:-2px; width:280px; height:96px; pointer-events:none; }
+.reef-crab svg { display:block; width:100%; height:100%; overflow:visible; }
+.reef-crab a { pointer-events:auto; cursor:pointer; }
+.reef-crab a:focus-visible { outline:none; }
+.reef-crab a:focus-visible .reef-crab-rim { stroke:#c2cdff; stroke-opacity:1; }
+.reef-crab-words { font:10px var(--mono); letter-spacing:.06em; fill:#9baecb; }
 .journal-page .site-footer { position:relative; background:#0c1630; border-top:1px solid var(--rule); }
 @media(min-width:1600px) { .journal-articles { padding-left:140px; padding-right:140px; } }
+@media(max-width:699px) { .reef-crab { left:22px; } }
 @media(max-width:759px) {
   .journal-hero { padding:210px var(--gutter) 66px; }
   .journal-opening { margin-top:53px; }

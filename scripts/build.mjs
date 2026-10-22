@@ -60,9 +60,11 @@ const redirectPage = target => `<!doctype html>\n<html lang="en-GB">\n<head>\n  
 const notFoundPage = () => `<!doctype html>\n<html lang="en-GB">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1">\n  <meta name="robots" content="noindex">\n  <title>Page not found · Koralli</title>\n  <script>\n    (() => {\n      const parts = location.pathname.split('/').filter(Boolean);\n      const root = location.hostname.endsWith('github.io') && parts.length ? '/' + parts.shift() + '/' : '/';\n      const moved = ${JSON.stringify(MOVED_ARTICLES)};\n      const [section, slug] = parts;\n      let target = null;\n      if (section === 'views-from-the-reef') target = moved[slug] || 'views-from-the-reef.html';\n      else if (section === 'service-offerings') target = 'our-work.html';\n      else if (section === 'dist') target = parts.slice(1).join('/');\n      if (target !== null) location.replace(root + target + location.search + location.hash);\n      addEventListener('DOMContentLoaded', () => { document.querySelector('[data-home]').href = root; });\n    })();\n  </script>\n  <style>body{margin:0;min-height:100vh;display:grid;place-content:center;gap:18px;padding:24px;background:#F3F0E8;color:#111;font-family:system-ui,sans-serif;text-align:center}a{color:#244EFF}</style>\n</head>\n<body><h1>Page not found</h1><p><a data-home href="/">Go to the koralli home page</a></p></body>\n</html>\n`;
 // The main pages, then one page per article in content/articles.json.
 const pages = [
-  'index.html', 'our-work.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html',
+  'index.html', 'our-work.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html', 'agent-systems.html',
   ...ARTICLES.filter(a => a.href.startsWith('/')).map(a => a.href.slice(1)),
 ];
+// Reached only through the hermit crab in Views from the Reef: never indexed or listed.
+const HIDDEN_PAGES = new Set(['agent-systems.html']);
 
 function expand(name, stack = []) {
   const path = resolve(sourceDir, name);
@@ -144,14 +146,14 @@ export function renderSite(basePath = './', { launch = false } = {}) {
       .replace('<!-- content: articles -->', articlesMarkup())
       .replace('<!-- content: people -->', profiles);
     if (!html.includes(NOINDEX)) throw new Error(`${name} must carry the preview noindex tag; launch builds remove it.`);
-    if (launch) html = html.replace(`  ${NOINDEX}\n`, '').replace(NOINDEX, '');
+    if (launch && !HIDDEN_PAGES.has(name)) html = html.replace(`  ${NOINDEX}\n`, '').replace(NOINDEX, '');
     html = html.replace('</head>', `  <link rel="canonical" href="${siteURL}${canonicalPath(name)}">\n${headTags(name, html, launch ? siteURL : previewURL)}</head>`);
     files.set(name, Buffer.from(html));
   }
   for (const [name, target] of Object.entries(LEGACY_PAGES)) files.set(name, Buffer.from(redirectPage(target)));
   files.set('404.html', Buffer.from(notFoundPage()));
   if (launch) {
-    const listed = pages.filter(name => name !== 'how-we-work.html');
+    const listed = pages.filter(name => name !== 'how-we-work.html' && !HIDDEN_PAGES.has(name));
     files.set('robots.txt', Buffer.from(`User-agent: *\nAllow: /\n\nSitemap: ${siteURL}/sitemap.xml\n`));
     files.set('sitemap.xml', Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${listed.map(name => `  <url><loc>${siteURL}${canonicalPath(name)}</loc></url>`).join('\n')}\n</urlset>\n`));
   }

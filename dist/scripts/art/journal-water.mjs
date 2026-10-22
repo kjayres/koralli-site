@@ -1,6 +1,6 @@
-import { drawJournalSquid } from './journal-squid.mjs?v=db2f77e955b9';
-import { drawDeepFish } from './journal-deep-life.mjs?v=db2f77e955b9';
-import { drawJournalJelly } from './journal-jelly.mjs?v=db2f77e955b9';
+import { drawJournalSquid } from './journal-squid.mjs?v=f47479b93e44';
+import { drawDeepFish } from './journal-deep-life.mjs?v=f47479b93e44';
+import { drawJournalJelly } from './journal-jelly.mjs?v=f47479b93e44';
 
 // The journal lives in open water. All dimensions below are CSS pixels.
 // Seeded continuous motion keeps a resize, a still frame and reduced motion stable.
@@ -26,7 +26,7 @@ export function journalCurrent(time = 0) {
 
 let cachedScene;
 
-function habitatStone(x, floor, radius, height, seed, detail = 14) {
+export function habitatStone(x, floor, radius, height, seed, detail = 14) {
   const vertices = [[0, 0, height]], faces = [], rings = [], rows = 4;
   for (let row = 1; row <= rows; row++) {
     const latitude = row / rows * Math.PI / 2, ring = [];

@@ -7,11 +7,11 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=db2f77e955b9'),
-  approach: () => import('./art/approach.mjs?v=db2f77e955b9'),
-  'work-coral': () => import('./art/coral.mjs?v=db2f77e955b9'),
-  reef: () => import('./art/reef.mjs?v=db2f77e955b9'),
-  'journal-water': () => import('./art/journal-water.mjs?v=db2f77e955b9')
+  wave: () => import('./art/wave.mjs?v=f47479b93e44'),
+  approach: () => import('./art/approach.mjs?v=f47479b93e44'),
+  'work-coral': () => import('./art/coral.mjs?v=f47479b93e44'),
+  reef: () => import('./art/reef.mjs?v=f47479b93e44'),
+  'journal-water': () => import('./art/journal-water.mjs?v=f47479b93e44')
 };
 
 function artworkFailed(state, error) {
@@ -81,7 +81,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=db2f77e955b9');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=f47479b93e44');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -250,7 +250,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=db2f77e955b9').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=f47479b93e44').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -386,7 +386,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=db2f77e955b9').then(module => {
+if (building && svg) import('./art/building.mjs?v=f47479b93e44').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -430,13 +430,13 @@ if (thesisStage || redesignersStage) {
       schedule();
     }).observe(redesignersStage);
   }
-  import('./art/thesis-cards.mjs?v=db2f77e955b9').then(({ initThesisCards, initRedesignersMech }) => {
+  import('./art/thesis-cards.mjs?v=f47479b93e44').then(({ initThesisCards, initRedesigners }) => {
     if (thesisStage) {
       renderThesis = initThesisCards(thesisStage);
       updateThesisScroll();
     }
     if (redesignersStage) {
-      renderRedesigners = initRedesignersMech(redesignersStage);
+      renderRedesigners = initRedesigners(redesignersStage);
       renderRedesigners(redesignersTime, motion.matches);
     }
     schedule();
@@ -452,9 +452,17 @@ function seaIsDarkAt(y) {
   return within(chamber) && chamber.dataset.depthTheme === '1';
 }
 if (seaAnchor) {
-  import('./sea-anchor.mjs?v=db2f77e955b9')
+  import('./sea-anchor.mjs?v=f47479b93e44')
     .then(({ initSeaAnchor }) => { updateSeaAnchor = initSeaAnchor(seaAnchor, { darkAt: seaIsDarkAt }); })
     .catch(error => console.error('Unable to initialise the anchor:', error));
+}
+
+// A hermit crab under a stone at the foot of Views from the Reef.
+const reefCrab = document.querySelector('[data-reef-crab]');
+if (reefCrab) {
+  import('./reef-crab.mjs?v=f47479b93e44')
+    .then(({ initReefCrab }) => initReefCrab(reefCrab))
+    .catch(error => console.error('Unable to initialise the hermit crab:', error));
 }
 
 let lastScrollAt = -1e9;

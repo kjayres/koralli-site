@@ -133,7 +133,7 @@ function isoPrimitives(p, palette = { paper: PAPER, shade: SHADE }) {
 }
 
 // ----------------------------------------------------------------------------
-// Rounded solids for the mech suit, so the machine is drawn in the same
+// Rounded solids for the diving suit, so the machine is drawn in the same
 // capsule language as the people.
 // ----------------------------------------------------------------------------
 
@@ -166,31 +166,6 @@ function ball(p, c, r, style) {
   return solid(roundedPath(p.sphereOutline(c, r, 20)), style);
 }
 
-// Smooth hull through stacked elliptical rings: [height, half-width, half-depth, forward offset].
-function shell(p, frame, rings, style) {
-  const pts = [];
-  for (const [h, uRad, vRad, vOff = 0] of rings) {
-    for (let i = 0; i < 18; i++) {
-      const t = (TAU * i) / 18;
-      pts.push(p(...frame.local(uRad * Math.cos(t), vOff + vRad * Math.sin(t), h)));
-    }
-  }
-  return solid(roundedPath(hull(pts)), style);
-}
-
-// The part of an elliptical ring around a body that faces the viewer.
-function visibleArc(p, frame, view, h, uRad, vRad, vOff = 0, extra = '') {
-  const pts = [];
-  for (let i = 0; i <= 48; i++) {
-    const t = (TAU * i) / 48;
-    const normal = add3(mul3(frame.right, Math.cos(t) / uRad), mul3(frame.forward, Math.sin(t) / vRad));
-    if (dot3(normal, view) > 0.02) pts.push(p(...frame.local(uRad * Math.cos(t), vOff + vRad * Math.sin(t), h)));
-    else if (pts.length) break;
-  }
-  if (pts.length < 2) return '';
-  return `<path d="M${pts.map(pair).join(' L')}" fill="none" ${extra}/>`;
-}
-
 /**
  * Volumetric 3D world-space human figure:
  * - Continuous, seamless 3D torso + legs + feet silhouette (two-pass stroke-then-fill removes
@@ -218,6 +193,7 @@ function human3DMarkup(p, {
   welderMask = false,
   blowtorchTarget = null,
   sparkPhase = 0,
+  torchPower = 1,
   held = '',
 } = {}) {
   const s = scale;
@@ -228,7 +204,8 @@ function human3DMarkup(p, {
     y + (right[1] * u + forward[1] * v) * s,
     z + h * s,
   ];
-  const depthOf = pt => p(pt[0], pt[1], 0)[1] + 0.4 * pt[2];
+  // A projector can say how near a point is; otherwise nearer points sit lower on the page.
+  const depthOf = p.depth || (pt => p(pt[0], pt[1], 0)[1] + 0.4 * pt[2]);
 
   const hipZ = 20.5;
   const shoulderZ = 33.8;
@@ -409,13 +386,14 @@ function human3DMarkup(p, {
     const dir = unit3(sub3(blowtorchTarget, grip));
     const bodyEnd = add3(grip, mul3(dir, 4.8 * s));
     const tip = add3(grip, mul3(dir, 7.6 * s));
-    const flameEnd = add3(tip, mul3(dir, (3.6 + Math.sin(sparkPhase * TAU * 4) * 1.1) * s));
+    // Between welds the flame drops back to a small pilot and the sparks stop.
+    const flameEnd = add3(tip, mul3(dir, (3.6 + Math.sin(sparkPhase * TAU * 4) * 1.1) * (0.3 + 0.7 * torchPower) * s));
     const pGrip = p(...grip), pBody = p(...bodyEnd), pTip = p(...tip), pFlame = p(...flameEnd);
     propMarkup += `<path d="M${pair(pGrip)} L${pair(pBody)}" fill="none" stroke="${DEEP_LINE}" stroke-width="${number(3.2 * s)}" stroke-linecap="round"/>`;
     propMarkup += `<path d="M${pair(pBody)} L${pair(pTip)}" fill="none" stroke="${CORAL}" stroke-width="${number(1.8 * s)}" stroke-linecap="round"/>`;
     propMarkup += `<path d="M${pair(pTip)} L${pair(pFlame)}" fill="none" stroke="${AQUA}" stroke-width="${number(2.4 * s)}" stroke-linecap="round"/>`;
     // Radial welding sparks bursting from the weld point
-    for (let k = 0; k < 6; k++) {
+    for (let k = 0; k < 6 && torchPower > 0.05; k++) {
       const u = ((sparkPhase * 3 + k * 0.17) % 1);
       const a = k * (TAU / 6) + 0.4;
       const sparkR = (2.0 + u * 8.5) * s;
@@ -423,9 +401,9 @@ function human3DMarkup(p, {
       const sy = pFlame[1] + Math.sin(a) * sparkR * 0.75 - Math.sin(u * Math.PI) * 3.5 * s;
       const sx0 = pFlame[0] + Math.cos(a) * sparkR * 0.45;
       const sy0 = pFlame[1] + Math.sin(a) * sparkR * 0.35;
-      propMarkup += `<path d="M${number(sx0)},${number(sy0)} L${number(sx)},${number(sy)}" fill="none" stroke="${k % 2 ? SPARK : CORAL}" stroke-width=".95" stroke-opacity="${number(1 - u * 0.75)}"/>`;
+      propMarkup += `<path d="M${number(sx0)},${number(sy0)} L${number(sx)},${number(sy)}" fill="none" stroke="${k % 2 ? SPARK : CORAL}" stroke-width=".95" stroke-opacity="${number((1 - u * 0.75) * torchPower)}"/>`;
     }
-    propMarkup += `<circle cx="${pFlame[0]}" cy="${pFlame[1]}" r="${number((1.8 + 0.6 * Math.sin(sparkPhase * TAU * 6)) * s)}" fill="${SPARK}" stroke="none"/>`;
+    propMarkup += `<circle cx="${pFlame[0]}" cy="${pFlame[1]}" r="${number((1.8 + 0.6 * Math.sin(sparkPhase * TAU * 6)) * s * (0.35 + 0.65 * torchPower))}" fill="${SPARK}" stroke="none"/>`;
   }
 
   // Ground shadow under feet
@@ -1076,363 +1054,319 @@ function card2DynamicMarkup(step) {
 
 // ============================================================================
 // REDESIGNERS STAGE: "koralli is for the redesigners."
-// A fish's diving exosuit, broken down and sat on a maintenance crate, built from the
-// same rounded capsule forms as the people so the suit and its makers read as one family:
-// - Cracked glass dome, water-filled, with the coral fish still inside
-// - Researcher with a clipboard, scratching their head
-// - Welder at the open shoulder socket, the dead arm hanging beside them
-// - Engineer standing back, hand at the chin, thinking it over
+// Seen straight on, with the floor as a single line. A shallow-water fish is being given a
+// deep-sea diving suit, the same suit that swims through Views from the Reef. The suit sits on
+// the floor facing us, its hull a light mesh, while a researcher stands back with a clipboard
+// scratching their head and a welder fuses the suit's shoulder.
 // ============================================================================
-const mechProjector = makeProjector({ originX: 290, originY: 168, centerX: 98, centerY: 86, angle: -10, scale: 1.82, pitch: 0.43 });
-const mechIso = isoPrimitives(mechProjector, { paper: DEEP_BG, shade: DEEP_SHADE });
-const MECH_FILL = '#14295A';
-const MECH_LIT = '#1C3A78';
+// The suit is drawn like the reef's wire meshes: a body barely lighter than the water, fine
+// outlines and faint seams, with coral kept for a few marks.
+const SUIT_FILL = '#0F1D3C';
+const SUIT_STYLE = { fill: SUIT_FILL, stroke: DEEP_LINE, width: .75, extra: 'stroke-opacity=".85"' };
+const SEAM = `stroke="${DEEP_LINE}" stroke-width=".42" stroke-opacity=".3"`;
+const STAGE_FLOOR = 284;
+const STAGE_STEPS = 160;   // frames in the eight-second loop
+// The scene's frame, cropped to the people and the suit; the floor runs its full width.
+const STAGE_VIEW = { x: 78, y: 70, w: 424, h: 220 };
 
-const mechView = viewToward(-10);
-const mechFrame = (x, y, heading) => bodyFrame(x, y, heading);
-const MECH = mechFrame(98, 80, 0.32);
-// +1 when the suit's right side faces the viewer.
-const MECH_NEAR = Math.sign(dot3(MECH.right, mechView));
-const MECH_STYLE = { fill: MECH_FILL, stroke: DEEP_LINE };
+// x runs across, z up and y into the scene. A slight downward look lets the rounded parts read
+// as round while the floor stays a line.
+function frontProjector({ originX, originY, scale, pitch }) {
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const project = (x, y, z = 0) => [number(originX + scale * x), number(originY - scale * (z * cp + y * sp))];
+  project.sphereOutline = (centre, radius, samples = 18) => {
+    const [cx, cy] = project(...centre);
+    return Array.from({ length: samples }, (_, i) => [cx + radius * scale * Math.cos((TAU * i) / samples), cy + radius * scale * Math.sin((TAU * i) / samples)]);
+  };
+  project.depth = ([, y, z]) => -y * cp + z * sp;
+  project.scale = scale;
+  return project;
+}
+const stage = frontProjector({ originX: 330, originY: STAGE_FLOOR, scale: 3.8, pitch: 0.12 });
 
-const mechCapsule = (a, rA, b, rB, opts) => capsule(mechProjector, a, rA, b, rB, { ...MECH_STYLE, ...opts });
-const mechBall = (c, r, opts) => ball(mechProjector, c, r, { ...MECH_STYLE, ...opts });
-const mechShell = (rings, opts) => shell(mechProjector, MECH, rings, { ...MECH_STYLE, ...opts });
-const mechVisibleArc = (h, uRad, vRad, vOff, extra) => visibleArc(mechProjector, MECH, mechView, h, uRad, vRad, vOff, extra);
+const suitCapsule = (a, rA, b, rB, opts) => capsule(stage, a, rA, b, rB, { ...SUIT_STYLE, ...opts });
+const path = (pts, extra) => `<path d="M${pts.map(pt => pair(stage(...pt))).join(' L')}" fill="none" ${extra}/>`;
 
-// The suit sits slumped on a maintenance crate, so every height is measured from the deck.
-const SEAT = 11;
-const SLUMP = 0.2;
-const TORSO_RINGS = [[16.5, 7.6, 5.6], [21.5, 10.0, 6.8], [28.0, 10.8, 7.3], [33.5, 9.8, 6.8], [36.6, 7.4, 5.4]]
-  .map(([h, u, v]) => [h, u, v, (h - 16.5) * SLUMP]);
-const lean = h => (h - 16.5) * SLUMP;
+// A sphere with its equator and a meridian traced on it, like the joints of a hard diving suit.
+function meshBall(c, r) {
+  const [cx, cy] = stage(...c), R = r * stage.scale;
+  return `<circle cx="${cx}" cy="${cy}" r="${number(R)}" fill="${SUIT_FILL}" stroke="${DEEP_LINE}" stroke-width=".75" stroke-opacity=".85"/>`
+    + `<ellipse cx="${cx}" cy="${cy}" rx="${number(R)}" ry="${number(R * .34)}" fill="none" ${SEAM}/>`
+    + `<ellipse cx="${cx}" cy="${cy}" rx="${number(R * .34)}" ry="${number(R)}" fill="none" ${SEAM}/>`;
+}
 
-// Shoulder, elbow and wrist positions are given directly: the arms are posed, not reaching.
-// clawDir lets a resting claw droop at the wrist instead of carrying on along the forearm.
-function mechArmMarkup(shoulder, elbow, hand, grip, clawDir = null) {
-  const arm = unit3(sub3(hand, elbow));
-  const dir = clawDir ? unit3(clawDir) : arm;
-  let up = sub3([0, 0, 1], mul3(dir, dir[2]));
-  up = len3(up) < 0.2 ? MECH.forward : unit3(up);
+// A rotary joint ring across a limb at c, the limb running from a to b.
+function jointRing(a, b, c, r, extra = SEAM) {
+  const [ax, ay] = stage(...a), [bx, by] = stage(...b), [cx, cy] = stage(...c);
+  const angle = (Math.atan2(by - ay, bx - ax) * 180) / Math.PI + 90;
+  return `<ellipse cx="${cx}" cy="${cy}" rx="${number(r * stage.scale)}" ry="${number(r * stage.scale * .3)}" transform="rotate(${number(angle)} ${cx} ${cy})" fill="none" ${extra}/>`;
+}
+
+// A limb from a to b, ringed at its joints.
+function limb(a, rA, b, rB, rings = [.5]) {
+  let out = suitCapsule(a, rA, b, rB);
+  for (const t of rings) out += jointRing(a, b, mix3(a, b, t), lerp(rA, rB, t));
+  return out;
+}
+
+// The barrel hull, an ellipsoid sat on the suit's seat.
+const HULL = { z: 21, a: 14, b: 11, h: 13.5 };
+const hullPoint = (lat, lon) => [HULL.a * Math.cos(lat) * Math.sin(lon), -HULL.b * Math.cos(lat) * Math.cos(lon), HULL.z + HULL.h * Math.sin(lat)];
+const degrees = d => (d * Math.PI) / 180;
+const latitude = (lat, from = -90, to = 90) =>
+  Array.from({ length: 25 }, (_, i) => hullPoint(degrees(lat), degrees(from + ((to - from) * i) / 24)));
+const meridian = lon => Array.from({ length: 25 }, (_, i) => hullPoint(degrees(-90 + (180 * i) / 24), degrees(lon)));
+
+// Shoulder, elbow and wrist of each arm; the claw rests on the floor.
+const ARM = side => ({
+  shoulder: [side * 15.2, -1, 29],
+  elbow: [side * 19.2, -1.5, 18.6],
+  wrist: [side * 20.6, -2.5, 9.2],
+});
+const WELD = [18.4, -2.6, 30.4];
+const DOME = { c: [0, 0, 44.8], r: 10.6 };
+
+function clawMarkup(side, grip) {
+  const { elbow, wrist } = ARM(side);
+  const dir = unit3(sub3(wrist, elbow));
+  const spread = [1, 0, 0];
   let out = '';
-  out += mechCapsule(shoulder, 2.5, elbow, 2.4);
-  out += mechBall(elbow, 3.0, { fill: MECH_LIT });
-  out += mechCapsule(add3(elbow, mul3(arm, 1.6)), 2.6, add3(hand, mul3(arm, -1.2)), 3.3);
-  // Two coral bands wrapped across the wrist.
-  for (const back of [1.0, 2.1]) {
-    const c = add3(hand, mul3(arm, -back));
-    const pc = mechProjector(...c), pb = mechProjector(...add3(c, mul3(arm, -1)));
-    const len = Math.hypot(pc[0] - pb[0], pc[1] - pb[1]) || 1;
-    const d = [(pc[0] - pb[0]) / len, (pc[1] - pb[1]) / len], n = [-d[1], d[0]];
-    const r = Math.max(...mechProjector.sphereOutline(c, 3.2).map(q => Math.hypot(q[0] - pc[0], q[1] - pc[1]))) * .94;
-    const a = [pc[0] + n[0] * r, pc[1] + n[1] * r], b = [pc[0] - n[0] * r, pc[1] - n[1] * r];
-    const k = [pc[0] + d[0] * r * .45, pc[1] + d[1] * r * .45];
-    out += `<path d="M${pair(a)} Q${pair(k)} ${pair(b)}" fill="none" stroke="${CORAL}" stroke-width="1.15"/>`;
-  }
   for (const jaw of [1, -1]) {
-    const base = add3(hand, mul3(dir, 1.2));
-    const knuckle = add3(add3(hand, mul3(dir, 4.8)), mul3(up, jaw * (1.2 + grip * 2.0)));
-    const tip = add3(add3(hand, mul3(dir, 8.2)), mul3(up, jaw * (0.3 + grip * 1.1)));
-    out += mechCapsule(base, 1.35, knuckle, 1.2);
-    out += mechCapsule(knuckle, 1.2, tip, 0.75);
+    const base = add3(wrist, mul3(dir, 1.2));
+    const knuckle = add3(add3(wrist, mul3(dir, 4.4)), mul3(spread, jaw * (1.2 + grip * 1.8)));
+    const tip = add3(add3(wrist, mul3(dir, 7.6)), mul3(spread, jaw * (0.4 + grip * 0.9)));
+    out += suitCapsule(base, 1.15, knuckle, 1.0);
+    out += suitCapsule(knuckle, 1.0, tip, 0.6);
   }
   return out;
 }
 
-// Seated leg: thigh forward along the crate, shin down to a fin flat on the deck.
-function mechLegMarkup(side) {
-  const { local } = MECH;
-  const u = side * 6.2;
-  const hip = local(u, 0.5, SEAT + 3.2);
-  const knee = local(u + side * 0.8, 12.5, SEAT + 3.6);
-  const ankle = local(u + side * 1.2, 15.5, 3.4);
-  const toe = local(u + side * 1.3, 18.6, 2.0);
-  let out = '';
-  const fin = [[-2.6, 15.6], [2.6, 15.6], [4.6, 27.4], [1.4, 25.2], [0, 26.6], [-1.4, 25.2], [-4.6, 27.4]]
-    .map(([du, v]) => mechProjector(...local(u + side * 1.3 + du, v, 0.5)));
-  out += `<polygon points="${points(fin)}" fill="${AQUA}" fill-opacity=".16" stroke="${AQUA}" stroke-width=".9"/>`;
-  out += mechCapsule(ankle, 2.6, toe, 2.3);
-  out += mechCapsule(knee, 3.0, ankle, 2.5);
-  out += mechCapsule(hip, 3.5, knee, 3.1);
-  out += mechBall(add3(knee, mul3(MECH.forward, 1.6)), 2.5, { fill: MECH_LIT });
-  const [kx, ky] = mechProjector(...add3(knee, add3(mul3(MECH.forward, 3.6), [0, 0, 0.4])));
-  out += `<circle cx="${number(kx)}" cy="${number(ky)}" r="1.2" fill="${CORAL}" stroke="none"/>`;
+function armMarkup(side) {
+  const { shoulder, elbow, wrist } = ARM(side);
+  let out = limb(shoulder, 2.4, elbow, 2.3, [.45]);
+  out += limb(elbow, 2.3, wrist, 2.7, [.4]);
+  out += meshBall(elbow, 2.7);
+  // A coral band at the wrist.
+  out += jointRing(elbow, wrist, add3(wrist, mul3(unit3(sub3(elbow, wrist)), 1.4)), 2.8, `stroke="${CORAL}" stroke-width=".8" stroke-opacity=".8"`);
+  out += clawMarkup(side, 0.3);
+  out += meshBall(shoulder, 4.4);
   return out;
 }
 
-let mechBackCache = '';
-let mechBodyCache = '';
+// Seated with the legs out towards us, so the fins stand up in front like a diver's soles.
+function legMarkup(side) {
+  const hip = [side * 7.4, -2, 4.8], knee = [side * 7.9, -13, 5.4], ankle = [side * 8.2, -22, 4.8];
+  // Each fin splays outwards a little, broadening to a ribbed, scalloped tip.
+  const splay = side * 0.24, foot = [ankle[0], ankle[2] - 2.2];
+  const fin2d = ([dx, z]) => [foot[0] + dx * Math.cos(splay) + z * Math.sin(splay), foot[1] + z * Math.cos(splay) - dx * Math.sin(splay)];
+  const finAt = pts => pts.map(pt => { const [fx, fz] = fin2d(pt); return stage(fx, -24.5, fz); });
+  const fin = finAt([[-2.2, 0.6], [2.2, 0.6], [5.0, 12.4], [2.6, 11.2], [0, 12.6], [-2.6, 11.2], [-5.0, 12.4]]);
+  let out = limb(hip, 3.4, knee, 3.0, []);
+  out += limb(knee, 2.9, ankle, 2.5, []);
+  out += meshBall(add3(knee, [0, -1.4, 0.6]), 2.4);
+  out += `<polygon points="${points(fin)}" fill="${SUIT_FILL}" stroke="none"/>`;
+  out += `<polygon points="${points(fin)}" fill="${DEEP_LINE}" fill-opacity=".05" stroke="${DEEP_LINE}" stroke-width=".7" stroke-opacity=".75"/>`;
+  for (const rib of [[[-1.1, 1.4], [-2.6, 10.8]], [[1.1, 1.4], [2.6, 10.8]], [[0, 1.4], [0, 11.8]]]) {
+    out += `<path d="M${finAt(rib).map(pair).join(' L')}" fill="none" ${SEAM}/>`;
+  }
+  return out;
+}
 
-// Deck, console and gas bottles: everything the thinking engineer can stand in front of.
-function mechBackMarkup() {
-  if (mechBackCache) return mechBackCache;
-  const p = mechProjector;
-  const { polygon, line, planLine, surface, panelX, box } = mechIso;
-  const { local } = MECH;
+let suitCache = '';
+
+// Everything that holds still: floor, shadows and the suit itself, up to the dome's collar.
+function suitMarkup() {
+  if (suitCache) return suitCache;
+  const p = stage;
   let s = '';
 
-  s += surface(16, 36, 168, 100, 0, DEEP_BG);
-  s += polygon([p(16, 136, 0), p(184, 136, 0), p(184, 136, -4.5), p(16, 136, -4.5)], DEEP_SHADE);
-  s += polygon([p(184, 36, 0), p(184, 136, 0), p(184, 136, -4.5), p(184, 36, -4.5)], DEEP_SHADE);
-  s += surface(23, 43, 154, 86, .2, 'none', 'stroke-opacity=".24"');
-
-  // Back-left telemetry console, showing a fault trace.
-  s += box(24, 44, 14, 14, 18, DEEP_BG, DEEP_BG, DEEP_SHADE, 0);
-  s += panelX(26, 58.2, 4, 10, 10, DEEP_GLASS, 'fill-opacity=".65" stroke-width=".75"');
-  s += planLine([[28, 58.3, 9], [29.5, 58.3, 9], [30.5, 58.3, 12], [31.5, 58.3, 6.5], [32.5, 58.3, 9], [34, 58.3, 9]], `stroke="${CORAL}" stroke-width=".85"`);
-  s += line(p(28, 58.3, 6), p(32, 58.3, 6), `stroke="${AQUA}" stroke-width=".85"`);
-
-  s += planLine([[38, 54, .3], [62, 66, .3], [84, 74, .3]], 'stroke-dasharray="3 3" stroke-opacity=".48"');
-
-  // Welding gas bottles behind the welder; the hose to the torch is drawn with the welder.
-  for (const [i, colour] of [CORAL, DEEP_LINE].entries()) {
-    const base = local(MECH_NEAR * (26.5 + i * 4.6), -4.5 - i * 1.4, 0);
-    s += mechCapsule(add3(base, [0, 0, 2.6]), 2.5, add3(base, [0, 0, 13.0]), 2.5);
-    s += mechCapsule(add3(base, [0, 0, 13.6]), 1.2, add3(base, [0, 0, 15.6]), 0.9, { stroke: colour, width: 1.0 });
+  // The floor, fading out at both ends, and soft shadows where things meet it.
+  s += `<path d="M${STAGE_VIEW.x},${STAGE_FLOOR} H${STAGE_VIEW.x + STAGE_VIEW.w}" fill="none" stroke="url(#redesigners-floor)" stroke-width=".8"/>`;
+  for (const [x, w] of [[0, 30], [-55, 8], [34, 8]]) {
+    const [cx, cy] = p(x, 0, 0);
+    s += `<ellipse cx="${cx}" cy="${number(cy + 1.2)}" rx="${number(w * p.scale)}" ry="1.8" fill="${DEEP_SHADE}" fill-opacity=".55" stroke="none"/>`;
   }
 
-  mechBackCache = s;
+  s += suitCapsule([-8, -1, 5], 5, [8, -1, 5], 5);
+
+  // The hull: an outline, a fine mesh, the coral depth stripe and a headlamp.
+  const outline = [];
+  for (let i = 0; i <= 12; i++) for (let j = 0; j < 24; j++) outline.push(p(...hullPoint(degrees(-90 + 15 * i), degrees(15 * j))));
+  s += `<path d="${roundedPath(hull(outline))}" fill="${SUIT_FILL}" stroke="${DEEP_LINE}" stroke-width=".85" stroke-opacity=".9"/>`;
+  for (const lat of [-62, -40, -22, 14, 32, 52]) s += path(latitude(lat), SEAM);
+  for (const lon of [-68, -46, -23, 0, 23, 46, 68]) s += path(meridian(lon), SEAM);
+  s += path(latitude(-4), `stroke="${CORAL}" stroke-width="1" stroke-opacity=".75"`);
+  const [lx, ly] = p(...hullPoint(degrees(36), degrees(-30)));
+  s += `<circle cx="${lx}" cy="${ly}" r="2.6" fill="${SUIT_FILL}" stroke="${DEEP_LINE}" stroke-width=".55" stroke-opacity=".8"/><circle cx="${lx}" cy="${ly}" r="1.2" fill="#A9D8F0" fill-opacity=".55" stroke="none"/>`;
+
+  s += armMarkup(-1);
+  s += armMarkup(1);
+  s += legMarkup(-1);
+  s += legMarkup(1);
+
+  // The collar that seats the dome.
+  const collar = (r, depth, z) => Array.from({ length: 32 }, (_, i) => p(r * Math.cos((TAU * i) / 32), -depth * Math.sin((TAU * i) / 32), z));
+  s += `<polygon points="${points(collar(8.8, 7.2, 34.4))}" fill="${SUIT_FILL}" stroke="${CORAL}" stroke-width=".85" stroke-opacity=".75"/>`;
+
+  suitCache = s;
   return s;
 }
 
-// The crate and every fixed part of the slumped suit.
-function mechBodyMarkup() {
-  if (mechBodyCache) return mechBodyCache;
-  const p = mechProjector;
-  const { panelX, box } = mechIso;
-  const { local } = MECH;
-  const near = MECH_NEAR, far = -MECH_NEAR;
-  let s = '';
+const windowed = (t, from, to, edge = 0.025) => smooth((t - from) / edge) * (1 - smooth((t - to) / edge));
+// The welder works in two bursts, lifting the torch between them.
+const weldPower = phase => Math.max(windowed(phase, 0, 0.38), windowed(phase, 0.5, 0.84));
+// The seam glows while the torch is on and cools after it lifts.
+const seamHeat = phase => Math.max(...Array.from({ length: 8 }, (_, i) => weldPower((phase - i * 0.012 + 1) % 1) * (1 - i * 0.11)));
 
-  // Maintenance crate the suit has been sat down on.
-  s += box(88, 70, 21, 15, SEAT, DEEP_BG, DEEP_BG, DEEP_SHADE, 0);
-  s += panelX(91, 85.1, 3.5, 15, 2.2, CORAL, 'fill-opacity=".5" stroke="none"');
+function domeMarkup(phase) {
+  const p = stage;
+  const [dcx, dcy] = p(...DOME.c);
+  const r = DOME.r * p.scale;
+  let d = `<circle cx="${dcx}" cy="${dcy}" r="${number(r)}" fill="${DEEP_GLASS}" fill-opacity=".38" stroke="none"/>`;
 
-  // The far arm is powered down: it hangs straight beside the crate, claw resting on the deck.
-  // Hanging vertically it shows its full length; anything pointing forward foreshortens.
-  const farShoulder = local(far * 12.0, lean(31.5), 31.5);
-  s += mechArmMarkup(farShoulder, local(far * 14.6, -1.4, 21.0), local(far * 16.6, -2.6, 11.0), 0.35, [0, 0, -1]);
-  s += mechBall(add3(farShoulder, [0, 0, 0.8]), 4.3);
-  s += mechLegMarkup(far);
-  s += mechLegMarkup(near);
-
-  s += mechShell([[SEAT + 0.6, 6.8, 4.8], [SEAT + 3.8, 7.8, 5.4], [SEAT + 6.2, 7.0, 5.0]]);
-  s += mechShell(TORSO_RINGS);
-
-  // Hull detailing: seams, coral depth stripe and lamps.
-  s += mechVisibleArc(18.8, 8.6, 6.1, lean(18.8), `stroke="${DEEP_LINE}" stroke-width=".7" stroke-opacity=".7"`);
-  s += mechVisibleArc(24.2, 10.45, 7.05, lean(24.2), `stroke="${CORAL}" stroke-width="1.6"`);
-  s += mechVisibleArc(32.2, 10.15, 7.0, lean(32.2), `stroke="${DEEP_LINE}" stroke-width=".7" stroke-opacity=".7"`);
-  for (const side of [-1, 1]) {
-    s += mechBall(local(side * 6.2, 6.2 + lean(34.4), 34.4), 1.25, { fill: DEEP_SHADE, stroke: DEEP_LINE, width: .7 });
-  }
-
-  // Open service hatch on the chest: wiring spilling out, door swung wide.
-  const front = h => 7.1 + lean(h);
-  const hatch = [[-1.0, 21.4], [5.6, 21.4], [5.6, 29.0], [-1.0, 29.0]].map(([u, h]) => p(...local(u, front(h) + 0.3, h)));
-  s += `<polygon points="${points(hatch)}" fill="${DEEP_BG}" stroke="${DEEP_LINE}" stroke-width=".9"/>`;
-  const wire = (pts, colour) => `<path d="M${pts.map(([u, h, dv]) => pair(p(...local(u, front(h) + 0.4 + dv, h)))).join(' L')}" fill="none" stroke="${colour}" stroke-width=".95"/>`;
-  s += wire([[0.4, 27.5, 0], [1.4, 25.0, 1.2], [0.9, 22.0, 2.6], [1.8, 19.4, 3.6]], CORAL);
-  s += wire([[2.6, 27.8, 0], [3.4, 25.6, 1.0], [4.4, 23.8, 2.2], [3.6, 21.0, 3.4]], AQUA);
-  s += wire([[4.4, 26.4, 0], [5.0, 24.6, 0.8], [6.8, 23.6, 1.6]], DEEP_LINE);
-  const swing = 0.6;
-  const door = [[21.4, 0], [29.0, 0], [29.0, 6.6], [21.4, 6.6]].map(([h, w]) => p(...local(5.6 + Math.cos(swing) * w, front(h) + 0.3 + Math.sin(swing) * w, h)));
-  s += `<polygon points="${points(door)}" fill="${MECH_LIT}" stroke="${DEEP_LINE}" stroke-width=".9"/>`;
-
-  // Collar that seats the dome.
-  const collar = (h, r) => Array.from({ length: 28 }, (_, i) => p(...local(r * Math.cos((TAU * i) / 28), 0.6 + lean(h) + r * Math.sin((TAU * i) / 28), h)));
-  s += `<polygon points="${points(collar(36.8, 7.9))}" fill="${MECH_LIT}" stroke="${CORAL}" stroke-width="1.15"/>`;
-  s += `<polygon points="${points(collar(37.8, 7.0))}" fill="${MECH_FILL}" stroke="${CORAL}" stroke-width=".8"/>`;
-
-  // Near side: the arm has been taken off for repair. It lies flat on the deck in front,
-  // its shoulder pad beside it, while a loose cable hangs from the open socket.
-  const padAt = local(near * 5.0, 34.0, 0);
-  const pad = bodyFrame(padAt[0], padAt[1], 1.1);
-  s += shell(p, pad, [[0.3, 5.0, 4.4], [2.4, 4.4, 3.9], [4.0, 2.8, 2.5], [4.6, 1.2, 1.1]], MECH_STYLE);
-  s += visibleArc(p, pad, mechView, 0.6, 5.0, 4.4, 0, `stroke="${CORAL}" stroke-width="1.0"`);
-  const socket = local(near * 11.4, lean(31.5), 31.5);
-  const [sx, sy] = p(...socket);
-  s += `<circle cx="${number(sx)}" cy="${number(sy)}" r="3.6" fill="${DEEP_BG}" stroke="${CORAL}" stroke-width="1.0"/>`;
-  const cable = [socket, local(near * 14.0, 2.5, 18.0), local(near * 14.5, 4.0, 0.5)].map(pt => p(...pt));
-  s += `<path d="M${pair(cable[0])} Q${pair(cable[1])} ${pair(cable[2])}" fill="none" stroke="${AQUA}" stroke-width=".9"/>`;
-  s += mechArmMarkup(local(near * 16.0, 19.0, 2.6), local(near * 21.0, 26.0, 2.5), local(near * 18.0, 35.0, 3.3), 0.2);
-  for (const [u, v] of [[11, 26], [25, 31], [13, 30]]) {
-    const [bx, by] = p(...local(near * u, v, 0.4));
-    s += `<circle cx="${number(bx)}" cy="${number(by)}" r="1.1" fill="${DEEP_SHADE}" stroke="${DEEP_LINE}" stroke-width=".6"/>`;
-  }
-
-  mechBodyCache = s;
-  return s;
-}
-
-function mechDomeMarkup(phase) {
-  const p = mechProjector;
-  const centre = MECH.local(0, 0.6 + lean(45.6), 45.6);
-  const r = 8.8;
-  const outline = roundedPath(p.sphereOutline(centre, r, 28));
-  const [dcx, dcy] = p(...centre);
-  let d = `<path d="${outline}" fill="${DEEP_GLASS}" fill-opacity=".62" stroke="none"/>`;
-
-  // Water line near the top of the dome.
-  const waterH = 4.2 + Math.sin(phase * TAU) * 0.35;
-  const waterR = Math.sqrt(r * r - waterH * waterH) * 0.96;
-  const ring = [];
-  for (let i = 0; i < 20; i++) {
-    const a = (i * TAU) / 20;
-    ring.push(p(centre[0] + waterR * Math.cos(a), centre[1] + waterR * Math.sin(a), centre[2] + waterH + 0.3 * Math.sin(a * 3 + phase * TAU * 2)));
-  }
-  d += `<polygon points="${points(ring)}" fill="${AQUA}" fill-opacity=".16" stroke="${AQUA}" stroke-width=".6" stroke-opacity=".7"/>`;
-
+  // Water to near the top, its surface moving a little.
+  const waterY = dcy - r * 0.62;
+  const half = Math.sqrt(r * r - (r * 0.62) ** 2);
+  const surface = Array.from({ length: 13 }, (_, i) => {
+    const u = i / 12;
+    return [dcx - half + 2 * half * u, waterY + Math.sin(phase * TAU * 2 + u * 3.4) * 0.9];
+  });
+  d += `<path d="M${surface.map(pair).join(' L')} A${number(r)},${number(r)} 0 1 1 ${pair(surface[0])}Z" fill="${AQUA}" fill-opacity=".05" stroke="none"/>`;
+  d += `<path d="M${surface.map(pair).join(' L')}" fill="none" stroke="${AQUA}" stroke-width=".5" stroke-opacity=".45"/>`;
   for (let b = 0; b < 3; b++) {
-    const u = (phase * 1.5 + b * 0.33) % 1;
-    const [bx, by] = p(centre[0] + (b - 1) * 3 + Math.sin(u * TAU + b) * 0.9, centre[1] + (b % 2 ? 1.6 : -1.4), lerp(centre[2] - 6, centre[2] + 3.8, u));
-    d += `<circle cx="${number(bx)}" cy="${number(by)}" r="${number(0.9 + (1 - u) * 0.4)}" fill="none" stroke="${AQUA}" stroke-width=".65" stroke-opacity="${number(0.85 - u * 0.5)}"/>`;
+    const u = (phase * 2 + b / 3) % 1;
+    const bx = dcx + (b - 1) * r * 0.42 + Math.sin(u * TAU + b) * 2;
+    const by = lerp(dcy + r * 0.7, waterY + 3, u);
+    d += `<circle cx="${number(bx)}" cy="${number(by)}" r="${number(1.1 + (1 - u) * 0.6)}" fill="none" stroke="${AQUA}" stroke-width=".5" stroke-opacity="${number(0.55 - u * 0.35)}"/>`;
   }
 
-  // The coral fish, nosing anxiously at the glass while the suit is repaired.
-  const swim = phase * TAU;
-  const fx = dcx + Math.cos(swim) * 4.6;
-  const fy = dcy + 2.4 + Math.sin(swim * 2) * 2.0;
-  const dir = Math.sin(swim) >= 0 ? -1 : 1;
-  const wag = Math.sin(phase * TAU * 6) * 1.8;
-  const k = 0.8;
-  const body = [
-    [7.4, 0], [2.6, -4.0], [-3.8, -2.4], [-6.2, -0.8 + wag * 0.3], [-9.8, -4.0 + wag], [-7.8, wag * 0.5],
-    [-9.8, 4.0 + wag], [-6.2, 0.8 + wag * 0.3], [-3.8, 2.4], [2.6, 4.0],
-  ].map(([u, v]) => [fx + dir * u * k, fy + v * k]);
-  d += `<polygon points="${points(body)}" fill="${CORAL}" stroke="${PAPER}" stroke-width=".6"/>`;
-  d += `<circle cx="${number(fx + dir * 3.6)}" cy="${number(fy - 0.7)}" r=".85" fill="${PAPER}" stroke="none"/>`;
+  // The coral fish, drawn as a fine mesh, swimming from side to side inside the glass.
+  const swim = phase * TAU * 2;
+  const fx = dcx + Math.sin(swim) * r * 0.36;
+  const fy = dcy + r * 0.12 + Math.sin(swim * 2) * r * 0.08;
+  const dir = Math.cos(swim) >= 0 ? 1 : -1;
+  // Turning at each side of the dome, the fish narrows but never vanishes edge-on.
+  const turn = 0.38 + 0.62 * Math.min(1, Math.abs(Math.cos(swim)) * 3.5);
+  const wag = Math.sin(phase * TAU * 14) * 2.2;
+  const k = 1.55;
+  const at = (u, v) => [fx + dir * turn * u * k, fy + v * k];
+  const body = [[8.6, 0], [5.4, -3.9], [0, -5], [-4.6, -3], [-7.2, -0.9], [-11, -4.6 + wag], [-9, wag * 0.5], [-11, 4.6 + wag], [-7.2, 0.9], [-4.6, 3], [0, 5], [5.4, 3.9]].map(([u, v]) => at(u, v));
+  d += `<polygon points="${points(body)}" fill="${CORAL}" fill-opacity=".22" stroke="${CORAL}" stroke-width=".8"/>`;
+  const rib = u => { const h = 5 * Math.sqrt(Math.max(0, 1 - ((u - 0.4) / 8.6) ** 2)); return [at(u, -h * .96), at(u + 0.8, 0), at(u, h * .96)]; };
+  for (const u of [-3.4, 0, 3.6]) d += `<path d="M${rib(u).map(pair).join(' L')}" fill="none" stroke="${CORAL}" stroke-width=".55" stroke-opacity=".8"/>`;
+  d += `<path d="M${[at(7.6, 0), at(0, 0.4), at(-7, 0)].map(pair).join(' L')}" fill="none" stroke="${CORAL}" stroke-width=".55" stroke-opacity=".8"/>`;
+  const [ex, ey] = at(5.2, -1.1);
+  d += `<circle cx="${number(ex)}" cy="${number(ey)}" r="1.1" fill="${PAPER}" stroke="none"/>`;
 
-  // Glass: a meridian, a hairline crack, a glint and the rim.
-  const meridian = [];
-  for (let i = 0; i <= 14; i++) {
-    const phi = (i / 14) * Math.PI;
-    meridian.push(p(...add3(centre, add3(mul3(MECH.right, r * Math.cos(phi) * 0.42), [0, 0, r * Math.sin(phi) * 0.98]))));
-  }
-  d += `<path d="M${meridian.map(pair).join(' L')}" fill="none" stroke="${DEEP_LINE}" stroke-width=".6" stroke-opacity=".5"/>`;
-  const crack = [[0.62, 0.34], [0.44, 0.18], [0.5, -0.02], [0.3, -0.16], [0.36, -0.36]].map(([a, b]) => [dcx + a * r * 1.64, dcy + b * r * 1.64]);
-  d += `<path d="M${crack.map(pair).join(' L')}" fill="none" stroke="${PAPER}" stroke-width=".7" stroke-opacity=".75"/>`;
-  const glint = [];
-  for (let i = 0; i <= 8; i++) {
-    const a = Math.PI * (1.08 + i * 0.05);
-    glint.push([dcx + Math.cos(a) * r * 1.25, dcy + Math.sin(a) * r * 1.1]);
-  }
-  d += `<path d="M${glint.map(pair).join(' L')}" fill="none" stroke="${PAPER}" stroke-width="1.1" stroke-opacity=".55" stroke-linecap="round"/>`;
-  d += `<path d="${outline}" fill="none" stroke="${AQUA}" stroke-width="1.2"/>`;
+  // A glint, the rim, and the front of the collar over the dome's base.
+  d += `<path d="M${pair([dcx - r * 0.72, dcy - r * 0.28])} A${number(r * 0.78)},${number(r * 0.78)} 0 0 1 ${pair([dcx - r * 0.3, dcy - r * 0.72])}" fill="none" stroke="${PAPER}" stroke-width=".9" stroke-opacity=".32" stroke-linecap="round"/>`;
+  d += `<circle cx="${dcx}" cy="${dcy}" r="${number(r)}" fill="none" stroke="#A9C6F5" stroke-width=".85" stroke-opacity=".9"/>`;
+  const front = Array.from({ length: 17 }, (_, i) => p(8.8 * Math.cos(Math.PI * i / 16), -7.2 * Math.sin(Math.PI * i / 16), 34.4));
+  d += `<path d="M${front.map(pair).join(' L')}" fill="none" stroke="${CORAL}" stroke-width=".85" stroke-opacity=".75"/>`;
   return d;
 }
 
-const mechBackFrameCache = new Map();
-const mechFrameCache = new Map();
-
-// An engineer stands back behind the suit, one arm folded, hand at the chin, thinking it over.
-function mechThinkerMarkup(step) {
-  if (mechBackFrameCache.has(step)) return mechBackFrameCache.get(step);
-  const phase = (step % 80) / 80;
-  const [tx, ty] = [58, 58];
-  const heading = Math.atan2(98 - tx, 80 - ty);
-  const frame = mechFrame(tx, ty, heading);
-  const ponder = Math.sin(phase * TAU);
-  const out = human3DMarkup(mechProjector, {
-    id: 'mech-thinker',
-    x: tx,
-    y: ty,
-    scale: 0.76,
-    heading: heading + 0.1 * ponder,
-    lean: 0.3 + 0.12 * ponder,
-    color: DEEP_LINE,
-    fillPaper: DEEP_BG,
-    shadowColor: DEEP_SHADE,
-    leftTarget: frame.local(0.4, 3.8, 20.5),
-    rightTarget: frame.local(0.8, 3.2, 26.6 + 0.3 * ponder),
-  });
-  mechBackFrameCache.set(step, out);
+function seamMarkup(phase) {
+  const heat = seamHeat(phase), power = weldPower(phase);
+  const { shoulder } = ARM(1);
+  const [cx, cy] = stage(...shoulder), r = 4.7 * stage.scale;
+  const glow = mix3([255, 102, 85], [255, 209, 102], heat).map(Math.round);
+  let out = `<path d="M${pair([cx + r * Math.cos(-1.15), cy + r * Math.sin(-1.15)])} A${number(r)},${number(r)} 0 0 1 ${pair([cx + r * Math.cos(1.0), cy + r * Math.sin(1.0)])}" fill="none" stroke="rgb(${glow.join(',')})" stroke-width="${number(0.7 + heat * 0.7)}" stroke-opacity="${number(0.25 + heat * 0.55)}" stroke-linecap="round"/>`;
+  if (power > 0.02) {
+    const [wx, wy] = stage(...WELD);
+    const flicker = 0.8 + 0.2 * Math.sin(phase * TAU * 40);
+    out += `<circle cx="${wx}" cy="${wy}" r="${number(18 * (0.7 + 0.3 * flicker))}" fill="url(#redesigners-glow)" opacity="${number(0.75 * power * flicker)}" stroke="none"/>`;
+  }
   return out;
 }
 
-function mechDynamicMarkup(step) {
-  if (mechFrameCache.has(step)) return mechFrameCache.get(step);
-  const phase = (step % 80) / 80;
-  const p = mechProjector;
-  const { local } = MECH;
-  const near = MECH_NEAR;
-  const facing = (x, y, tx, ty) => Math.atan2(tx - x, ty - y);
+// The researcher's free hand goes up to scratch their head, then back down to the clipboard.
+const CLIPBOARD_KEYS = [[0, 'head'], [0.36, 'head'], [0.44, 'board'], [0.9, 'board'], [0.98, 'head'], [1, 'head']];
 
-  let d = mechDomeMarkup(phase);
-
-  // A stray spark now and then from the open hatch.
-  const flicker = (phase * 5) % 1;
-  if (flicker < 0.18) {
-    const [hx, hy] = p(...local(1.6, 7.6 + lean(23), 23));
-    d += `<circle cx="${number(hx)}" cy="${number(hy)}" r="${number(1.4 - flicker * 5)}" fill="${SPARK}" stroke="none"/>`;
-  }
-
-  // Welder at the open shoulder socket, torch on the joint.
-  const weld = local(near * 11.4, lean(31.5) + 1.5, 31.5);
-  const wx = weld[0] + MECH.right[0] * near * 11 + MECH.forward[0] * 4;
-  const wy = weld[1] + MECH.right[1] * near * 11 + MECH.forward[1] * 4;
-  const welderFrame = mechFrame(wx, wy, facing(wx, wy, weld[0], weld[1]));
-  const weldOsc = Math.sin(phase * TAU * 2);
-  const valve = p(...local(near * 26.5, -4.5, 15.6));
-  const grip = p(...welderFrame.local(0, 5.0, 22.5 + weldOsc * 0.5));
-  const sag = p(...local(near * 25.5, 4.0, 0.4));
-  d += `<path d="M${pair(valve)} C${pair([valve[0], sag[1]])} ${pair(sag)} ${pair(grip)}" fill="none" stroke="${CORAL}" stroke-width=".9" stroke-opacity=".85"/>`;
-  const welder = human3DMarkup(p, {
-    id: 'mech-welder',
-    x: wx,
-    y: wy,
-    scale: 0.78,
-    heading: facing(wx, wy, weld[0], weld[1]),
-    lean: 1.1 + 0.15 * weldOsc,
+function researcherMarkup(phase) {
+  const x = -55, y = 0, heading = Math.PI / 2 + 0.95;
+  const frame = bodyFrame(x, y, heading);
+  const scratch = Math.sin(phase * TAU * 18);
+  const tap = Math.max(0, Math.sin(phase * TAU * 10));
+  const poses = {
+    head: frame.local(1.8 + scratch * 0.5, 0.2, 44.4 + Math.abs(scratch) * 0.6),
+    board: frame.local(-0.4, 6.6, 27.6 + tap * 0.9),
+  };
+  const leans = { head: 0.3, board: 0.75 };
+  let i = 0;
+  while (CLIPBOARD_KEYS[i + 1][0] < phase) i++;
+  const [t0, from] = CLIPBOARD_KEYS[i], [t1, to] = CLIPBOARD_KEYS[i + 1];
+  const t = smooth((phase - t0) / Math.max(1e-6, t1 - t0));
+  return human3DMarkup(stage, {
+    id: 'redesigner-clipboard',
+    x, y,
+    scale: 1,
+    heading: heading + 0.06 * Math.sin(phase * TAU),
+    lean: lerp(leans[from], leans[to], t),
     color: CORAL,
     fillPaper: DEEP_BG,
-    shadowColor: DEEP_SHADE,
-    welderMask: true,
-    leftTarget: welderFrame.local(-1.4, 6.0, 23.5 + weldOsc * 0.5),
-    rightTarget: welderFrame.local(1.4, 6.0, 23.5 + weldOsc * 0.5),
-    blowtorchTarget: weld,
-    sparkPhase: phase,
-  });
-
-  // Researcher with a clipboard, scratching their head at what they're looking at.
-  const [cx, cy] = [56, 108];
-  const clipFrame = mechFrame(cx, cy, facing(cx, cy, 98, 82));
-  const scratch = Math.sin(phase * TAU * 4);
-  const scratcher = human3DMarkup(p, {
-    id: 'mech-clipboard',
-    x: cx,
-    y: cy,
-    scale: 0.78,
-    heading: facing(cx, cy, 98, 82),
-    lean: 0.4 + 0.12 * Math.sin(phase * TAU),
-    color: CORAL,
-    fillPaper: DEEP_BG,
-    shadowColor: DEEP_SHADE,
-    leftTarget: clipFrame.local(-3.4, 5.4, 20.5 + 0.5 * Math.sin(phase * TAU)),
-    rightTarget: clipFrame.local(2.2 + scratch * 0.5, 0.4, 34.2 + Math.abs(scratch) * 0.6),
+    shadowColor: 'none',
+    leftTarget: frame.local(-2.6, 6.2, 26.4),
+    rightTarget: mix3(poses[from], poses[to], t),
     holdingBoard: true,
   });
+}
 
-  const out = d + welder + scratcher;
-  mechFrameCache.set(step, out);
+function welderMarkup(phase) {
+  const power = weldPower(phase);
+  const x = 34, y = -3, heading = -(Math.PI / 2 + 0.5);
+  const frame = bodyFrame(x, y, heading);
+  const sway = Math.sin(phase * TAU * 4) * 0.4 * power;
+  // Between bursts the torch lifts away from the seam.
+  const target = add3(WELD, [3.2 * (1 - power), -1 * (1 - power), 3.4 * (1 - power)]);
+  return human3DMarkup(stage, {
+    id: 'redesigner-welder',
+    x, y,
+    scale: 1,
+    heading,
+    lean: 0.75 + 0.35 * power,
+    color: CORAL,
+    fillPaper: DEEP_BG,
+    shadowColor: 'none',
+    welderMask: true,
+    leftTarget: frame.local(-1.4, 6.6, 29.6 + sway),
+    rightTarget: frame.local(1.4, 6.6, 29.6 + sway),
+    blowtorchTarget: target,
+    sparkPhase: phase * 6,
+    torchPower: power,
+  });
+}
+
+const redesignersFrames = new Map();
+
+function redesignersMarkup(step) {
+  if (redesignersFrames.has(step)) return redesignersFrames.get(step);
+  const phase = step / STAGE_STEPS;
+  const out = researcherMarkup(phase) + domeMarkup(phase) + seamMarkup(phase) + welderMarkup(phase);
+  redesignersFrames.set(step, out);
   return out;
 }
 
-export function initRedesignersMech(stage) {
-  const svg = stage?.querySelector('[data-redesigners-svg]');
+export function initRedesigners(stageElement) {
+  const svg = stageElement?.querySelector('[data-redesigners-svg]');
   if (!svg) return () => {};
 
-  svg.innerHTML = `<g stroke="${DEEP_LINE}" stroke-width=".9" stroke-linejoin="round" stroke-linecap="round">${mechBackMarkup()}<g data-mech-back></g>${mechBodyMarkup()}<g data-mech-dynamic></g></g>`;
-  const back = svg.querySelector('[data-mech-back]');
-  const dyn = svg.querySelector('[data-mech-dynamic]');
+  const defs = '<defs>'
+    + `<linearGradient id="redesigners-floor" x1="0" x2="1"><stop offset="0" stop-color="${DEEP_LINE}" stop-opacity="0"/><stop offset=".14" stop-color="${DEEP_LINE}" stop-opacity=".55"/><stop offset=".86" stop-color="${DEEP_LINE}" stop-opacity=".55"/><stop offset="1" stop-color="${DEEP_LINE}" stop-opacity="0"/></linearGradient>`
+    + `<radialGradient id="redesigners-glow"><stop offset="0" stop-color="${SPARK}" stop-opacity=".5"/><stop offset=".45" stop-color="${CORAL}" stop-opacity=".14"/><stop offset="1" stop-color="${CORAL}" stop-opacity="0"/></radialGradient>`
+    + '</defs>';
+  svg.setAttribute('viewBox', `${STAGE_VIEW.x} ${STAGE_VIEW.y} ${STAGE_VIEW.w} ${STAGE_VIEW.h}`);
+  svg.setAttribute('preserveAspectRatio', 'xMinYMax meet');
+  stageElement.style.setProperty('--stage-ratio', `${STAGE_VIEW.w} / ${STAGE_VIEW.h}`);
+  svg.innerHTML = `${defs}<g stroke="${DEEP_LINE}" stroke-width=".9" stroke-linejoin="round" stroke-linecap="round">${suitMarkup()}<g data-redesigners-dynamic></g></g>`;
+  const dynamic = svg.querySelector('[data-redesigners-dynamic]');
   let lastStep = -1;
 
   const render = (timeSeconds = 0, reducedMotion = false) => {
-    const step = reducedMotion ? 22 : Math.floor((((timeSeconds * 0.22) % 1) + 1) % 1 * 80);
+    const step = reducedMotion ? 22 : Math.floor((((timeSeconds / 8) % 1) + 1) % 1 * STAGE_STEPS);
     if (step !== lastStep) {
       lastStep = step;
-      back.innerHTML = mechThinkerMarkup(step);
-      dyn.innerHTML = mechDynamicMarkup(step);
+      dynamic.innerHTML = redesignersMarkup(step);
     }
   };
   render(0, false);

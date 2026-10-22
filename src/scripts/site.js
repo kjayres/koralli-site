@@ -430,13 +430,13 @@ if (thesisStage || redesignersStage) {
       schedule();
     }).observe(redesignersStage);
   }
-  import('./art/thesis-cards.mjs').then(({ initThesisCards, initRedesignersMech }) => {
+  import('./art/thesis-cards.mjs').then(({ initThesisCards, initRedesigners }) => {
     if (thesisStage) {
       renderThesis = initThesisCards(thesisStage);
       updateThesisScroll();
     }
     if (redesignersStage) {
-      renderRedesigners = initRedesignersMech(redesignersStage);
+      renderRedesigners = initRedesigners(redesignersStage);
       renderRedesigners(redesignersTime, motion.matches);
     }
     schedule();
@@ -455,6 +455,14 @@ if (seaAnchor) {
   import('./sea-anchor.mjs')
     .then(({ initSeaAnchor }) => { updateSeaAnchor = initSeaAnchor(seaAnchor, { darkAt: seaIsDarkAt }); })
     .catch(error => console.error('Unable to initialise the anchor:', error));
+}
+
+// A hermit crab under a stone at the foot of Views from the Reef.
+const reefCrab = document.querySelector('[data-reef-crab]');
+if (reefCrab) {
+  import('./reef-crab.mjs')
+    .then(({ initReefCrab }) => initReefCrab(reefCrab))
+    .catch(error => console.error('Unable to initialise the hermit crab:', error));
 }
 
 let lastScrollAt = -1e9;

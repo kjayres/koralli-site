@@ -26,7 +26,7 @@ export function journalCurrent(time = 0) {
 
 let cachedScene;
 
-function habitatStone(x, floor, radius, height, seed, detail = 14) {
+export function habitatStone(x, floor, radius, height, seed, detail = 14) {
   const vertices = [[0, 0, height]], faces = [], rings = [], rows = 4;
   for (let row = 1; row <= rows; row++) {
     const latitude = row / rows * Math.PI / 2, ring = [];
