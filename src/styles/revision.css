@@ -36,7 +36,7 @@
 .person-index { display:flex; align-items:center; padding-top:5px; }
 .person-index i { width:7px; height:7px; border-radius:50%; background:var(--blue); }
 .person-index .operator { background:var(--coral); }
-.person .eyebrow { font-size:9px; color:#6c6a63; letter-spacing:.1em; }
+.person .eyebrow { font-size:10px; color:#6c6a63; letter-spacing:.1em; }
 .person h3 { margin-top:12px; font-size:31px; }
 .person-bio { font-size:15px; color:#5c5b58; max-width:520px; }
 @media (min-width:760px) and (max-width:1050px) {
@@ -83,7 +83,7 @@
   .people-section h2 { margin-top:0; }
   .person { grid-template-columns:7px 1fr; gap:20px; padding:28px 0; }
   .person h3 { font-size:27px; }
-  .person .eyebrow { font-size:8px; }
+  .person .eyebrow { font-size:9px; }
   .person-bio { grid-column:2; font-size:14px; }
 }
 @media(max-height:600px) and (min-width:760px) {

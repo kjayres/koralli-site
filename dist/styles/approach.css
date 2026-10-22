@@ -15,7 +15,7 @@
 .approach-frame::after { content:''; position:absolute; inset:0; box-sizing:border-box; border:1px solid var(--frame-rule); pointer-events:none; }
 .approach-frame canvas { display:block; position:absolute; inset:0; width:100%; height:100%; }
 .approach-figure figcaption { display:flex; flex-direction:column; gap:7px; min-height:49px; padding-top:15px; }
-.approach-figure .figure-caption { color:var(--blue); font-size:9px; letter-spacing:.11em; }
+.approach-figure .figure-caption { color:var(--blue); font-size:10px; letter-spacing:.11em; }
 .approach-detail { color:#686660; font:10px/1.5 var(--mono); }
 .approach-frame::after { transition:opacity .7s; }
 [data-approach][data-phase="2"] .approach-frame::after { opacity:0; }
@@ -32,7 +32,7 @@
 .approach-number { position:absolute; left:0; top:calc(var(--approach-copy-offset,0px) + 5px); display:flex; justify-content:center; align-items:center; width:34px; height:34px; border:2px solid #aab3cb; border-radius:50%; background:var(--paper); color:#7d869e; font:500 12px/1 var(--mono); transition:background-color .35s, border-color .35s, color .35s; }
 .approach-number[aria-current=step] { border-color:var(--blue); background:var(--blue); color:var(--paper); }
 .approach-number[aria-current=step]::after { content:''; position:absolute; top:50%; right:-16px; width:7px; height:7px; border-top:1.25px solid var(--blue); border-right:1.25px solid var(--blue); transform:translateY(-50%) rotate(45deg); }
-.approach-copy .eyebrow { font-size:9px; letter-spacing:.12em; color:#696861; padding-top:2px; }
+.approach-copy .eyebrow { font-size:10px; letter-spacing:.12em; color:#696861; padding-top:2px; }
 .approach-copy h3 { margin:0 0 18px; font-size:clamp(28px,2.5vw,36px); line-height:44px; }
 .approach-copy p { max-width:435px; font-size:15px; color:#5c5b58; }
 .approach-copy .approach-lead { font-size:20px; line-height:1.4; color:var(--ink); margin-bottom:20px; }
@@ -64,14 +64,14 @@
   .approach-figure { display:grid; grid-template-columns:50px minmax(0,435px); z-index:2; top:24px; padding:16px 0 13px; background:var(--paper); }
   .approach-frame { grid-column:2; width:clamp(220px,58vw,250px); margin:0 auto; }
   .approach-figure figcaption { grid-column:2; width:clamp(220px,58vw,250px); margin:auto; padding-top:10px; min-height:41px; gap:4px; }
-  .approach-figure .figure-caption { font-size:8px; }
+  .approach-figure .figure-caption { font-size:9px; }
   .approach-detail { font-size:9px; }
   .approach-steps { margin-top:28px; }
   .approach-step { min-height:max(430px,60svh); padding:0 0 70px 58px; scroll-margin-top:354px; }
   .approach-step:last-child { min-height:max(500px,70svh); padding-bottom:90px; }
   .approach-copy h3 { margin:0 0 16px; font-size:28px; line-height:34px; }
   .approach-number { top:var(--approach-copy-offset,0px); }
-  .approach-copy .eyebrow { font-size:8px; }
+  .approach-copy .eyebrow { font-size:9px; }
   .approach-copy p { font-size:15px; }
   .approach-copy .approach-lead { font-size:18px; margin-bottom:17px; }
   .approach-copy p+p { margin-top:16px; }

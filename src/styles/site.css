@@ -155,8 +155,14 @@ h3 {
   font-size:10px;
   letter-spacing:.12em;
   line-height:1.8;
+  text-transform:uppercase;
   border-bottom:1px solid currentColor;
   padding-bottom:4px
+}
+
+/* The hero's call to action carries the same outward arrow as the other contact links. */
+.hero .link-row .text-link[href^="mailto:"]::after {
+  content:" \2197"
 }
 
 .link-row {
@@ -189,7 +195,7 @@ h3 {
 }
 
 .draft-note {
-  font-size:9px;
+  font-size:10px;
   color:#6c6a64;
   border:1px solid #c9c7c0;
   padding:3px 6px
@@ -224,7 +230,7 @@ h3 {
 }
 
 .figure-caption {
-  font-size:9px;
+  font-size:10px;
   line-height:1.8;
   letter-spacing:.14em;
   color:#72716b
@@ -333,7 +339,7 @@ h3 {
   position:absolute;
   top:122px;
   right:var(--gutter);
-  font-size:9px;
+  font-size:10px;
   letter-spacing:.13em;
   display:flex;
   flex-direction:column;
@@ -359,7 +365,7 @@ h3 {
 }
 
 .hero-legend small {
-  font-size:8px;
+  font-size:10px;
   color:#73716c;
   margin-top:3px
 }
@@ -411,7 +417,7 @@ h3 {
 }
 
 .building-instruction {
-  font-size:9px;
+  font-size:10px;
   letter-spacing:.16em;
   position:absolute;
   right:0;
@@ -470,7 +476,7 @@ h3 {
 }
 
 .reference {
-  font-size:8px;
+  font-size:10px;
   letter-spacing:.085em;
   line-height:1.8;
   margin-top:22px;
@@ -505,7 +511,7 @@ h3 {
 
 .depth-choice span {
   font-family:var(--mono);
-  font-size:9px;
+  font-size:10px;
   letter-spacing:.18em
 }
 
@@ -552,7 +558,7 @@ h3 {
   position:absolute;
   bottom:22px;
   left:var(--gutter);
-  font-size:8px;
+  font-size:10px;
   color:#6f6e68;
   transform:translateZ(0)
 }
@@ -569,7 +575,7 @@ h3 {
   pointer-events:none;
   z-index:30;
   font-family:var(--mono);
-  font-size:8px;
+  font-size:10px;
   letter-spacing:.15em
 }
 
@@ -646,7 +652,7 @@ h3 {
   flex-direction:column;
   gap:20px;
   font-family:var(--mono);
-  font-size:9px;
+  font-size:10px;
   letter-spacing:.13em;
   padding-top:16px
 }
@@ -665,7 +671,7 @@ h3 {
   justify-content:space-between;
   gap:15px;
   flex-wrap:wrap;
-  font-size:8px;
+  font-size:10px;
   letter-spacing:.1em;
   color:#858895;
   border-top:1px solid #f3f0e82a;
@@ -702,7 +708,7 @@ h3 {
     top:110px
   }
   .hero .figure-caption {
-    font-size:8px
+    font-size:9px
   }
   .building-layout {
     grid-template-columns:44% 56%
@@ -717,13 +723,13 @@ h3 {
     min-height:190px
   }
   .building-heading .eyebrow {
-    font-size:8px
+    font-size:9px
   }
   .building-heading h2 {
     font-size:28px
   }
   .building-instruction {
-    font-size:8px
+    font-size:9px
   }
 }
 
@@ -743,7 +749,7 @@ h3 {
     height:29px
   }
   .site-header nav {
-    font-size:8px;
+    font-size:9px;
     letter-spacing:.07em;
     gap:17px
   }
@@ -771,17 +777,17 @@ h3 {
   }
   .hero-legend {
     top:90px;
-    font-size:7px
+    font-size:9px
   }
   .hero-legend small {
-    font-size:6px
+    font-size:9px
   }
   .hero .figure-caption {
     bottom:25px;
     left:var(--gutter);
     right:auto;
     text-align:left;
-    font-size:7px
+    font-size:9px
   }
   .hero .figure-caption br {
     display:none
@@ -797,12 +803,12 @@ h3 {
     padding-bottom:60px
   }
   .section-label {
-    font-size:8px;
+    font-size:9px;
     gap:10px;
     letter-spacing:.1em
   }
   .draft-note {
-    font-size:7px;
+    font-size:9px;
     white-space:nowrap
   }
   .editorial-grid {
@@ -821,7 +827,7 @@ h3 {
     padding-top:26px
   }
   .building-heading .eyebrow {
-    font-size:7px;
+    font-size:9px;
     letter-spacing:.1em;
     max-width:260px
   }
@@ -831,7 +837,7 @@ h3 {
   }
   .building-instruction {
     position:static;
-    font-size:7px;
+    font-size:9px;
     margin-top:12px
   }
   .building-layout {
@@ -852,7 +858,7 @@ h3 {
     order:1
   }
   .depth-panel .eyebrow {
-    font-size:8px
+    font-size:9px
   }
   .depth-panel h3 {
     font-size:24px;
@@ -861,7 +867,7 @@ h3 {
     margin-top:12px
   }
   .reference {
-    font-size:6.5px;
+    font-size:9px;
     margin-top:13px
   }
   .depth-choices {
@@ -882,7 +888,7 @@ h3 {
     margin:0
   }
   .depth-choice span {
-    font-size:7px
+    font-size:9px
   }
   .building-art {
     flex:1;
@@ -897,7 +903,7 @@ h3 {
     margin:auto
   }
   .building-skip {
-    font-size:7px;
+    font-size:9px;
     bottom:13px
   }
   .depth-gauge {
@@ -907,7 +913,7 @@ h3 {
     height:440px
   }
   .reef-canvas>div {
-    font-size:7px!important
+    font-size:9px!important
   }
   .reef-canvas>div[style*="bottom:"] {
     display:none
@@ -930,7 +936,7 @@ h3 {
   }
   .footer-bottom {
     margin-top:45px;
-    font-size:7px;
+    font-size:9px;
     line-height:1.7;
     gap:12px
   }
@@ -945,10 +951,10 @@ h3 {
   }
   .site-header nav {
     gap:12px;
-    font-size:7px
+    font-size:9px
   }
   .hero-copy .eyebrow {
-    font-size:8px
+    font-size:9px
   }
   .hero .link-row {
     gap:18px;
@@ -1050,7 +1056,7 @@ h3 {
 }
 
 .article-pending {
-  font-size:9px;
+  font-size:10px;
   letter-spacing:.16em;
   padding-top:24px;
   color:#9199ac
@@ -1090,17 +1096,17 @@ h3 {
 @media (max-height: 600px) and (min-width: 760px) {
   .building-sticky { padding-top: 20px; padding-bottom: 16px; }
   .building-heading h2 { font-size: 23px; margin-top: 8px; }
-  .building-heading .eyebrow { font-size: 7px; }
+  .building-heading .eyebrow { font-size:9px; }
   .building-layout { height: calc(100% - 66px); }
   .depth-panels { min-height: 138px; }
-  .depth-panel .eyebrow { font-size: 8px; }
+  .depth-panel .eyebrow { font-size:9px; }
   .depth-panel h3 { font-size: 22px; margin-top: 11px; }
-  .reference { font-size: 6px; margin-top: 12px; }
+  .reference { font-size:9px; margin-top: 12px; }
   .depth-choices { margin-top: 8px; }
   .depth-choice { padding: 0 4px 5px; }
   .depth-choice svg { height: 24px; margin-bottom: 5px; }
-  .depth-choice span { font-size: 7px; }
-  .building-skip { bottom: 9px; font-size: 7px; }
+  .depth-choice span { font-size:9px; }
+  .building-skip { bottom: 9px; font-size:9px; }
 }
 /* SVG intrinsic dimensions must not enlarge the sticky grid row. */
 .building-layout { grid-template-rows: minmax(0, 1fr); }

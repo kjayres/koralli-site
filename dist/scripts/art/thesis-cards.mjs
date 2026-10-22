@@ -557,7 +557,7 @@ let card1StaticCache = '';
 function card1StaticMarkup() {
   if (card1StaticCache) return card1StaticCache;
   const p = card1Projector;
-  const { polygon, line, planLine, surface, panelY, box } = card1Iso;
+  const { polygon, line, surface, panelY, box } = card1Iso;
   let s = '';
 
   s += surface(20, 38, 196, 102, 0, PAPER);
@@ -571,9 +571,6 @@ function card1StaticMarkup() {
   s += box(24, 74, 66, 24, 3.0, PAPER, PAPER, SHADE, 12.5);
   s += surface(26, 77, 62, 18, 15.6, SHADE, `stroke="${CORAL}" stroke-opacity=".55" stroke-width=".75"`);
 
-  s += box(110, 81, 12, 11, 11.5, PAPER, PAPER, SHADE, 0);
-  s += surface(108, 79, 16, 15, 11.6, PAPER, `stroke="${CORAL}" stroke-width=".9"`);
-  s += surface(111, 82, 10, 9, 11.75, CORAL, 'stroke="none" fill-opacity=".15"');
 
   for (const lx of [150, 178, 204]) {
     for (const ly of [77, 94]) s += box(lx, ly, 2.2, 2.2, 12.5, PAPER, PAPER, SHADE, 0);
@@ -586,13 +583,33 @@ function card1StaticMarkup() {
   s += surface(182, 73, 10, 26, 37.5, PAPER, 'stroke-width=".9"');
   s += line(p(187, 73, 37.5), p(187, 99, 37.5), 'stroke-opacity=".5"');
 
-  s += planLine([[187, 99, .4], [187, 124, .4], [100, 124, .4], [100, 99, .4]], 'stroke-dasharray="3 3" stroke-opacity=".42"');
 
   card1StaticCache = s;
   return s;
 }
 
 const card1FrameCache = new Map();
+const BELT_TOP = 15.8;
+const PARCEL_Y = 86;
+const BELT_SPEED = 48;
+const CARRY_Z = 18.8;
+const keyframes = (t, frames) => {
+  for (let i = 0; i < frames.length - 1; i++) {
+    const [t0, v0] = frames[i], [t1, v1] = frames[i + 1];
+    if (t <= t1) return lerp(v0, v1, smooth((t - t0) / (t1 - t0 || 1)));
+  }
+  return frames.at(-1)[1];
+};
+const ahead = (x, y, heading, reach) => [x + Math.sin(heading) * reach, y + Math.cos(heading) * reach];
+
+/**
+ * A hand-to-hand relay, continuous around the loop:
+ * 0.00-0.16 the person lifts a parcel off the incoming belt and turns with it;
+ * 0.00-0.30 the agent walks over to meet them;
+ * 0.38-0.48 the agent takes the parcel from the person's hands;
+ * 0.48-0.72 the agent turns, carries it back and 0.72-0.82 sets it on the outgoing belt;
+ * 0.86-1.00 the agent turns back as the person reaches for the next parcel.
+ */
 function card1DynamicMarkup(step) {
   if (card1FrameCache.has(step)) return card1FrameCache.get(step);
   const phase = (step % 80) / 80;
@@ -600,7 +617,7 @@ function card1DynamicMarkup(step) {
   const { line } = card1Iso;
   let d = '';
 
-  const beltShift = (phase * 12) % 12;
+  const beltShift = (phase * BELT_SPEED) % 12;
   for (let rx = 28 + beltShift; rx <= 86; rx += 12) {
     d += line(p(rx, 78, 15.75), p(rx, 94, 15.75), `stroke="${CORAL}" stroke-opacity=".35" stroke-width=".65"`);
   }
@@ -608,114 +625,71 @@ function card1DynamicMarkup(step) {
     d += line(p(rx, 78, 15.75), p(rx, 94, 15.75), 'stroke-opacity=".35" stroke-width=".65"');
   }
 
-  const incomingX = lerp(34, 60, phase);
-  d += parcelBox(card1Iso, incomingX, 86, 15.8, { checked: false, agent: false });
+  // The next parcel rides in, arriving at the end of the belt as the loop closes;
+  // the previous one rides away on the outgoing belt.
+  const incomingX = 83 - BELT_SPEED * (1 - phase);
+  d += parcelBox(card1Iso, incomingX, PARCEL_Y, BELT_TOP);
+  const placeAt = 150, placed = 0.82;
+  d += parcelBox(card1Iso, placeAt + BELT_SPEED * (1 - placed) + BELT_SPEED * phase, PARCEL_Y, BELT_TOP, { checked: true, agent: true });
 
-  let activeBoxPos, boxChecked = false, boxAgent = false;
-  let humanX = 99, humanHeading = 0, humanLean = 0.8, humanStride = 0;
-  let grip = null;
-  let robotHeading, robotTarget;
+  // Person: lifts the parcel, turns and steps towards the agent, hands it over, turns back.
+  const humanX = keyframes(phase, [[0, 94], [0.16, 94], [0.32, 103], [0.5, 103], [0.7, 95], [1, 94]]);
+  const humanHeading = keyframes(phase, [[0, -Math.PI * 0.42], [0.1, -Math.PI * 0.42], [0.3, Math.PI * 0.42], [0.5, Math.PI * 0.42], [0.68, -Math.PI * 0.42], [1, -Math.PI * 0.42]]);
+  const humanStride = Math.sin(Math.PI * clamp((phase - 0.16) / 0.16)) * 0.45 - Math.sin(Math.PI * clamp((phase - 0.5) / 0.2)) * 0.4;
+  const humanLean = keyframes(phase, [[0, 1.2], [0.1, 0.8], [0.32, 0.9], [0.44, 1.2], [0.56, 0.7], [0.9, 0.9], [1, 1.2]]);
+  const holding = keyframes(phase, [[0, 1], [0.42, 1], [0.5, 0], [0.9, 0], [1, 1]]);
 
-  if (phase < 0.36) {
-    const u = smooth(phase / 0.36);
-    humanX = lerp(94, 104, u);
-    humanHeading = lerp(-Math.PI * 0.42, Math.PI * 0.42, u);
-    humanLean = 1.1 - 0.35 * Math.sin(u * Math.PI);
-    humanStride = Math.sin(u * Math.PI) * 0.45;
-    activeBoxPos = [
-      lerp(83, 114, u),
-      86,
-      lerp(15.8, 20.5, Math.sin(u * Math.PI * 0.55)),
-    ];
-    grip = activeBoxPos;
+  // Agent: walks over to the person, takes the parcel, turns and walks back to the outgoing belt.
+  const robotX = keyframes(phase, [[0, 128], [0.32, 117.5], [0.5, 117.5], [0.72, 135], [0.86, 135], [1, 128]]);
+  const robotHeading = keyframes(phase, [[0, -Math.PI * 0.46], [0.48, -Math.PI * 0.46], [0.6, Math.PI * 0.46], [0.86, Math.PI * 0.46], [1, -Math.PI * 0.46]]);
+  const robotHold = keyframes(phase, [[0, 0], [0.38, 0], [0.44, 1], [0.8, 1], [0.86, 0], [1, 0]]);
+  const robotStep = Math.abs(Math.sin(Math.PI * clamp(phase / 0.32))) + Math.abs(Math.sin(Math.PI * clamp((phase - 0.5) / 0.22)));
 
-    robotHeading = lerp(Math.PI * 0.44, -Math.PI * 0.46, u);
-    robotTarget = [lerp(150, 122, u), 86, lerp(19.0, 21.0, u)];
-  } else if (phase < 0.58) {
-    const u = smooth((phase - 0.36) / 0.22);
-    humanX = 104;
-    humanHeading = Math.PI * 0.42;
-    humanLean = 1.0;
-    activeBoxPos = [
-      lerp(114, 118, u),
-      86,
-      lerp(20.5, 21.2, Math.sin(u * Math.PI)),
-    ];
-    boxChecked = u > 0.3;
-    grip = [activeBoxPos[0] - 1.5, activeBoxPos[1], activeBoxPos[2]];
+  // The parcel follows whoever holds it, from belt to hands to hands to belt.
+  const humanCarry = [...ahead(humanX, 82, humanHeading, 6.5), lerp(BELT_TOP, CARRY_Z, smooth((phase - 0.04) / 0.12))];
+  const robotCarry = [...ahead(robotX, 84, robotHeading, 6.5), CARRY_Z];
+  let parcel;
+  if (phase < 0.42) parcel = mix3([83, PARCEL_Y, BELT_TOP], humanCarry, smooth(phase / 0.1));
+  else if (phase < 0.72) parcel = mix3(humanCarry, robotCarry, smooth((phase - 0.4) / 0.08));
+  else if (phase < placed) parcel = mix3(robotCarry, [placeAt, PARCEL_Y, BELT_TOP], smooth((phase - 0.72) / 0.1));
+  else parcel = [placeAt + BELT_SPEED * (phase - placed), PARCEL_Y, BELT_TOP];
+  const boxStr = parcelBox(card1Iso, parcel[0], parcel[1], parcel[2], { checked: phase > 0.2, agent: phase > 0.5 });
 
-    robotHeading = -Math.PI * 0.46;
-    robotTarget = [activeBoxPos[0] + 1.5, activeBoxPos[1], activeBoxPos[2] + 3.8];
-  } else if (phase < 0.88) {
-    const u = smooth((phase - 0.58) / 0.30);
-    humanX = lerp(104, 94, u);
-    humanHeading = lerp(Math.PI * 0.42, -Math.PI * 0.42, u);
-    humanLean = 0.85 + 0.25 * u;
-    humanStride = -Math.sin(u * Math.PI) * 0.4;
-    activeBoxPos = [
-      lerp(118, 154, u),
-      86,
-      lerp(21.2, 15.8, u),
-    ];
-    boxChecked = true;
-    boxAgent = u > 0.2;
+  const s = 0.84;
+  const right = [Math.cos(humanHeading), -Math.sin(humanHeading), 0];
+  const forward = [Math.sin(humanHeading), Math.cos(humanHeading), 0];
+  const restHand = side => [humanX + (right[0] * side * 5.0 + forward[0] * 0.8) * s, 82 + (right[1] * side * 5.0 + forward[1] * 0.8) * s, 16.8 * s];
+  const gripAt = phase < 0.6 ? parcel : [incomingX, PARCEL_Y, BELT_TOP];
+  const hand = side => mix3(restHand(side), add3([gripAt[0], gripAt[1], gripAt[2] + 4.4], mul3(right, side * 5.4)), holding);
 
-    // Hands go back to the sides while turning for the next parcel.
+  const robotRest = [...ahead(robotX, 84, robotHeading, 3.5), 13];
+  const robotTarget = mix3(robotRest, [parcel[0], parcel[1], parcel[2] + 4.4], robotHold);
 
-    robotHeading = lerp(-Math.PI * 0.46, Math.PI * 0.46, u);
-    robotTarget = [activeBoxPos[0], activeBoxPos[1], activeBoxPos[2] + 3.8];
-  } else {
-    const u = smooth((phase - 0.88) / 0.12);
-    humanX = 94;
-    humanHeading = -Math.PI * 0.42;
-    humanLean = 1.1;
-    activeBoxPos = [lerp(154, 166, u), 86, 15.8];
-    boxChecked = true;
-    boxAgent = true;
-    grip = [83, 86, lerp(16.5, 15.8, u)];
-
-    robotHeading = Math.PI * 0.44;
-    robotTarget = [lerp(154, 150, u), 86, 19.0];
-  }
-
-  const outX = lerp(166, 206, phase);
-  d += parcelBox(card1Iso, outX, 86, 15.8, { checked: true, agent: true });
-
-  // Hold the parcel by its sides as the person sees them, whichever way they face.
-  const handSide = [Math.cos(humanHeading), -Math.sin(humanHeading), 0];
-  const handOn = side => add3([grip[0], grip[1] + 2.5, grip[2] + 4.2], mul3(handSide, side * 5.4));
-
-  const boxStr = parcelBox(card1Iso, activeBoxPos[0], activeBoxPos[1] + 2.5, activeBoxPos[2], { checked: boxChecked, agent: boxAgent });
-  // While the person carries the parcel it sits between their body and near arm,
-  // so the hands grip its sides; once the agent takes it, its arms go over it.
-  const humanHolds = phase < 0.58;
-
-  const humanStr = human3DMarkup(p, {
+  // Whoever holds the parcel draws it between their body and their arms; once it is
+  // set on the belt it sits in front of the agent.
+  const holder = phase < 0.45 ? 'human' : phase < placed + 0.03 ? 'robot' : 'belt';
+  d += human3DMarkup(p, {
     id: 'c1-human',
     x: humanX,
     y: 82,
-    scale: 0.84,
+    scale: s,
     heading: humanHeading,
     lean: humanLean,
     stride: humanStride,
     color: CORAL,
-    leftTarget: grip ? handOn(-1) : null,
-    rightTarget: grip ? handOn(1) : null,
-    held: humanHolds ? boxStr : '',
+    leftTarget: hand(-1),
+    rightTarget: hand(1),
+    held: holder === 'human' ? boxStr : '',
   });
-  const robotStr = robotMarkup(p, {
-    x: 135,
-    y: 84,
+  d += robotMarkup(p, {
+    x: robotX,
+    y: 84 + Math.min(1, robotStep) * 0.3,
     scale: 0.82,
     heading: robotHeading,
     target: robotTarget,
-    held: humanHolds ? '' : boxStr,
+    held: holder === 'robot' ? boxStr : '',
   });
-  d += humanStr + robotStr;
-
-  const pulseX = lerp(187, 100, phase);
-  const [fx, fy] = p(pulseX, 124, 0.6);
-  d += `<circle cx="${fx}" cy="${fy}" r="2.4" fill="${CORAL}" stroke="${PAPER}" stroke-width=".75"/>`;
+  if (holder === 'belt') d += boxStr;
 
   card1FrameCache.set(step, d);
   return d;
@@ -726,7 +700,7 @@ function card1DynamicMarkup(step) {
 //         (operators, coral), with a researcher and an operator working a
 //         blueprint together at a table in the courtyard between them.
 // ============================================================================
-const card2Projector = makeProjector({ originX: 280, originY: 172, centerX: 79, centerY: 80, angle: -4, scale: 1.36, pitch: 0.44 });
+const card2Projector = makeProjector({ originX: 280, originY: 183, centerX: 79, centerY: 80, angle: -4, scale: 1.25, pitch: 0.44 });
 const card2Iso = isoPrimitives(card2Projector);
 const card2View = viewToward(-4);
 let card2StaticCache = '';
@@ -734,7 +708,9 @@ let card2StaticCache = '';
 // Buildings are drawn at their own detail and then enlarged about their centres,
 // so they stand well above the people without redrawing every measurement.
 const BUILDING_SCALE = 1.4;
-const scaledAbout = (p, cx, cy, k) => (x, y, z = 0) => p(cx + (x - cx) * k, cy + (y - cy) * k, z * k);
+// Heights get a little extra so both buildings read as tall, not squat.
+const BUILDING_HEIGHT = 1.22;
+const scaledAbout = (p, cx, cy, k, kz = k) => (x, y, z = 0) => p(cx + (x - cx) * k, cy + (y - cy) * k, z * kz);
 
 // Radcliffe door faces the courtyard.
 const RADCAM = { x: 34, y: 100, door: 15 };
@@ -909,7 +885,7 @@ function officeBuildingMarkup(p, iso) {
 function card2StaticMarkup() {
   if (card2StaticCache) return card2StaticCache;
   const p = card2Projector;
-  const { polygon, surface, planLine } = card2Iso;
+  const { polygon, surface } = card2Iso;
   let s = '';
 
   s += surface(-14, 0, 186, 160, 0, PAPER);
@@ -917,33 +893,29 @@ function card2StaticMarkup() {
   s += polygon([p(172, 0, 0), p(172, 160, 0), p(172, 160, -4.5), p(172, 0, -4.5)], SHADE);
   s += surface(-7, 7, 172, 146, .2, 'none', 'stroke-opacity=".18"');
 
-  // Paths worn from each door to the table.
-  s += planLine([[74, 93, .3], [86, 102, .3], [96, 112, .3]], 'stroke-dasharray="3 3" stroke-opacity=".45"');
-  s += planLine([[128, 70, .3], [127, 88, .3], [124, 106, .3]], `stroke="${CORAL}" stroke-dasharray="3 3" stroke-opacity=".5"`);
-
-  const rp = scaledAbout(p, RADCAM.x, RADCAM.y, BUILDING_SCALE);
+  const rp = scaledAbout(p, RADCAM.x, RADCAM.y, BUILDING_SCALE, BUILDING_SCALE * BUILDING_HEIGHT);
   s += radcliffeCameraMarkup(rp, isoPrimitives(rp));
   const ocx = OFFICE.x + OFFICE.w / 2, ocy = OFFICE.y + OFFICE.d / 2;
-  const op = scaledAbout(p, ocx, ocy, BUILDING_SCALE);
+  const op = scaledAbout(p, ocx, ocy, BUILDING_SCALE, BUILDING_SCALE * BUILDING_HEIGHT);
   s += officeBuildingMarkup(op, isoPrimitives(op));
 
   card2StaticCache = s;
   return s;
 }
 
-// The plan table: a blueprint of a building's floor, with the route the pair are working out.
-const PLAN_TABLE = { x: 96, y: 110, w: 32, d: 14, h: 16 };
-const PLAN = { x: 98.5, y: 111.6, w: 27, d: 10.8, z: PLAN_TABLE.h + 1.85 };
-const ROUTE = [[106.5, 116], [110.5, 112.8], [115, 116.2], [119.5, 113]];
+// The table in the courtyard: a plan laid out with a note from each side on it.
+const PLAN_TABLE = { x: 110, y: 116, w: 15, d: 34, h: 16 };
+const TABLE_TOP = PLAN_TABLE.h + 1.85;
+const PLAN = { x: 111.6, y: 118, w: 11.8, d: 30, z: TABLE_TOP };
+let planTableCache = '';
 
-// Split a figure at its held layer, so two people behind one table can each have
-// their bodies behind it and their hands and heads over it.
+// Split a figure at its held layer, so someone behind the table has their body
+// behind it and their hands and head over it.
 const HELD = '<!--held-->';
 const figureLayers = markup => {
   const [back, front] = markup.split(HELD);
   return [`${back}</g>`, `<g>${front}`];
 };
-let planTableCache = '';
 
 function planTableMarkup() {
   if (planTableCache) return planTableCache;
@@ -957,13 +929,66 @@ function planTableMarkup() {
   s += surface(px, py, pw, pd, z, '#E3EAFB', 'stroke-width=".8"');
   for (let gx = px + 3; gx < px + pw; gx += 3) s += line(p(gx, py, z + .02), p(gx, py + pd, z + .02), 'stroke-width=".3" stroke-opacity=".3"');
   for (let gy = py + 3; gy < py + pd; gy += 3) s += line(p(px, gy, z + .02), p(px + pw, gy, z + .02), 'stroke-width=".3" stroke-opacity=".3"');
-  // Floor plan: outer walls, two partitions and a door gap.
   s += surface(px + 2, py + 2, pw - 4, pd - 4, z + .04, 'none', 'stroke-width=".9"');
-  s += line(p(px + 11, py + 2, z + .05), p(px + 11, py + pd - 4.5, z + .05), 'stroke-width=".7"');
-  s += line(p(px + 11, py + 6, z + .05), p(px + pw - 2, py + 6, z + .05), 'stroke-width=".7"');
-  s += line(p(px + 18, py + 6, z + .05), p(px + 18, py + pd - 2, z + .05), 'stroke-width=".7"');
+  s += line(p(px + 2, py + 11, z + .05), p(px + pw - 2, py + 11, z + .05), 'stroke-width=".7"');
+  s += line(p(px + 6, py + 11, z + .05), p(px + 6, py + pd - 2, z + .05), 'stroke-width=".7"');
+  s += line(p(px + 6, py + 20, z + .05), p(px + pw - 2, py + 20, z + .05), 'stroke-width=".7"');
   planTableCache = s;
   return s;
+}
+
+// A form held upright between two hands, facing the way the holder faces.
+function formMarkup(p, centre, heading, colour, scale = 0.66) {
+  const { right, forward } = bodyFrame(0, 0, heading);
+  const c = (u, v, h) => p(...add3(centre, add3(mul3(right, u * scale), add3(mul3(forward, v * scale), [0, 0, h * scale]))));
+  const sheet = [c(-3.2, 0, -2.6), c(3.2, 0, -2.6), c(3.2, 1.4, 2.8), c(-3.2, 1.4, 2.8)];
+  let out = `<polygon points="${points(sheet)}" fill="${PAPER}" stroke="${colour}" stroke-width=".85"/>`;
+  out += `<path d="M${pair(c(-2.2, .9, 1.6))} L${pair(c(2.2, .9, 1.6))} M${pair(c(-2.2, .6, .3))} L${pair(c(1.2, .6, .3))}" fill="none" stroke="${colour}" stroke-width=".55" stroke-opacity=".7"/>`;
+  return out;
+}
+
+/**
+ * Midway between the buildings a researcher and an operator walk out from their doors,
+ * meet, hand each other a form, and walk home with the other's paperwork.
+ */
+function exchangeMarkup(p, phase) {
+  const R = { id: 'c2-res-walk', colour: BLUE, home: [73, 92], meet: [97, 79] };
+  const O = { id: 'c2-op-walk', colour: CORAL, home: [127, 72], meet: [106, 73.5] };
+  const walkOut = smooth((phase - 0.04) / 0.3);
+  const reach = smooth((phase - 0.36) / 0.08) * (1 - smooth((phase - 0.56) / 0.08));
+  const swapped = phase > 0.46 && phase < 0.98;
+  const turned = smooth((phase - 0.62) / 0.08) * (1 - smooth((phase - 0.96) / 0.04));
+  const walkBack = smooth((phase - 0.68) / 0.27);
+  const moving = Math.sin(Math.PI * clamp((phase - 0.04) / 0.3)) + Math.sin(Math.PI * clamp((phase - 0.68) / 0.27));
+  const along = walkOut * (1 - walkBack);
+  const place = who => [lerp(who.home[0], who.meet[0], along), lerp(who.home[1], who.meet[1], along)];
+  const rPos = place(R), oPos = place(O);
+  const mid = [(rPos[0] + oPos[0]) / 2, (rPos[1] + oPos[1]) / 2];
+  let out = '';
+  for (const [who, pos, other] of [[R, rPos, O], [O, oPos, R]]) {
+    const outward = Math.atan2(who.meet[0] - who.home[0], who.meet[1] - who.home[1]);
+    // At the meeting point each turns to face the other before the handover.
+    const toOther = Math.atan2(mid[0] - pos[0], mid[1] - pos[1]);
+    const facing = lerp(outward, outward + Math.atan2(Math.sin(toOther - outward), Math.cos(toOther - outward)), smooth((phase - 0.32) / 0.06) * (1 - turned));
+    const heading = facing + Math.PI * turned;
+    const frame = bodyFrame(pos[0], pos[1], heading);
+    const carrying = frame.local(0, 4.2, 17.2);
+    const held = [lerp(carrying[0], mid[0], reach * 0.78), lerp(carrying[1], mid[1], reach * 0.78), lerp(17.2, 19.2, reach)];
+    out += human3DMarkup(p, {
+      id: who.id,
+      x: pos[0],
+      y: pos[1],
+      scale: 0.66,
+      heading,
+      lean: 0.6 + reach * 0.5,
+      stride: Math.sin(phase * TAU * 6) * 0.7 * Math.min(1, moving),
+      color: who.colour,
+      leftTarget: add3(held, mul3(frame.right, -2.0)),
+      rightTarget: add3(held, mul3(frame.right, 2.0)),
+    });
+    out += formMarkup(p, held, heading, swapped ? other.colour : who.colour);
+  }
+  return out;
 }
 
 const card2FrameCache = new Map();
@@ -971,64 +996,55 @@ function card2DynamicMarkup(step) {
   if (card2FrameCache.has(step)) return card2FrameCache.get(step);
   const phase = (step % 80) / 80;
   const p = card2Projector;
-  const z = PLAN.z + .1;
+  const { ruledNote } = card2Iso;
+  const top = TABLE_TOP + .1;
+  const cy = PLAN_TABLE.y + PLAN_TABLE.d / 2;
 
-  // Three legs of the route: the researcher points to the next stop, the operator's pen follows.
-  const legs = ROUTE.length - 1;
-  const drawEnd = 0.88;
-  const progress = Math.min(1, phase / drawEnd) * legs;
-  const leg = Math.min(legs - 1, Math.floor(progress));
-  const u = smooth(progress - leg);
-  const pen = [lerp(ROUTE[leg][0], ROUTE[leg + 1][0], u), lerp(ROUTE[leg][1], ROUTE[leg + 1][1], u), z];
-  const fade = 1 - smooth((phase - 0.92) / 0.08);
-  const traced = [...ROUTE.slice(0, leg + 1), pen];
-  let route = `<path d="M${traced.map(([x, y]) => pair(p(x, y, z))).join(' L')}" fill="none" stroke="${CORAL}" stroke-width="1.3" stroke-opacity="${number(fade)}"/>`;
-  for (const [i, [x, y]] of ROUTE.entries()) {
-    if (i > leg + (u > .98 ? 1 : 0)) break;
-    const [cx, cy] = p(x, y, z);
-    route += `<circle cx="${cx}" cy="${cy}" r="1.3" fill="${CORAL}" stroke="none" fill-opacity="${number(fade)}"/>`;
-  }
+  // Two notes on the plan, one near each of them. Mid-discussion the operator slides theirs across.
+  const slide = smooth((phase - 0.3) / 0.12) * (1 - smooth((phase - 0.82) / 0.12));
+  const noteA = [112.2, 121.5];
+  const noteB = [lerp(116.8, 114.6, slide), lerp(139, 131, slide)];
+  const notes = ruledNote(noteA[0], noteA[1], 7.2, 5.6, top, BLUE, false) + ruledNote(noteB[0], noteB[1], 7.2, 5.6, top + .05, CORAL, true);
+  const noteCentre = ([x, y]) => [x + 3.6, y + 2.8];
 
-  // Both stand behind the table facing out, so the plan reads. The researcher points
-  // ahead to where the line goes next; the other hand rests on the edge.
-  const next = ROUTE[Math.min(legs, leg + 1)];
-  const lookAhead = smooth(Math.min(1, (progress - leg) * 2.2));
-  const prev = ROUTE[leg];
-  const point = [lerp(prev[0], next[0], lookAhead), lerp(prev[1], next[1], lookAhead), z + 1.2 + Math.sin(lookAhead * Math.PI) * 1.6];
+  // They face each other across the long sides and take turns: first the researcher taps a
+  // line on the operator's note while the operator follows it; then the operator taps the
+  // researcher's note while the researcher stands back a little, hand at the chin.
+  const researcherTurn = phase < 0.5;
+  const u = (phase % 0.5) / 0.5;
+  const tap = Math.max(0, Math.sin(u * TAU * 3)) * 1.4 * smooth(u / 0.15) * (1 - smooth((u - 0.85) / 0.15));
+  const bCentre = noteCentre(noteB), aCentre = noteCentre(noteA);
+  const backX = PLAN_TABLE.x - 4.6, frontX = PLAN_TABLE.x + PLAN_TABLE.w + 4.6;
+  const rY = 127, oY = 139;
+
+  const rFrame = bodyFrame(backX, rY, Math.PI / 2);
   const researcher = human3DMarkup(p, {
     id: 'c2-researcher',
-    x: 107.6,
-    y: 107,
+    x: backX,
+    y: rY,
     scale: 0.72,
-    heading: 0.22 + 0.05 * Math.sin(phase * TAU),
-    lean: 1.3,
+    heading: Math.PI / 2 + (researcherTurn ? 0.14 : -0.04),
+    lean: researcherTurn ? 1.5 : 0.7,
     color: BLUE,
-    leftTarget: [103.2, 111.4, PLAN_TABLE.h + 2.4],
-    rightTarget: point,
+    leftTarget: [PLAN_TABLE.x + 1.2, rY + 4.4, top + .4],
+    rightTarget: researcherTurn ? [bCentre[0] - .4, bCentre[1] - .8, top + .7 + tap] : rFrame.local(0.9, 3.0, 25.2),
     held: HELD,
   });
 
   const operator = human3DMarkup(p, {
     id: 'c2-operator',
-    x: 118,
-    y: 107,
+    x: frontX,
+    y: oY,
     scale: 0.72,
-    heading: -0.22 + 0.05 * Math.sin(phase * TAU + 1),
-    lean: 1.3,
+    heading: -Math.PI / 2 + (researcherTurn ? 0.04 : -0.14),
+    lean: researcherTurn ? 1.1 : 1.5,
     color: CORAL,
-    leftTarget: [pen[0] + .5, pen[1] - 1.0, z + 1.0],
-    rightTarget: [123.4, 111.4, PLAN_TABLE.h + 2.4],
-    held: HELD,
+    leftTarget: [PLAN_TABLE.x + PLAN_TABLE.w - 1.2, oY - 4.4, top + .4],
+    rightTarget: researcherTurn ? [bCentre[0] + 2.4, bCentre[1] + 1.6, top + .5] : [aCentre[0] + .4, aCentre[1] + .8, top + .7 + tap],
   });
 
-  // The operator's pen.
-  const [tx, ty] = p(pen[0], pen[1], z + .2);
-  const [bx, by] = p(pen[0] + 1.0, pen[1] - 2.4, z + 3.4);
-  const penMarkup = `<path d="M${tx},${ty} L${bx},${by}" fill="none" stroke="${BLUE}" stroke-width="1.3" stroke-linecap="round"/>`;
-
   const [researcherBack, researcherFront] = figureLayers(researcher);
-  const [operatorBack, operatorFront] = figureLayers(operator);
-  const markup = researcherBack + operatorBack + planTableMarkup() + route + researcherFront + operatorFront + penMarkup;
+  const markup = exchangeMarkup(p, phase) + researcherBack + planTableMarkup() + notes + researcherFront + operator;
   card2FrameCache.set(step, markup);
   return markup;
 }
@@ -1162,7 +1178,8 @@ function mechBodyMarkup() {
   }
   const farShoulder = local(far * 12.0, lean(31.5), 31.5);
   s += mechBall(add3(farShoulder, [0, 0, 0.8]), 4.3);
-  s += mechArmMarkup(farShoulder, local(far * 13.4, 4.5 + lean(22), 21.5), local(far * 8.2, 13.0, SEAT + 7.6), 0.3);
+  // Powered down: it hangs straight from the shoulder, claw resting on the deck beside the crate.
+  s += mechArmMarkup(farShoulder, local(far * 13.8, -0.5, 21.5), local(far * 13.2, 1.5, 10.0), 0.3);
 
   s += mechLegMarkup(far);
   s += mechLegMarkup(near);
@@ -1195,18 +1212,19 @@ function mechBodyMarkup() {
   s += `<polygon points="${points(collar(36.8, 7.9))}" fill="${MECH_LIT}" stroke="${CORAL}" stroke-width="1.15"/>`;
   s += `<polygon points="${points(collar(37.8, 7.0))}" fill="${MECH_FILL}" stroke="${CORAL}" stroke-width=".8"/>`;
 
-  // Near side: the shoulder pad is off and on the deck, the arm hangs dead from an open socket.
-  const padAt = local(near * 17.5, 19.0, 0);
+  // Near side: the arm has been taken off for repair. It lies flat on the deck in front,
+  // its shoulder pad beside it, while a loose cable hangs from the open socket.
+  const padAt = local(near * 5.0, 34.0, 0);
   const pad = bodyFrame(padAt[0], padAt[1], 1.1);
   s += shell(p, pad, [[0.3, 5.0, 4.4], [2.4, 4.4, 3.9], [4.0, 2.8, 2.5], [4.6, 1.2, 1.1]], MECH_STYLE);
   s += visibleArc(p, pad, mechView, 0.6, 5.0, 4.4, 0, `stroke="${CORAL}" stroke-width="1.0"`);
   const socket = local(near * 11.4, lean(31.5), 31.5);
   const [sx, sy] = p(...socket);
   s += `<circle cx="${number(sx)}" cy="${number(sy)}" r="3.6" fill="${DEEP_BG}" stroke="${CORAL}" stroke-width="1.0"/>`;
-  s += mechArmMarkup(add3(socket, mul3(MECH.right, near * 1.2)), local(near * 16.5, 0.5, 17.5), local(near * 19.5, -4.0, 3.6), 0.15);
-  const cable = [socket, local(near * 15.5, 3.0, 26.0), local(near * 17.0, 1.5, 19.0)].map(pt => p(...pt));
+  const cable = [socket, local(near * 14.0, 2.5, 18.0), local(near * 14.5, 4.0, 0.5)].map(pt => p(...pt));
   s += `<path d="M${pair(cable[0])} Q${pair(cable[1])} ${pair(cable[2])}" fill="none" stroke="${AQUA}" stroke-width=".9"/>`;
-  for (const [u, v] of [[23, 21], [13.5, 27], [21, 26]]) {
+  s += mechArmMarkup(local(near * 16.0, 19.0, 2.6), local(near * 21.0, 26.0, 2.5), local(near * 18.0, 35.0, 3.3), 0.2);
+  for (const [u, v] of [[11, 26], [25, 31], [13, 30]]) {
     const [bx, by] = p(...local(near * u, v, 0.4));
     s += `<circle cx="${number(bx)}" cy="${number(by)}" r="1.1" fill="${DEEP_SHADE}" stroke="${DEEP_LINE}" stroke-width=".6"/>`;
   }

@@ -1,4 +1,4 @@
-import { humanParts } from './building-people.mjs?v=e135a0bffbe4';
+import { humanParts } from './building-people.mjs?v=0159d4c5ad3f';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';
@@ -152,7 +152,8 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
     console+=keyboard(137,117,29);
     object('application-console',152,111,console);
     object('operator-chair',151,139,chair(144,132));
-    human('using-applications',151,138,Math.PI,'seated','woman',[151,122,20.7]);
+    // Swivelled towards the left screen, so from this view the legs run away under the desk.
+    human('using-applications',151,138,Math.PI+.5,'seated','woman',[146,121,20.7]);
   } else {
     // Data: low open shelves of source records, and two records checked together.
     // No screen or tall cabinet: its horizontal silhouette differs from Systems.
@@ -281,7 +282,7 @@ function cover(index, base, angle = 0, lift = 0) {
     drawing += `<g data-facade="${side}"><path d="${glass}" fill="${GLASS}" stroke-opacity=".7" stroke-width=".7"/><path d="${mullions}" fill="none" stroke-opacity=".56" stroke-width=".62"/><path d="${piers}" fill="none" stroke-opacity=".85" stroke-width=".75"/><path d="${shadow}" fill="none" stroke-opacity=".28" stroke-width=".6"/><path d="${relief}" fill="none" stroke-opacity=".43" stroke-width=".55"/>${accent}</g>`;
     if(index===3) {
       const origin=q(110,66), direction=q(side==='left'?111:109,66);
-      drawing += `<text transform="matrix(${number(direction[0]-origin[0])} ${number(direction[1]-origin[1])} 0 1 ${origin})" text-anchor="middle" fill="${BLUE}" stroke="none" fill-opacity=".78" font-family="'IBM Plex Mono',monospace" font-size="3.2" letter-spacing=".24">${side==='left'?'GUARANTY':'PRUDENTIAL'}</text>`;
+      drawing += `<text transform="matrix(${number(direction[0]-origin[0])} ${number(direction[1]-origin[1])} 0 1 ${origin})" text-anchor="middle" fill="${BLUE}" stroke="none" fill-opacity=".78" font-family="'IBM Plex Mono',monospace" font-size="3.2" letter-spacing=".24">MDCCCXCVI</text>`;
     }
   }
 

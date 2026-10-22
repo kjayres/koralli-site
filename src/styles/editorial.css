@@ -85,7 +85,7 @@
   .home-page .building-section { height:300svh; }
   .home-page .building-heading h2 { font-size:27px; }
   .home-page .building-layout { height:calc(100% - 145px); }
-  .home-page .building-instruction { font-size:8px; margin-top:10px; }
+  .home-page .building-instruction { font-size:9px; margin-top:10px; }
   .home-page .company-building>[data-building-scale],.home-page .company-building>text { display:none; }
   .invitation-copy { grid-template-columns:1fr; gap:28px; margin-top:0; }
   .home-journal { align-items:start; flex-direction:column; gap:20px; }
@@ -102,4 +102,19 @@
 }
 @media(prefers-reduced-motion:reduce) and (max-width:759px) {
   .home-page .building-layout { height:auto; }
+}
+
+/* Case study: the three phases read as an open timeline, then the client's words lead the outcomes. */
+@media(min-width:901px) {
+  .case-phase-panels { position:relative; margin-top:64px; }
+  .case-phase-panels::before { content:''; position:absolute; top:-21px; left:4px; right:0; height:1px; background:var(--blue); opacity:.35; }
+  .case-phase-panel { position:relative; }
+  .case-phase-panel::before { content:''; position:absolute; top:-25px; left:0; width:9px; height:9px; border-radius:50%; background:var(--blue); }
+  .case-account.editorial-grid { grid-template-columns:1fr; row-gap:40px; }
+  .case-account>div:first-child { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:clamp(36px,5vw,72px); align-items:start; }
+  .case-account .client-quote { margin-top:0; max-width:none; }
+  .case-account .client-quote p { font-size:clamp(24px,2.5vw,34px); line-height:1.25; }
+  .case-changed-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(28px,4vw,56px); padding-top:30px; border-top:1px solid var(--rule); }
+  .case-changed-list p+p { margin-top:0; }
+  .case-changed-list strong { display:block; margin-bottom:10px; font-size:17px; letter-spacing:-.01em; }
 }
