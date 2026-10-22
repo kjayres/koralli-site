@@ -17,7 +17,6 @@ const add = (a,b) => a.length===2 ? [a[0]+b[0],a[1]+b[1]] : [a[0]+b[0],a[1]+b[1]
 const sub = (a,b) => a.length===2 ? [a[0]-b[0],a[1]-b[1]] : [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
 const mul = (a,s) => a.length===2 ? [a[0]*s,a[1]*s] : [a[0]*s,a[1]*s,a[2]*s];
 const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-const cross = (a,b) => [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 const length = a => Math.hypot(a[0],a[1],a[2]);
 const unit = a => mul(a,1/(length(a)||1));
 const mix = (a,b,t) => a.length===2
@@ -25,18 +24,6 @@ const mix = (a,b,t) => a.length===2
   : [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t,a[2]*(1-t)+b[2]*t];
 const number = n => Number(n.toFixed(3));
 const pair = point => `${number(point[0])},${number(point[1])}`;
-
-function bounds(points) {
-  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
-  for (let i=0; i<points.length; i++) {
-    const x=points[i][0], y=points[i][1];
-    if (x<minX) minX=x;
-    if (y<minY) minY=y;
-    if (x>maxX) maxX=x;
-    if (y>maxY) maxY=y;
-  }
-  return [minX,minY,maxX,maxY];
-}
 
 function hull(points) {
   const sorted = points.map(p => [p[0],p[1]]).sort((a,b) => a[0]-b[0] || a[1]-b[1]);
