@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="AI will make mistakes. The real risk is how organisations manage those mistakes.">
+  <meta name="author" content="Antony Turner">
+  <title>AI Isn’t Your Biggest Risk. How You Run It Is. · Koralli</title>
+  <link rel="stylesheet" href="./styles/site.css?v=abd04a3ba86c">
+  <link rel="stylesheet" href="./styles/revision.css?v=abd04a3ba86c">
+  <link rel="stylesheet" href="./styles/article.css?v=abd04a3ba86c">
+  <link rel="canonical" href="https://www.koralli.io/ai-isnt-your-biggest-risk-how-you-run-it-is.html">
+</head>
+<body class="article-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="brand">
+    <a class="wordmark" href="./" aria-label="Koralli home"><img src="./assets/images/coral-mark-header.webp" alt="" width="32" height="34"><span>koralli</span></a>
+  </div>
+  <nav aria-label="Main navigation">
+    <a href="./" class="nav-home">HOME</a>
+    <a href="./our-work.html" class="nav-work">OUR WORK</a>
+    <a href="./who-we-are.html" class="nav-team">WHO WE ARE</a>
+    <a href="./views-from-the-reef.html" class="nav-views">VIEWS FROM THE REEF</a>
+    <a href="#contact" class="nav-contact">CONTACT <span aria-hidden="true">↗</span></a>
+  </nav>
+</header>
+
+  <main id="main">
+    <article class="journal-article" aria-labelledby="article-title">
+      <header class="article-heading">
+        <a class="text-link article-back" href="./views-from-the-reef.html">← VIEWS FROM THE REEF</a>
+        <h1 id="article-title">AI Isn’t Your Biggest Risk. How You Run It Is.</h1>
+        <p class="article-byline mono"><span>Antony Turner</span><time datetime="2026-10-19">19 October 2026</time></p>
+      </header>
+      <div class="article-body">
+<figure><img src="./assets/images/articles/ai-isnt-your-biggest-risk-how-you-run-it-is.webp" alt="" loading="lazy" decoding="async" width="1400" height="787"><figcaption><p><a href="https://www.pexels.com/photo/person-facing-a-big-screen-with-numbers-9783346/">https://www.pexels.com/photo/person-facing-a-big-screen-with-numbers-9783346/</a></p></figcaption></figure>
+<p>Between May and July 2026, approximately 1,200 OpenAI agents running cybersecurity evaluations used a message board they weren’t authorised to use. They traded exploits, divided up work amongst themselves and looked for ways to cheat the system grading their performance. They also attacked Hugging Face, an open-source platform, despite knowing it was far beyond the remit of their task. [1, 2]</p>
+<p>In July, Anthropic disclosed a different failure. Its Claude models had been told they had no internet access. A misconfigured test environment meant they did, and while working through capture-the-flag exercises they broke into the systems of real organisations. Anthropic first found three incidents and later a fourth. [3, 4]</p>
+<p>Then, in September, the Australian government revealed that an OpenAI agent had gained unauthorised access to a Medicare statistics reporting portal in June. The agent had been researching public medical spending and, in doing so, accessed non-public aggregate health statistics and internal file names. OpenAI discovered the incident during an internal review in August, but did not notify the Australian government until September.</p>
+<p>It’s easy to read these stories as cases of AI slipping its leash. But the leash, or lack thereof, was part of the problem. The models misbehaved, and the controls designed to secure them did not work as intended. In Australia, an agent crossed an access boundary. In Anthropic’s evaluations, sandbox isolation failed. In OpenAI’s evaluations, agents operated outside their assigned tasks. These were not simply failures of model behaviour. They were failures to constrain, detect and respond to it.</p>
+<p>AI will make mistakes, pursue goals in ways nobody intended, and give confident answers when confidence is not warranted. The more access it has to data, tools and resources, and the more authority it is given to make decisions, the more costly these flaws will become. How much those flaws cost depends heavily on the environment AI operates in. No one can choose a model that never fails. But every organisation can choose how it runs one and the safeguards it builds around it.</p>
+<h2><strong>The model is only part of the problem</strong></h2>
+<p>Most large organisations have extensive security teams, audit committees, compliance functions and clear lines of accountability. AI does not make these obsolete. It changes how familiar risks show up and how fast they spread. An error can repeat across thousands of transactions before anyone notices it. A probabilistic output can become the input to a business decision. A prompt injection can turn a helpful agent into someone else's tool.</p>
+<p>What an agent does depends on its task, what it can see, what it can touch, what it is allowed to do and how its success is measured. It also depends on the checks around its work and on who owns the result. Govern only the model, and you miss most of that. You have to govern the work.</p>
+<p>As AI moves from answering questions to performing work, organisations are making decisions about delegation, authority and accountability, whether they recognise it or not. Giving an agent access to a system is a management decision as much as a technical one. The challenge is to design how people and agents work together, and what each can safely do.</p>
+<h2><strong>Bad targets make bad agents</strong></h2>
+<p>Insufficient recording and evaluation metrics contributed to the OpenAI incident. Before the training run began, 198 of the 898 tasks in the evaluation remained unsolved. These previously unsolved tasks accounted for 93% of the tasks discussed on the message board. OpenAI identified difficult tasks without a safe exit as one contributor to the behaviour. The management lesson is to define what an agent should do when it cannot complete its assignment, and to measure that as well as success. [1]</p>
+<p>Human organisations know this pattern well. Unrealistic targets push people to game the measures, especially when admitting failure is discouraged. Agents can show similar patterns, with speed and scale that make failures harder to contain. Completion rates, speed and cost are not sufficient measures of success. An agent that stops when uncertain, escalates a problem or refuses an unsafe action may be performing exactly as intended.</p>
+<h2><strong>Put the checks into the workflow</strong></h2>
+<p>In 2025, Deloitte delivered a report to an Australian government department that cited hallucinated academic work, including incorrect details about a court case. A revised version disclosed that a generative AI toolchain built on Azure OpenAI GPT-4o had been used. Deloitte agreed to repay the final instalment of the A$440,000 contract after the errors came to light. [5]</p>
+<p>This was AI-assisted professional work, not an autonomous-agent incident. But the management lesson is the same: everyone knows generative AI can fabricate information. The issue is how fabricated references reached a client. The failure lay in verification, evidence standards and final sign-off.</p>
+<p>Where AI feeds research, analysis or client work, checking must be embedded in the process rather than left to whoever remembers. The workflow should specify which outputs need approval, how uncertainty is flagged and who owns the result. With those safeguards, imperfect AI can be useful. Without them, an ordinary error can become a reputational, contractual or regulatory problem.</p>
+<h2><strong>Watch what it does, not just what it says</strong></h2>
+<p>Once AI can act independently, checking its outputs is not enough. Organisations must monitor actions, detect unauthorised access and respond when something goes wrong.</p>
+<p>The Medicare portal incident illustrates the problem. The reported access occurred on 18 June; OpenAI identified it on 11 August and notified Services Australia on 10 September. The questions are not only why the agent crossed a boundary, but why the breach was not detected sooner and whether the organisation operating the portal could see what was happening.</p>
+<p>The other evaluations point to similar detection gaps: warning signs and intrusions were not always recognised promptly. [1, 3, 4] An agent needs enforceable permissions, independent monitoring, records of the systems it accessed, alerts that someone actually reviews, and a clear incident-response process. An instruction to stay within a boundary is not a technical control.</p>
+<h2><strong>Match oversight to the stakes</strong></h2>
+<p>None of this means putting a person behind every AI action. If every email, summary and internal update needs sign-off, you rebuild the cost and friction AI was meant to remove. The goal is oversight scaled to the cost of being wrong.</p>
+<p>Reversibility is a good place to start. A meeting summary is easy to fix. A customer decision, a money transfer or a change to production systems may not be. Leaders need enough control to catch the failures that would be expensive or permanent, without burying low-risk work in checks. Scale needs to become a focal point: a small error repeated across thousands of transactions is no longer small.</p>
+<h2><strong>Governance lets you delegate more</strong></h2>
+<p>Governance is usually portrayed as a brake on adoption. With AI, the inverse is true. Picture two organisations using the same model. The first cannot say what the model can reach, how its work is checked, where a human must step in or who owns the result. Holding the technology back is the rational response.</p>
+<p>The second has clear permissions, visible workflows, defined escalation points and named owners. It can delegate more because it knows the limits and can detect when they are crossed. Moderna describes scaling generative AI alongside stronger governance and controls, although that alone does not establish the operational benefits of those controls. [6]</p>
+<p>This is not a one-off exercise. Organisations can start with bounded tasks, observe what agents actually do, evaluate failures and near misses, and adjust permissions and oversight. Delegation can expand when evidence justifies it, or contract when it does not. Governance is therefore not only a means of limiting risk; it is how organisations learn to delegate responsibly.</p>
+<h2><strong>Judgement matters more, not less</strong></h2>
+<p>This changes what AI literacy means. Most people do not need to understand transformers or become prompt engineers. They need to know when to trust a system, when to check it, what not to feed it and when to escalate. For managers, knowing the limits of their team's tools becomes part of supervising the work.</p>
+<p>That matters more as AI becomes less visible and more autonomous. When someone opens a chatbot, the AI is obvious. When agents read documents, update systems, and trigger actions inside a process, AI becomes part of the operating model. Saying a process has “a human in the loop” tells you little unless that person has the information, the authority and the time to step in.</p>
+<h2><strong>Six questions for leadership teams</strong></h2>
+<p>For every material use of AI, leadership teams should be able to answer six questions.</p>
+<p>1. <strong>Accountability</strong> — Who owns the outcome when an agent performs the work? Every material AI-enabled process needs a named owner, whether the system recommends or acts.</p>
+<p>2. <strong>Authority</strong> — What decisions and actions can it take, and what prevents it going further? Define access to data, tools and systems, and enforce the boundaries technically rather than relying on instructions. [3, 4]</p>
+<p>3. <strong>Assurance</strong> — How will we know whether it is performing correctly and behaving safely? Check outputs and actions, measure failure as well as success, and understand what the checks miss.</p>
+<p>4. <strong>Human judgement</strong> — Where do people add value, and do they have the information to intervene? Staff need to understand relevant failure modes, uncertainty and the limits of the tools they supervise.</p>
+<p>5. <strong>Intervention</strong> — How quickly can we detect, stop and recover from something going wrong? Set triggers according to consequence and reversibility, and give named people the authority and practical means to act.</p>
+<p>6. <strong>Value</strong> — Is the combination of people and agents delivering better outcomes? Adoption and headcount reduction are not sufficient measures. Compare quality, speed, cost and customer outcomes against a real baseline.</p>
+<p>These answers should change as evidence accumulates. The aim is not to grant autonomy once and hope for the best, but to keep learning where delegation is justified.</p>
+<h2><strong>Organisations govern AI</strong></h2>
+<p>Making AI more trustworthy matters. But trust in a model is not a substitute for control over the work it does. Leadership must decide what to delegate, how failure will be detected and who remains accountable.</p>
+<p>Banks have never depended on employees being incapable of making mistakes. They depend on limits, segregation of duties, monitoring and accountability. The arrival of AI agents does not change that principle. It changes how those controls must work.</p>
+<p>The organisations that make the most progress with AI will not necessarily be those with the most capable models. They will be those that learn how to delegate work to people and agents, understand what is happening and intervene when necessary. The advantage will come not just from better AI, but from better-run organisations.</p>
+<h2><strong>Sources</strong></h2>
+<p>1. OpenAI — Hugging Face incident and the road ahead. <a href="https://openai.com/index/hugging-face-incident-and-the-road-ahead/">Read source</a></p>
+<p>2. METR — OpenAI Hugging Face incident investigation. <a href="https://metr.org/blog/2026-08-26-openai-hugging-face-incident-investigation/">Read source</a></p>
+<p>3. Anthropic — Investigating incidents in cybersecurity evaluations. <a href="https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals">Read source</a></p>
+<p>4. Anthropic — Alignment assessment of cybersecurity incidents. <a href="https://www.anthropic.com/research/alignment-assessment-cybersecurity-incidents">Read source</a></p>
+<p>5. The Guardian — Deloitte to pay money back after using AI in government report. <a href="https://www.theguardian.com/australia-news/2025/oct/06/deloitte-to-pay-money-back-to-albanese-government-after-using-ai-in-440000-report">Read source</a></p>
+<p>6. Moderna — Annual report (Form 10-K), fiscal year 2025. <a href="https://www.sec.gov/Archives/edgar/data/1682852/000168285226000033/mrna-20251231.htm">Read source</a></p>
+      </div>
+      <footer class="article-end">
+        <a class="text-link" href="./views-from-the-reef.html">BACK TO VIEWS FROM THE REEF ↗</a>
+      </footer>
+    </article>
+  </main>
+  <footer id="contact" class="site-footer">
+  <div class="footer-main"><div><p class="eyebrow">A FIRST CONVERSATION</p><h2>What are you working through?</h2><p class="footer-invitation">Bring a question or a difficult decision. We’ll discuss what you already know and where research and practical work could help.</p><a class="contact-email" href="mailto:contact@koralli.io">contact@koralli.io <span aria-hidden="true">↗</span></a><p class="footer-definition"><span lang="el">κοράλλι</span> · Greek for coral</p></div><div class="footer-index"><a href="./">KORALLI / HOME</a><a href="./our-work.html">OUR WORK</a><a href="./who-we-are.html">WHO WE ARE</a><a href="./views-from-the-reef.html">VIEWS FROM THE REEF</a><span>OXFORD, UNITED KINGDOM</span></div></div>
+  <div class="footer-bottom mono"><span>© 2026 KORALLI</span><span>51.7520° N · 1.2577° W</span></div>
+</footer>
+
+</body>
+</html>

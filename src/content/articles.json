@@ -1,23 +1,178 @@
 [
   {
+    "title": "AI Isn’t Your Biggest Risk. How You Run It Is.",
+    "topic": "AI & ACCOUNTABILITY",
+    "href": "/ai-isnt-your-biggest-risk-how-you-run-it-is.html",
+    "date": "19 OCTOBER 2026 / ANTONY TURNER",
+    "summary": "AI will make mistakes. The real risk is how organisations manage those mistakes.",
+    "legacy": "ai-isnt-your-biggest-risk-how-you-run-it-is"
+  },
+  {
+    "title": "The Advisor Is Safe. The Operating Model Isn't.",
+    "topic": "WEALTH MANAGEMENT",
+    "href": "/the-advisor-is-safe-the-operating-model-isnt.html",
+    "date": "23 JUNE 2026 / ANTONY TURNER",
+    "summary": "The wealth management industry is entering this period of AI disruption from a position of relative strength.",
+    "legacy": "the-advisor-is-safe-the-operating-model-isnt"
+  },
+  {
     "title": "A coherent picture comes from more judgement, not more data",
     "topic": "EVIDENCE & JUDGEMENT",
     "href": "/a-coherent-picture-comes-from-more-judgement-not-more-data.html",
     "date": "10 JUNE 2026 / ANTONY TURNER",
-    "summary": "How shared definitions, careful measurement and work across disciplines gave a global bank a coherent view of delivery."
+    "summary": "How shared definitions, careful measurement and work across disciplines gave a global bank a coherent view of delivery.",
+    "legacy": "a-coherent-picture-comes-from-more-judgement-not-more-data"
   },
   {
     "title": "Who owns the human-machine boundary?",
     "topic": "PEOPLE & MACHINES",
     "href": "/who-owns-the-human-machine-boundary.html",
     "date": "8 MAY 2026 / ANTONY TURNER",
-    "summary": "Where human judgement meets machine autonomy, who decides how work should be organised?"
+    "summary": "Where human judgement meets machine autonomy, who decides how work should be organised?",
+    "legacy": "who-owns-the-human-machine-boundary"
   },
   {
     "title": "The “Transformation Ceiling” is Organisational, Not Technical",
     "topic": "ORGANISATIONAL CHANGE",
     "href": "/the-transformation-ceiling-is-organisational-not-technical.html",
     "date": "23 JANUARY 2026 / ANTONY TURNER",
-    "summary": "How organisational design, data ownership and decision-making shape the adoption of AI."
+    "summary": "How organisational design, data ownership and decision-making shape the adoption of AI.",
+    "legacy": "the-transformation-ceiling-is-organisational-not-technical"
+  },
+  {
+    "title": "こんにちは - Hello to Simultaneous Translation",
+    "topic": "TECHNOLOGY",
+    "href": "/hello-to-simultaneous-translation.html",
+    "date": "20 SEPTEMBER 2025 / ANTONY TURNER",
+    "summary": "In 2025, real-time translation took a major leap forward. In June, Apple introduced live translation across Messages, FaceTime, and Phone , and later Apple announced AirPods Pro 3 with in-ear translation powered by Apple Intelligence—allowing users to converse seamlessly across languages.",
+    "legacy": "-hello-to-simultaneous-translation"
+  },
+  {
+    "title": "Ditching the Echo Chamber: The Potential of Interdisciplinary Teams",
+    "topic": "INTERDISCIPLINARY TEAMS",
+    "href": "/ditching-the-echo-chamber-the-potential-of-interdisciplinary-teams.html",
+    "date": "19 MARCH 2025 / ANTONY TURNER",
+    "summary": "In an era of rapid technological advancement and increasing complexity, businesses are under pressure to deliver innovative solutions at unprecedented speeds.",
+    "legacy": "ditching-the-echo-chamber-the-potential-of-interdisciplinary-teams"
+  },
+  {
+    "title": "Why Quantum (Doesn’t) Matter",
+    "topic": "EMERGING TECHNOLOGY",
+    "href": "/why-quantum-doesnt-matter.html",
+    "date": "3 FEBRUARY 2025 / THOMAS BAILEY",
+    "summary": "As 2025 begins, a new buzzword is making headlines: ‘quantum’. The United Nations has declared 2025 the International Year of Quantum Science and Technology .",
+    "legacy": "why-quantum-doesnt-matter"
+  },
+  {
+    "title": "What I Really, Really Want…When I Hire Consultants",
+    "topic": "CONSULTING",
+    "href": "/what-i-really-really-want-when-i-hire-consultants.html",
+    "date": "31 JANUARY 2025 / ANTONY TURNER",
+    "summary": "As a CEO who's seen their fair share of consulting engagements, I've learned what truly drives value.",
+    "legacy": "what-i-really-really-wantwhen-i-hire-consultants"
+  },
+  {
+    "title": "Everything Starts with Research",
+    "topic": "RESEARCH",
+    "href": "/everything-starts-with-research.html",
+    "date": "29 NOVEMBER 2024 / ANTONY TURNER",
+    "summary": "In today’s competitive environment, strategic decisions that shape the future of a company must be grounded in data and robust and rigorous analysis, not just assumptions and intuitions.",
+    "legacy": "everything-starts-with-research"
+  },
+  {
+    "title": "AI Adoption. The First Six Steps",
+    "topic": "AI ADOPTION",
+    "href": "/ai-adoption-the-first-six-steps.html",
+    "date": "14 AUGUST 2024 / ANTONY TURNER",
+    "summary": "There is widespread expectation that AI will transform business’s product and service offerings, strategy and operating models.",
+    "legacy": "ai-adoption-the-first-six-steps"
+  },
+  {
+    "title": "How to Create a Learning Organisation",
+    "topic": "LEARNING ORGANISATIONS",
+    "href": "/how-to-create-a-learning-organisation.html",
+    "date": "14 AUGUST 2024 / THOMAS BAILEY",
+    "summary": "According to a Gartner survey, only 20% of workers are confident they have the necessary skills for the future.",
+    "legacy": "blog-post-title-three-9zz4x"
+  },
+  {
+    "title": "Problem Solving in the Age of AI",
+    "topic": "PROBLEM SOLVING",
+    "href": "/problem-solving-in-the-age-of-ai.html",
+    "date": "14 AUGUST 2024 / THOMAS BAILEY",
+    "summary": "One of the most iconic examples of animal problem-solving prowess is the New Caledonian crow, as shown above.",
+    "legacy": "blog-post-title-one-bbb2m"
+  },
+  {
+    "title": "Why Companies Don’t Adopt New Technologies",
+    "topic": "TECHNOLOGY ADOPTION",
+    "href": "/why-companies-dont-adopt-new-technologies.html",
+    "date": "14 AUGUST 2024 / THOMAS BAILEY",
+    "summary": "After recently attending the Canadian Science Policy Conference one comment made by Jean-Charles Fahmy (CEO of CENGN) stood out as to why companies don’t adopt new technologies: Companies don’t have a strategy; they don’t have a sandbox to test and innovate new technologies; they don’t have the required skills; and they have insufficient understanding of the return on investment.",
+    "legacy": "blog-post-title-two-dtw95"
+  },
+  {
+    "title": "Is Governance Important for Sustainability?",
+    "topic": "GOVERNANCE",
+    "href": "/is-governance-important-for-sustainability.html",
+    "date": "13 AUGUST 2024 / ANTONY TURNER",
+    "summary": "Two inter-related drivers have highlighted the need for corporates to fundamentally re-evaluate, re-think and re-plan their strategy to create sustainable value.",
+    "legacy": "is-governance-important-for-sustainability"
+  },
+  {
+    "title": "The AI-IP Intersect",
+    "topic": "AI & INTELLECTUAL PROPERTY",
+    "href": "/the-ai-ip-intersect.html",
+    "date": "13 AUGUST 2024 / ANTONY TURNER",
+    "summary": "In this three-part series, koralli unravels the complex relationship between artificial intelligence (AI) and intellectual property (IP), exploring what it means for you and your business.",
+    "legacy": "the-ai-ip-intersect-what-does-it-mean-for-your-business-13"
+  },
+  {
+    "title": "How to Move Fast and not Break Things",
+    "topic": "STARTUPS",
+    "href": "/how-to-move-fast-and-not-break-things.html",
+    "date": "13 AUGUST 2024 / ANTONY TURNER",
+    "summary": "Fast-growing startups are often building the plane while flying it, but the most successful ones are those that are genuinely focused on delivering value to all of their key stakeholders.",
+    "legacy": "how-to-move-fast-and-not-break-things"
+  },
+  {
+    "title": "How to Hire the Best Resources",
+    "topic": "STARTUPS",
+    "href": "/how-to-hire-the-best-resources.html",
+    "date": "13 AUGUST 2024 / ANTONY TURNER",
+    "summary": "It’s widely recognised that one of the top challenges for startups is hiring the best resources and building a startup team.",
+    "legacy": "how-to-hire-the-best-resources"
+  },
+  {
+    "title": "How are IP Protections Changing in a Global AI Landscape?",
+    "topic": "AI & INTELLECTUAL PROPERTY",
+    "href": "/how-are-ip-protections-changing-in-a-global-ai-landscape.html",
+    "date": "1 AUGUST 2024 / ANTONY TURNER",
+    "summary": "Whilst this diagnosis is increasingly recognised—that current LLM and GAI training methods may infringe upon large swathes of intellectual property, as discussed in part one of this series—the path to a solution remains elusive.",
+    "legacy": "the-ai-ip-intersect-what-does-it-mean-for-your-business-23"
+  },
+  {
+    "title": "How to Have a Good Discussion",
+    "topic": "DECISION-MAKING",
+    "href": "/how-to-have-a-good-discussion.html",
+    "date": "31 JULY 2024 / ANTONY TURNER",
+    "summary": "Discussions are an essential part of life and business. They are the modem of exchange and the bed from which great ideas grow.",
+    "legacy": "how-to-have-a-good-discussion"
+  },
+  {
+    "title": "How do you Acquire Good Information?",
+    "topic": "DECISION-MAKING",
+    "href": "/how-do-you-acquire-good-information.html",
+    "date": "31 JULY 2024 / ANTONY TURNER",
+    "summary": "We receive information relentlessly. The acquisition of information is a necessity, and every decision we make is informed.",
+    "legacy": "how-do-you-acquire-good-information"
+  },
+  {
+    "title": "Proactive Strategies to Maximise the AI-IP Intersect",
+    "topic": "AI & INTELLECTUAL PROPERTY",
+    "href": "/proactive-strategies-to-maximise-the-ai-ip-intersect.html",
+    "date": "3 APRIL 2024 / ANTONY TURNER",
+    "summary": ", its clear that businesses must carefully manage how they integrate AI into their operation streams.",
+    "legacy": "the-ai-ip-intersect-what-does-it-mean-for-your-business-33"
   }
 ]
