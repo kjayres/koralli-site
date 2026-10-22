@@ -952,8 +952,8 @@ function formMarkup(p, centre, heading, colour, scale = 0.66) {
  * meet, hand each other a form, and walk home with the other's paperwork.
  */
 function exchangeMarkup(p, phase) {
-  const R = { id: 'c2-res-walk', colour: BLUE, home: [73, 92], meet: [97, 79] };
-  const O = { id: 'c2-op-walk', colour: CORAL, home: [127, 72], meet: [106, 73.5] };
+  const R = { id: 'c2-res-walk', colour: BLUE, home: [73, 92], meet: [82, 85] };
+  const O = { id: 'c2-op-walk', colour: CORAL, home: [127, 72], meet: [90.5, 79.5] };
   const walkOut = smooth((phase - 0.04) / 0.3);
   const reach = smooth((phase - 0.36) / 0.08) * (1 - smooth((phase - 0.56) / 0.08));
   const swapped = phase > 0.46 && phase < 0.98;
@@ -1083,15 +1083,27 @@ const TORSO_RINGS = [[16.5, 7.6, 5.6], [21.5, 10.0, 6.8], [28.0, 10.8, 7.3], [33
 const lean = h => (h - 16.5) * SLUMP;
 
 // Shoulder, elbow and wrist positions are given directly: the arms are posed, not reaching.
-function mechArmMarkup(shoulder, elbow, hand, grip) {
-  const dir = unit3(sub3(hand, elbow));
+// clawDir lets a resting claw droop at the wrist instead of carrying on along the forearm.
+function mechArmMarkup(shoulder, elbow, hand, grip, clawDir = null) {
+  const arm = unit3(sub3(hand, elbow));
+  const dir = clawDir ? unit3(clawDir) : arm;
   let up = sub3([0, 0, 1], mul3(dir, dir[2]));
   up = len3(up) < 0.2 ? MECH.forward : unit3(up);
   let out = '';
   out += mechCapsule(shoulder, 2.5, elbow, 2.4);
   out += mechBall(elbow, 3.0, { fill: MECH_LIT });
-  out += mechCapsule(add3(elbow, mul3(dir, 1.6)), 2.6, add3(hand, mul3(dir, -1.2)), 3.3);
-  out += mechCapsule(add3(hand, mul3(dir, -1.4)), 3.4, hand, 3.4, { stroke: CORAL, width: 1.05 });
+  out += mechCapsule(add3(elbow, mul3(arm, 1.6)), 2.6, add3(hand, mul3(arm, -1.2)), 3.3);
+  // Two coral bands wrapped across the wrist.
+  for (const back of [1.0, 2.1]) {
+    const c = add3(hand, mul3(arm, -back));
+    const pc = mechProjector(...c), pb = mechProjector(...add3(c, mul3(arm, -1)));
+    const len = Math.hypot(pc[0] - pb[0], pc[1] - pb[1]) || 1;
+    const d = [(pc[0] - pb[0]) / len, (pc[1] - pb[1]) / len], n = [-d[1], d[0]];
+    const r = Math.max(...mechProjector.sphereOutline(c, 3.2).map(q => Math.hypot(q[0] - pc[0], q[1] - pc[1]))) * .94;
+    const a = [pc[0] + n[0] * r, pc[1] + n[1] * r], b = [pc[0] - n[0] * r, pc[1] - n[1] * r];
+    const k = [pc[0] + d[0] * r * .45, pc[1] + d[1] * r * .45];
+    out += `<path d="M${pair(a)} Q${pair(k)} ${pair(b)}" fill="none" stroke="${CORAL}" stroke-width="1.15"/>`;
+  }
   for (const jaw of [1, -1]) {
     const base = add3(hand, mul3(dir, 1.2));
     const knuckle = add3(add3(hand, mul3(dir, 4.8)), mul3(up, jaw * (1.2 + grip * 2.0)));
@@ -1171,16 +1183,11 @@ function mechBodyMarkup() {
   s += box(88, 70, 21, 15, SEAT, DEEP_BG, DEEP_BG, DEEP_SHADE, 0);
   s += panelX(91, 85.1, 3.5, 15, 2.2, CORAL, 'fill-opacity=".5" stroke="none"');
 
-  // Thruster tanks, far shoulder and the far arm resting on its knee.
-  for (const side of [far, near]) {
-    s += mechCapsule(local(side * 4.4, -7.4 + lean(18), 18), 3.1, local(side * 4.4, -7.4 + lean(34), 34), 3.1);
-    s += mechCapsule(local(side * 4.4, -7.4, 15.4), 2.2, local(side * 4.4, -7.4, 17.0), 2.6, { stroke: AQUA, width: .9 });
-  }
+  // The far arm is powered down: it hangs straight beside the crate, claw resting on the deck.
+  // Hanging vertically it shows its full length; anything pointing forward foreshortens.
   const farShoulder = local(far * 12.0, lean(31.5), 31.5);
+  s += mechArmMarkup(farShoulder, local(far * 14.6, -1.4, 21.0), local(far * 16.6, -2.6, 11.0), 0.35, [0, 0, -1]);
   s += mechBall(add3(farShoulder, [0, 0, 0.8]), 4.3);
-  // Powered down: it hangs straight from the shoulder, claw resting on the deck beside the crate.
-  s += mechArmMarkup(farShoulder, local(far * 13.8, -0.5, 21.5), local(far * 13.2, 1.5, 10.0), 0.3);
-
   s += mechLegMarkup(far);
   s += mechLegMarkup(near);
 

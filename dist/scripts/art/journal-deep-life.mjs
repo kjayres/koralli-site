@@ -336,9 +336,13 @@ function drawDeepMechFish(ctx, scene, time = 0, current = 0, scroll = 0, viewpor
   ctx.restore();
 }
 
-/** Angler fish mesh in the same native wire geometry as the lanternfish: deep head, open jaw, illicium. */
+/**
+ * Angler fish in the same native wire geometry as the lanternfish: a body of stacked rings
+ * ending in a deep head, an underslung lower jaw hinged at the cheek, needle teeth on both
+ * jaws, a rounded tail and an illicium carrying a coral lure.
+ */
 function anglerMesh() {
-  const stations = [[-.50,.030,.022],[-.40,.070,.052],[-.28,.130,.100],[-.14,.205,.160],[.0,.265,.210],[.14,.295,.232],[.26,.285,.222],[.36,.235,.182],[.43,.160,.125]];
+  const stations = [[-.50,.030,.024],[-.40,.070,.056],[-.27,.130,.104],[-.12,.200,.160],[.03,.255,.200],[.17,.280,.215],[.30,.272,.205]];
   const vertices = [], lines = [], outline = [[], []], detail = 8;
   for (const [row, [x, radius, depth]] of stations.entries()) {
     const ring = [];
@@ -351,37 +355,37 @@ function anglerMesh() {
     if (row) for (let i = 0; i < detail; i++) lines.push([ring[i] - detail, ring[i]]);
     outline[0].push(ring[0]); outline[1].push(ring[4]);
   }
-  const tailTip = vertices.push([-.58, 0, 0]) - 1;
-  const nose = vertices.push([.47, -.02, 0]) - 1;
-  for (const contour of outline) { contour.unshift(tailTip); contour.push(nose); }
+  const tailRoot = vertices.push([-.56, 0, 0]) - 1;
+  for (const contour of outline) contour.unshift(tailRoot);
   const add = points => { const indices = points.map(point => vertices.push(point) - 1); lines.push(indices); return indices; };
-  // Forked tail with fin rays.
-  const tail = [[-.56,-.02,0],[-.74,-.15,0],[-.66,0,0],[-.74,.15,0],[-.56,.02,0]];
-  add([...tail, tail[0]]);
-  for (let rib = 1; rib < 6; rib++) {
-    const u = rib / 6;
-    add([[-.57, lerp(-.02, .02, u), 0], [-.69 - .05 * Math.abs(u * 2 - 1), lerp(-.15, .15, u), 0]]);
-  }
-  // Wide gape: upper lip, an underslung lower jaw and needle teeth between them.
-  const upper = add([[.47,-.03,.05],[.40,.02,.15],[.30,.05,.21]]);
-  const lower = add([[.52,.13,.05],[.43,.15,.15],[.31,.12,.21]]);
-  for (let i = 0; i < 3; i++) {
-    const a = vertices[upper[i]], b = vertices[lower[i]];
-    add([a, [lerp(a[0], b[0], .38) - .01, lerp(a[1], b[1], .38), a[2]]]);
-    add([b, [lerp(b[0], a[0], .38) - .01, lerp(b[1], a[1], .38), b[2]]]);
-  }
-  // Pectoral fin.
-  add([[.08,.10,.20],[-.06,.22,.26],[-.10,.10,.22],[.08,.10,.20]]);
-  // Illicium arching forward from the crown; the lure sits at its tip.
-  const lure = [.58, -.37, 0];
-  add([[.24,-.28,0],[.36,-.44,0],[.49,-.47,0], lure]);
-  const eye = [.30, -.12, .17], eyeRadius = .032;
+  // Rounded tail fan with fine rays.
+  const fan = Array.from({ length: 9 }, (_, i) => {
+    const a = Math.PI + (i / 8 - .5) * 1.9;
+    return [-.56 + Math.cos(a) * .17, Math.sin(a) * .17, 0];
+  });
+  add(fan);
+  for (const tip of fan) add([[-.55, 0, 0], tip]);
+  // Low dorsal spines and a small pectoral fan.
+  add([[-.04,-.22,.02],[-.12,-.30,.02],[-.22,-.18,.02]]);
+  add([[-.10,-.22,.02],[-.15,-.27,.02]]);
+  add([[.12,.10,.20],[.02,.18,.27],[-.02,.08,.24],[.12,.10,.20]]);
+  // Upper head: crown to snout, along the centre and both sides, with ribs between.
+  const crownCentre = [[.30,-.272,0],[.39,-.25,0],[.45,-.19,0],[.46,-.10,0]];
+  const crownSide = s => [[.30,-.21,s*.205],[.35,-.20,s*.17],[.37,-.13,s*.17],[.34,-.03,s*.17]];
+  add(crownCentre); add(crownSide(1)); add(crownSide(-1));
+  for (let i = 1; i < 4; i++) add([crownSide(-1)[i], crownCentre[i], crownSide(1)[i]]);
+  const eye = [.34, -.19, .15], eyeRadius = .028;
   const eyeLine = add(Array.from({ length: 13 }, (_, i) => [eye[0] + Math.cos(i * TAU / 12) * eyeRadius, eye[1] + Math.sin(i * TAU / 12) * eyeRadius, eye[2] + .008]));
-  return { vertices, lines, outline, eyeLine, eye, lure };
+  return { vertices, lines, outline, eyeLine, eye, crownCentre };
 }
 const ANGLER = anglerMesh();
+const ANGLER_HINGE = [.24, .10];
+const anglerLip = (t, upper) => upper
+  ? [.46 - .14 * t * t, -.10 + .09 * t * t, .18 * t]
+  : [.57 - .23 * t * t, -.02 + .10 * t * t, .20 * t];
+const ANGLER_TEETH = [-.85, -.6, -.35, -.12, .12, .35, .6, .85];
 
-/** Draw the angler like the other deep fish: fine wire mesh, a firmer outline, and one coral lure. */
+/** Draw the angler like the other deep fish: fine wire mesh, a firmer outline and one coral lure. */
 function drawAngler(ctx, x, y, length, time, alpha) {
   const yaw = .3 + .08 * Math.sin(time * .07), cy = Math.cos(yaw), sy = Math.sin(yaw);
   const pitch = .03 * Math.cos(time * .12), cp = Math.cos(pitch), sp = Math.sin(pitch);
@@ -391,18 +395,59 @@ function drawAngler(ctx, x, y, length, time, alpha) {
     const xx = px * cy + pz * sy, yy = py + pz * .24;
     return [x + (xx * cp - yy * sp) * length, y + (xx * sp + yy * cp) * length];
   };
-  const points = ANGLER.vertices.map(project);
+  // The lower jaw swings slowly open and shut about the cheek hinge.
+  const gape = .05 + .25 * (.5 - .5 * Math.cos(time * .9));
+  const cg = Math.cos(gape), sg = Math.sin(gape);
+  const jaw = ([px, py, pz]) => {
+    const dx = px - ANGLER_HINGE[0], dy = py - ANGLER_HINGE[1];
+    return [ANGLER_HINGE[0] + dx * cg - dy * sg, ANGLER_HINGE[1] + dx * sg + dy * cg, pz];
+  };
+  const stroke = (paths, a, width, colour = '#B5C4DF') => {
+    ctx.globalAlpha = alpha * a; ctx.lineWidth = width; ctx.strokeStyle = colour; ctx.beginPath();
+    for (const path of paths) trace(ctx, path.map(project));
+    ctx.stroke();
+  };
+  const verts = ANGLER.vertices;
+  const span = n => Array.from({ length: n }, (_, i) => -1 + 2 * i / (n - 1));
+  const upperLip = span(13).map(t => anglerLip(t, true));
+  const lowerLip = span(13).map(t => jaw(anglerLip(t, false)));
+  // The belly line runs from the body, which stays put, onto the jaw, which swings.
+  const chinCentre = [[.30,.272,0], ...[[.42,.24,0],[.52,.14,0],[.57,-.02,0]].map(jaw)];
+  const chinSide = s => [[.27,.17,s*.16],[.38,.21,s*.16],[.47,.12,s*.16],[.50,-.005,s*.16]].map(jaw);
+
   ctx.save();
-  ctx.strokeStyle = '#B5C4DF'; ctx.fillStyle = '#C5D7EF';
-  ctx.globalAlpha = alpha * .48; ctx.lineWidth = .43; ctx.beginPath();
-  for (const line of ANGLER.lines) trace(ctx, line.map(i => points[i]));
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // The open mouth reads as a dark gap behind the teeth.
+  ctx.globalAlpha = alpha * .75; ctx.fillStyle = '#050C1E'; ctx.beginPath();
+  trace(ctx, [...upperLip, ...lowerLip.slice().reverse()].map(project)); ctx.closePath(); ctx.fill();
+
+  stroke(ANGLER.lines.map(line => line.map(i => verts[i])), .48, .43);
+  stroke([chinSide(1), chinSide(-1), ...[1, 2, 3].map(i => [chinSide(-1)[i], chinCentre[i], chinSide(1)[i]])], .48, .43);
+  // Silhouette: back to crown to snout, belly to the underslung chin, and both lips.
+  stroke([[...ANGLER.outline[1].map(i => verts[i]), ...ANGLER.crownCentre], [...ANGLER.outline[0].map(i => verts[i]), ...chinCentre], upperLip, lowerLip, ANGLER.eyeLine.map(i => verts[i])], 1, .59);
+  // Needle teeth: long and short in turn, raking inwards from both lips.
+  const teeth = [];
+  for (const [k, t] of ANGLER_TEETH.entries()) {
+    const long = k % 2 ? .05 : .085;
+    const top = anglerLip(t, true);
+    teeth.push([top, [top[0] - .012, top[1] + long, top[2]]]);
+    const bottom = anglerLip(t, false);
+    teeth.push([jaw(bottom), jaw([bottom[0] - .012, bottom[1] - long * 1.1, bottom[2]])]);
+  }
+  stroke(teeth, .9, .5, '#E4EBF7');
+
+  ctx.fillStyle = '#C5D7EF';
+  ctx.globalAlpha = alpha * .9; ctx.beginPath(); ctx.arc(...project(ANGLER.eye), Math.max(.48, length * .011), 0, TAU); ctx.fill();
+  // Illicium: a fine rod arching forward from the crown, swaying a little; the lure glows coral.
+  const sway = .02 * Math.sin(time * 1.1);
+  const base = project([.24, -.28, 0]), bend = project([.42 + sway, -.56, 0]), lure = project([.62 + sway * 1.5, -.34, 0]);
+  ctx.globalAlpha = alpha * .8; ctx.strokeStyle = '#B5C4DF'; ctx.lineWidth = .5; ctx.beginPath();
+  trace(ctx, Array.from({ length: 13 }, (_, i) => {
+    const t = i / 12, u = 1 - t;
+    return [u * u * base[0] + 2 * u * t * bend[0] + t * t * lure[0], u * u * base[1] + 2 * u * t * bend[1] + t * t * lure[1]];
+  }));
   ctx.stroke();
-  ctx.globalAlpha = alpha; ctx.lineWidth = .59; ctx.beginPath();
-  for (const line of [...ANGLER.outline, ANGLER.eyeLine]) trace(ctx, line.map(i => points[i]));
-  ctx.stroke();
-  ctx.globalAlpha = alpha * .9; ctx.beginPath(); ctx.arc(...project(ANGLER.eye), Math.max(.48, length * .012), 0, TAU); ctx.fill();
-  // The lure: a steady coral point with a soft halo, like the photophores but warmer.
-  const lure = project(ANGLER.lure), glow = .65 + .35 * Math.sin(time * 2.2);
+  const glow = .65 + .35 * Math.sin(time * 2.2);
   ctx.fillStyle = '#FF6655';
   ctx.globalAlpha = alpha * .35 * glow; ctx.beginPath(); ctx.arc(...lure, length * .045, 0, TAU); ctx.fill();
   ctx.globalAlpha = Math.min(1, alpha * 2.2); ctx.beginPath(); ctx.arc(...lure, Math.max(.9, length * .014), 0, TAU); ctx.fill();
