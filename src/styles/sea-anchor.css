@@ -1,0 +1,94 @@
+/* The anchor's rope is hitched round a full-width line; the anchor is lowered as the page scrolls
+   and rests on the seabed at its foot. Sticky positioning lowers it; scripts/sea-anchor.mjs sets
+   the rope's run from the page's data-line and data-seabed, and draws the anchor. */
+.sea-anchor {
+  --rope:#8e9ac0;
+  --rope-shade:#68749c;
+  --rope-w:3px;
+  --rope-x:max(16px,calc(max(var(--gutter),(100vw - 1276px) / 2) / 2));
+  --link-w:44px;
+  --link-h:54px;
+  --anchor-gap:40px;
+  --fade:.5;
+  position:absolute;
+  right:0;
+  width:calc(var(--rope-x) + 170px);
+  pointer-events:none;
+  z-index:20;
+}
+.sea-anchor[hidden] { display:none; }
+.sea-anchor-hitch {
+  position:absolute;
+  z-index:1;
+  top:0;
+  right:calc(var(--rope-x) - 12px);
+  width:24px;
+  height:22px;
+  opacity:var(--fade);
+  transition:opacity .3s ease;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22' fill='none' stroke-linecap='round'%3E%3Cpath d='M13.2 14.4 15.4 18' stroke='%235f6b93' stroke-width='3.2'/%3E%3Cpath d='M13.2 14.4 15.4 18' stroke='%238e9ac0' stroke-width='2'/%3E%3Cpath d='M12 13C7.6 11.6 7.8 2.6 12 2.6S16.4 11.6 12 13' stroke='%235f6b93' stroke-width='3.6'/%3E%3Cpath d='M12 13C7.6 11.6 7.8 2.6 12 2.6S16.4 11.6 12 13' stroke='%238e9ac0' stroke-width='2.4'/%3E%3Cpath d='M12 13C7.6 11.6 7.8 2.6 12 2.6S16.4 11.6 12 13' stroke='%2368749c' stroke-width='2.4' stroke-linecap='butt' stroke-dasharray='.8 1.9'/%3E%3Cellipse cx='12' cy='13.4' rx='2.7' ry='2.1' fill='%238e9ac0' stroke='%235f6b93' stroke-width='.8'/%3E%3Cpath d='M10.4 12.6 13.4 14.2' stroke='%2368749c' stroke-width='.8'/%3E%3C/svg%3E") no-repeat;
+}
+.sea-anchor.line-hidden .sea-anchor-hitch { opacity:0; }
+.sea-anchor-run { position:absolute; inset:10px 0 0; clip-path:inset(0); }
+.sea-anchor-link {
+  position:sticky;
+  top:calc(100vh - var(--link-h) - var(--anchor-gap));
+  top:calc(100svh - var(--link-h) - var(--anchor-gap));
+  display:block;
+  width:var(--link-w);
+  height:var(--link-h);
+  margin:36px calc(var(--rope-x) - var(--link-w) / 2) 24px auto;
+  pointer-events:auto;
+  -webkit-tap-highlight-color:transparent;
+}
+/* A laid rope: light strands with darker lay lines running across them. */
+.sea-anchor-link::before {
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:calc(100% - var(--rope-tail, 0px));
+  width:var(--rope-w);
+  height:200vh;
+  margin-left:calc(var(--rope-w) / -2);
+  background:repeating-linear-gradient(-45deg,var(--rope) 0 2px,var(--rope-shade) 2px 2.83px);
+}
+/* Faded so it sits in the background; it comes forward when pointed at or focused. */
+.sea-anchor-link::before,
+.sea-anchor-canvas { opacity:var(--fade); transition:opacity .3s ease; }
+.sea-anchor-link:hover,
+.sea-anchor-link:focus-visible { --fade:1; }
+.sea-anchor-link:focus-visible { outline:1.5px solid var(--blue); outline-offset:3px; border-radius:4px; }
+.sea-anchor-canvas {
+  position:absolute;
+  top:-70px;
+  right:calc(var(--link-w) / 2 - var(--rope-x));
+  width:calc(var(--rope-x) + 130px);
+  height:150px;
+  pointer-events:none;
+}
+.sea-anchor-label {
+  position:absolute;
+  top:50%;
+  right:calc(100% + 6px);
+  padding:6px 8px;
+  white-space:nowrap;
+  font:10px/1 var(--mono);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink);
+  background:var(--paper);
+  opacity:0;
+  transform:translate(6px,-50%);
+  transition:opacity .2s ease,transform .2s ease;
+}
+.sea-anchor-link:hover .sea-anchor-label,
+.sea-anchor-link:focus-visible .sea-anchor-label { opacity:1; transform:translate(0,-50%); }
+.sea-anchor.on-deep .sea-anchor-label { color:var(--paper); background:var(--deep); }
+.sea-anchor.on-deep .sea-anchor-link:focus-visible { outline-color:#b7c6ff; }
+@media print { .sea-anchor { display:none; } }
+@media(max-width:759px) {
+  .sea-anchor { --link-w:32px; --link-h:42px; --anchor-gap:28px; --rope-w:2.5px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .sea-anchor-label,.sea-anchor-hitch,.sea-anchor-link::before,.sea-anchor-canvas { transition:none; }
+}

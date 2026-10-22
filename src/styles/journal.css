@@ -28,6 +28,10 @@
 .journal-articles .article-list { margin-top:0; border:0; }
 .journal-articles .article-row { position:relative; padding:42px 0 46px; border-top:1px solid var(--rule); border-bottom:0; transition:border-color .2s; }
 .journal-articles .article-row:last-child { border-bottom:1px solid var(--rule); }
+/* The line above the first essay spans the page, like the home page's, and carries the anchor. */
+.journal-articles::before { content:''; position:absolute; top:30px; left:50%; width:100vw; margin-left:-50vw; border-top:1px solid var(--rule); }
+.journal-articles .article-row:first-child { border-top-color:transparent; }
+.journal-articles .article-row:first-child:hover { border-top-color:#8fa5ff; }
 .article-meta { display:flex; gap:18px; flex-wrap:wrap; margin:0 44px 15px 0; }
 .article-topic { color:#adc0ff; }
 .journal-articles .article-meta .eyebrow { font-size:10px; letter-spacing:.1em; }

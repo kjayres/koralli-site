@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/styles/site.css">
   <link rel="stylesheet" href="/styles/revision.css">
   <link rel="stylesheet" href="/styles/journal.css">
+  <link rel="stylesheet" href="/styles/sea-anchor.css">
   <script type="module" src="/scripts/site.js"></script>
 </head>
 <body class="journal-page">
@@ -25,5 +26,9 @@
     <!-- include: sections/views.html -->
   </main>
   <!-- include: sections/footer.html -->
+  <div class="sea-anchor" data-sea-anchor data-line=".journal-articles .article-row" data-line-edge="top" data-seabed=".journal-page main" data-seabed-inset="10" hidden>
+    <span class="sea-anchor-hitch" aria-hidden="true"></span>
+    <div class="sea-anchor-run"><a class="sea-anchor-link" href="#top"><span class="sea-anchor-label">Back to top</span><canvas class="sea-anchor-canvas" aria-hidden="true"></canvas></a></div>
+  </div>
 </body>
 </html>

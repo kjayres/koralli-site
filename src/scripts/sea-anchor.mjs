@@ -1,6 +1,6 @@
-// The home page's anchor. Its rope is hitched round the hero's bottom line, it is lowered as the
-// page scrolls and comes to rest on the reef's seabed at the foot of the page; pressing it returns
-// to the top. CSS sticky positioning does the lowering. This module sets the length of the rope's
+// An anchor whose rope is hitched round a full-width line. It is lowered as the page scrolls and
+// comes to rest on the seabed at the foot of the page; pressing it returns to the top. The page
+// names the line and the seabed in data-line and data-seabed on the anchor's root. CSS sticky positioning does the lowering. This module sets the length of the rope's
 // run, draws the anchor as a small solid in 3D, and plays the landing: dust in proportion to the
 // speed of arrival, a slackening rope, and chips of rock when it comes down hard.
 
@@ -170,8 +170,8 @@ export function initSeaAnchor(root, { darkAt = () => false } = {}) {
   const link = root.querySelector('.sea-anchor-link');
   const canvas = root.querySelector('canvas');
   const ctx = canvas.getContext('2d');
-  const hero = document.getElementById('top');
-  const seabed = document.querySelector('.reef-canvas');
+  const line = document.querySelector(root.dataset.line), lineEdge = root.dataset.lineEdge || 'bottom';
+  const seabed = document.querySelector(root.dataset.seabed), inset = Number(root.dataset.seabedInset) || 0;
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   const model = anchorModel();
   let reduced = motion.matches;
@@ -186,9 +186,8 @@ export function initSeaAnchor(root, { darkAt = () => false } = {}) {
   let particles = [];
 
   function layout() {
-    const top = hero.getBoundingClientRect().bottom + scrollY - HITCH;
-    const bed = seabed.getBoundingClientRect();
-    const floor = bed.bottom + scrollY - Math.max(22, bed.height * .045);
+    const top = line.getBoundingClientRect()[lineEdge] + scrollY - HITCH;
+    const floor = seabed.getBoundingClientRect().bottom + scrollY - inset;
     root.style.top = `${top}px`;
     root.style.height = `${Math.max(0, floor + LINK_MARGIN - top)}px`;
     root.hidden = false;
@@ -269,7 +268,8 @@ export function initSeaAnchor(root, { darkAt = () => false } = {}) {
     }
     colourTarget = darkAt(anchor.top + anchor.height / 2) ? 1 : 0;
     root.classList.toggle('on-deep', colourTarget === 1);
-    root.classList.toggle('at-top', y < 8);
+    // Only the hitch's loop would show above a line sitting on the bottom edge of the screen.
+    root.classList.toggle('line-hidden', box.top + HITCH >= innerHeight - 2);
     if (!ready || reduced) settleNow();
     wake();
   }

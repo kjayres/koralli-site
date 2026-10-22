@@ -448,7 +448,7 @@ const seaAnchor = document.querySelector('[data-sea-anchor]');
 let updateSeaAnchor = () => {};
 function seaIsDarkAt(y) {
   const within = element => { const rect = element?.getBoundingClientRect(); return rect && y >= rect.top && y <= rect.bottom; };
-  if ([...document.querySelectorAll('.deep-water, .site-footer')].some(within)) return true;
+  if ([...document.querySelectorAll('.deep-water, .site-footer, .journal-page main')].some(within)) return true;
   return within(chamber) && chamber.dataset.depthTheme === '1';
 }
 if (seaAnchor) {
