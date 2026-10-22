@@ -1,6 +1,6 @@
-import { drawJournalSquid } from './journal-squid.mjs?v=a91738debe94';
-import { drawDeepFish } from './journal-deep-life.mjs?v=a91738debe94';
-import { drawJournalJelly } from './journal-jelly.mjs?v=a91738debe94';
+import { drawJournalSquid } from './journal-squid.mjs?v=8f7494e27c98';
+import { drawDeepFish } from './journal-deep-life.mjs?v=8f7494e27c98';
+import { drawJournalJelly } from './journal-jelly.mjs?v=8f7494e27c98';
 
 // The journal lives in open water. All dimensions below are CSS pixels.
 // Seeded continuous motion keeps a resize, a still frame and reduced motion stable.

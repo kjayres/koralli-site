@@ -1,13 +1,11 @@
-/* The opening illustration is separate from the three-phase approach scene. */
-.work-opening--with-coral .work-opening-copy {
-  position:relative;
+/* The coral of researchers and operators sits beside the Who We Are introduction. */
+.people-opening--with-coral {
   grid-template-columns:minmax(0,1.05fr) minmax(280px,.95fr);
-  grid-template-rows:auto 1fr;
-  column-gap:clamp(36px,5vw,72px);
+  align-items:start;
 }
-.work-opening--with-coral .work-opening-copy>h1 { grid-column:1; grid-row:1; }
-.work-opening--with-coral .work-opening-copy>div { grid-column:1; grid-row:2; }
-.work-coral { grid-column:2; grid-row:1 / span 2; align-self:center; justify-self:center; width:100%; max-width:520px; margin:0; }
+.people-opening--with-coral .people-opening-text>.lead { max-width:500px; }
+.people-opening--with-coral .people-opening-detail { margin-top:24px; }
+.work-coral { width:100%; max-width:500px; margin:0; justify-self:center; }
 .work-coral-frame { position:relative; width:100%; aspect-ratio:1.08; overflow:hidden; contain:paint; }
 .work-coral-frame canvas,.work-coral-still { display:block; position:absolute; inset:0; width:100%; height:100%; }
 .work-coral-frame canvas { opacity:0; }
@@ -18,13 +16,10 @@
 .work-coral-key span::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--blue); }
 .work-coral-key span+span::before { background:var(--coral); }
 @media(min-width:901px) {
-  /* Let the copy set the opening's height. Extend only the illustration upwards,
-     keeping its bottom edge and colour key at the same position. */
-  .work-coral { position:absolute; inset:-36px 0 0; display:grid; grid-template-rows:minmax(0,1fr) auto; align-self:stretch; justify-self:stretch; height:calc(100% + 36px); max-width:none; }
-  .work-coral-frame { height:100%; min-height:0; aspect-ratio:auto; }
+  /* Rise a little beside the heading so the coral is centred on the opening, not hanging below it. */
+  .people-opening--with-coral .work-coral { margin-top:-56px; }
 }
 @media(max-width:900px) {
-  .work-opening--with-coral .work-opening-copy { grid-template-columns:minmax(0,1fr); grid-template-rows:auto; row-gap:26px; }
-  .work-opening--with-coral .work-opening-copy>h1,.work-opening--with-coral .work-opening-copy>div { grid-column:1; grid-row:auto; }
-  .work-coral { grid-column:1; grid-row:auto; max-width:380px; }
+  .people-opening--with-coral { grid-template-columns:minmax(0,1fr); row-gap:26px; }
+  .work-coral { max-width:380px; }
 }
