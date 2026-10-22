@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Page not found · Koralli</title>
+  <script>
+    (() => {
+      const parts = location.pathname.split('/').filter(Boolean);
+      const root = location.hostname.endsWith('github.io') && parts.length ? '/' + parts.shift() + '/' : '/';
+      const moved = ["a-coherent-picture-comes-from-more-judgement-not-more-data","who-owns-the-human-machine-boundary","the-transformation-ceiling-is-organisational-not-technical"];
+      const [section, slug] = parts;
+      let target = null;
+      if (section === 'views-from-the-reef') target = moved.includes(slug) ? slug + '.html' : 'views-from-the-reef.html';
+      else if (section === 'service-offerings') target = 'our-work.html';
+      else if (section === 'dist') target = parts.slice(1).join('/');
+      if (target !== null) location.replace(root + target + location.search + location.hash);
+      addEventListener('DOMContentLoaded', () => { document.querySelector('[data-home]').href = root; });
+    })();
+  </script>
+  <style>body{margin:0;min-height:100vh;display:grid;place-content:center;gap:18px;padding:24px;background:#F3F0E8;color:#111;font-family:system-ui,sans-serif;text-align:center}a{color:#244EFF}</style>
+</head>
+<body><h1>Page not found</h1><p><a data-home href="./">Go to the koralli home page</a></p></body>
+</html>

@@ -1,0 +1,43 @@
+# Builds the site from src/ and publishes it to GitHub Pages at the site root.
+# Until launch it publishes the preview build, which search engines are told not to index.
+# At launch, set the repository variable KORALLI_LAUNCH to "true" to publish the launch build.
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build
+        run: node scripts/build.mjs --out="$RUNNER_TEMP/site" ${{ vars.KORALLI_LAUNCH == 'true' && '--launch' || '' }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

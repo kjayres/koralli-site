@@ -16,6 +16,16 @@ export const siteURL = 'https://www.koralli.io';
 const NOINDEX = '<meta name="robots" content="noindex,nofollow">';
 // Redirect pages point at the page they forward to.
 const canonicalPath = name => name === 'index.html' ? '/' : name === 'how-we-work.html' ? '/our-work.html' : `/${name}`;
+
+// Addresses from the previous koralli.io site. Top-level ones get a small redirect page;
+// anything deeper (old posts, service pages) is caught by 404.html.
+const LEGACY_PAGES = { 'home.html': '/', 'what-we-do.html': '/our-work.html', 'why-us.html': '/', 'contact.html': '/#contact', 'service-offerings.html': '/our-work.html' };
+const MOVED_ARTICLES = ['a-coherent-picture-comes-from-more-judgement-not-more-data', 'who-owns-the-human-machine-boundary', 'the-transformation-ceiling-is-organisational-not-technical'];
+const redirectPage = target => `<!doctype html>\n<html lang="en-GB">\n<head>\n  <meta charset="utf-8">\n  <meta name="robots" content="noindex">\n  <meta http-equiv="refresh" content="0;url=${target}">\n  <title>Koralli</title>\n</head>\n<body><p><a href="${target}">Continue to koralli</a></p></body>\n</html>\n`;
+// Served for any unknown address. It works out the site root (a GitHub Pages project path
+// or the domain root), sends old post and service addresses to their nearest new page,
+// and otherwise offers a way home.
+const notFoundPage = () => `<!doctype html>\n<html lang="en-GB">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1">\n  <meta name="robots" content="noindex">\n  <title>Page not found · Koralli</title>\n  <script>\n    (() => {\n      const parts = location.pathname.split('/').filter(Boolean);\n      const root = location.hostname.endsWith('github.io') && parts.length ? '/' + parts.shift() + '/' : '/';\n      const moved = ${JSON.stringify(MOVED_ARTICLES)};\n      const [section, slug] = parts;\n      let target = null;\n      if (section === 'views-from-the-reef') target = moved.includes(slug) ? slug + '.html' : 'views-from-the-reef.html';\n      else if (section === 'service-offerings') target = 'our-work.html';\n      else if (section === 'dist') target = parts.slice(1).join('/');\n      if (target !== null) location.replace(root + target + location.search + location.hash);\n      addEventListener('DOMContentLoaded', () => { document.querySelector('[data-home]').href = root; });\n    })();\n  </script>\n  <style>body{margin:0;min-height:100vh;display:grid;place-content:center;gap:18px;padding:24px;background:#F3F0E8;color:#111;font-family:system-ui,sans-serif;text-align:center}a{color:#244EFF}</style>\n</head>\n<body><h1>Page not found</h1><p><a data-home href="/">Go to the koralli home page</a></p></body>\n</html>\n`;
 const pages = [
   'index.html', 'our-work.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html',
   'a-coherent-picture-comes-from-more-judgement-not-more-data.html',
@@ -107,6 +117,8 @@ export function renderSite(basePath = './', { launch = false } = {}) {
     html = html.replace('</head>', `  <link rel="canonical" href="${siteURL}${canonicalPath(name)}">\n</head>`);
     files.set(name, Buffer.from(html));
   }
+  for (const [name, target] of Object.entries(LEGACY_PAGES)) files.set(name, Buffer.from(redirectPage(target)));
+  files.set('404.html', Buffer.from(notFoundPage()));
   if (launch) {
     const listed = pages.filter(name => name !== 'how-we-work.html');
     files.set('robots.txt', Buffer.from(`User-agent: *\nAllow: /\n\nSitemap: ${siteURL}/sitemap.xml\n`));
