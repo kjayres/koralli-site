@@ -97,7 +97,7 @@ async function setup({kind, reduced=false, building=false, importFailure, firstF
 }
 {
   const t=await setup({kind:'reef',deferredReef:true});
-  const nearby=t.observers.find(o=>o.options?.rootMargin==='1800px');assert.ok(nearby,'Reef preloads before it reaches the viewport');
+  const nearby=t.observers.find(o=>o.options?.rootMargin==='3200px');assert.ok(nearby,'Reef preloads before it reaches the viewport');
   nearby.callback([{isIntersecting:true}]);await t.settle();
   assert.equal(t.warmups.length,1);assert.equal(t.calls(),0);assert.equal(t.frames.size,0);
   t.host.getBoundingClientRect=()=>({width:700,height:440});t.resizers.forEach(resize=>resize());

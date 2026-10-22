@@ -1,20 +1,17 @@
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const clamp = n => Math.min(1, Math.max(0, n));
 const canvasStates = [];
-const coralName = document.querySelector('[data-coral-name]');
 let frame = 0;
 let lastTime = 0;
 let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=ce3bbad16b7e'),
-  research: () => import('./art/research.mjs?v=ce3bbad16b7e'),
-  approach: () => import('./art/approach.mjs?v=ce3bbad16b7e'),
-  coral: () => import('./art/coral.mjs?v=ce3bbad16b7e'),
-  'work-coral': () => import('./art/coral.mjs?v=ce3bbad16b7e'),
-  reef: () => import('./art/reef.mjs?v=ce3bbad16b7e'),
-  'journal-water': () => import('./art/journal-water.mjs?v=ce3bbad16b7e')
+  wave: () => import('./art/wave.mjs?v=abd04a3ba86c'),
+  approach: () => import('./art/approach.mjs?v=abd04a3ba86c'),
+  'work-coral': () => import('./art/coral.mjs?v=abd04a3ba86c'),
+  reef: () => import('./art/reef.mjs?v=abd04a3ba86c'),
+  'journal-water': () => import('./art/journal-water.mjs?v=abd04a3ba86c')
 };
 
 function artworkFailed(state, error) {
@@ -22,7 +19,28 @@ function artworkFailed(state, error) {
   state.failed = true;
   state.host.classList.remove('art-ready');
   state.host.classList.add('art-failed');
+  if (state.kind === 'reef') restoreReefStill(state);
   console.error(`Unable to display ${state.kind} artwork:`, error);
+}
+
+// The reef's SVG still is a 2.6 MB placeholder that only shows until the live reef is ready.
+// The live reef is normally ready well before it scrolls into view, so a still that has not
+// started loading by then is skipped; it comes back if the reef has to re-warm or fails.
+function skipReefStill(state) {
+  const still = state.host.querySelector('.reef-still img');
+  if (!still || still.complete || still.dataset.skipped) return;
+  const sources = [...state.host.querySelectorAll('.reef-still source')];
+  still.dataset.skipped = still.getAttribute('src');
+  sources.forEach(source => { source.dataset.skipped = source.getAttribute('srcset'); source.removeAttribute('srcset'); });
+  still.removeAttribute('src');
+}
+
+function restoreReefStill(state) {
+  const still = state.host.querySelector('.reef-still img');
+  if (!still?.dataset.skipped) return;
+  state.host.querySelectorAll('.reef-still source[data-skipped]').forEach(source => { source.setAttribute('srcset', source.dataset.skipped); delete source.dataset.skipped; });
+  still.setAttribute('src', still.dataset.skipped);
+  delete still.dataset.skipped;
 }
 
 function updateJournalViewport() {
@@ -41,6 +59,7 @@ async function warmReefArtwork(state) {
   const isCurrent = () => revision === state.reefRevision && !state.failed && !document.hidden;
   state.reefReady = false;
   state.host.classList.remove('art-ready');
+  restoreReefStill(state);
   try {
     if (state.reef.prewarmReef) {
       if (!await state.reef.prewarmReef(state, isCurrent)) return;
@@ -48,6 +67,7 @@ async function warmReefArtwork(state) {
     if (!isCurrent()) return;
     state.reefReady = true;
     paint(state);
+    skipReefStill(state);
     schedule();
   } catch (error) { if (isCurrent()) artworkFailed(state, error); }
 }
@@ -61,7 +81,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=ce3bbad16b7e');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=abd04a3ba86c');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -87,7 +107,6 @@ function paint(state, dt = 0) {
     }
     const options = { reducedMotion: motion.matches, pointer: state.pointer, variant: state.variant };
     if (kind === 'wave') state.art.drawWave(ctx, w, h, state.time, options);
-    if (kind === 'research') state.art.drawResearch(ctx, w, h, state.time, options);
     if (kind === 'approach') {
       const presentation = state.art.drawApproach(ctx, w, h, state.time, { ...options, phase: state.phase || 0 });
       if (presentation) {
@@ -102,11 +121,6 @@ function paint(state, dt = 0) {
       // A reduced-motion canvas is a complete still, so scrolling needs no repaint.
       state.art.drawJournalWater(ctx, w, h, state.time, { ...options, viewport: motion.matches ? undefined : state.viewport });
       if (state.headingVisible || motion.matches) state.updateJournalLettering?.(state.time, options);
-    }
-    if (kind === 'coral') {
-      state.art.drawCoralTrace(ctx, w, h, state.time, { ...options, labels: !coralName });
-      const study = state.art.coralTraceState(state.time, options);
-      if (coralName && coralName.textContent !== study.name) coralName.textContent = study.name;
     }
     if (kind === 'work-coral') {
       state.art.drawWorkCoralTrace(ctx, w, h, state.time, options);
@@ -230,17 +244,13 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
     const nearby = new IntersectionObserver(entries => {
       if (!entries[0].isIntersecting) return;
       nearby.disconnect();
-      if (state.kind === 'reef') {
-        const still = state.host.querySelector('.reef-still img');
-        if (still) { still.loading = 'eager'; still.decode?.().catch(() => {}); }
-      }
       prepareArtwork(state);
-    }, { rootMargin: state.kind === 'reef' ? '1800px' : '600px' });
+    }, { rootMargin: state.kind === 'reef' ? '3200px' : '600px' });
     nearby.observe(canvas);
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=ce3bbad16b7e').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=abd04a3ba86c').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -251,17 +261,6 @@ if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=ce3
 }).catch(error => {
   const state = canvasStates.find(item => item.kind === 'approach');
   if (state) artworkFailed(state, error);
-});
-
-document.querySelector('[data-coral-next]')?.addEventListener('click', () => {
-  const state = canvasStates.find(item => item.kind === 'coral');
-  if (!state?.loaded || state.failed) return;
-  const { index } = state.art.coralTraceState(state.time, { variant: state.variant, reducedMotion: motion.matches });
-  state.variant = motion.matches ? (index + 1) % 5 : undefined;
-  state.time = (index + 1) * state.art.CORAL_TRACE_CYCLE_SECONDS + (state.paused ? 2.5 : 0);
-  paint(state);
-  lastTime = 0;
-  schedule();
 });
 
 const building = document.querySelector('.building-section');
@@ -387,7 +386,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=ce3bbad16b7e').then(module => {
+if (building && svg) import('./art/building.mjs?v=abd04a3ba86c').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -431,7 +430,7 @@ if (thesisStage || redesignersStage) {
       schedule();
     }).observe(redesignersStage);
   }
-  import('./art/thesis-cards.mjs?v=ce3bbad16b7e').then(({ initThesisCards, initRedesignersMech }) => {
+  import('./art/thesis-cards.mjs?v=abd04a3ba86c').then(({ initThesisCards, initRedesignersMech }) => {
     if (thesisStage) {
       renderThesis = initThesisCards(thesisStage);
       updateThesisScroll();
@@ -481,10 +480,6 @@ motion.addEventListener('change', () => {
   cancelAnimationFrame(frame);
   frame = 0;
   lastTime = 0;
-  if (!motion.matches) canvasStates.filter(state => state.kind === 'coral' && state.loaded && Number.isInteger(state.variant)).forEach(state => {
-    state.time = state.variant * state.art.CORAL_TRACE_CYCLE_SECONDS + 2.5;
-    state.variant = undefined;
-  });
   canvasStates.forEach(state => paint(state));
   updateThesisScroll();
   renderBuilding(true);
@@ -505,3 +500,13 @@ document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
 if (tracksScroll) onScroll();
+
+// Loading the reef's code builds its meshes, a brief pause that would otherwise land mid-scroll
+// through the building. Load it in the quiet moment after the page has finished loading instead.
+if (document.querySelector('canvas[data-art="reef"]')) {
+  addEventListener('load', () => {
+    const preload = () => artworkLoaders.reef().catch(() => {});
+    if ('requestIdleCallback' in window) requestIdleCallback(preload, { timeout: 2500 });
+    else setTimeout(preload, 1200);
+  }, { once: true });
+}

@@ -1,10 +1,10 @@
-import { ORGANIC_CORALS } from './reef-organic.mjs?v=ce3bbad16b7e';
-import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs?v=ce3bbad16b7e';
-import { reefTerrain, reefRockFragments } from './reef-terrain.mjs?v=ce3bbad16b7e';
-import { reefCurrent, reefPlankton } from './reef-current.mjs?v=ce3bbad16b7e';
-import { movingTurtle } from './reef-turtle.mjs?v=ce3bbad16b7e';
-import { fishPose } from './reef-fish-motion.mjs?v=ce3bbad16b7e';
-import { reefSurfaceSteps, reefActorPreparationSteps, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs?v=ce3bbad16b7e';
+import { ORGANIC_CORALS } from './reef-organic.mjs?v=abd04a3ba86c';
+import { reefHabitat, reefFloorHeight as floorHeight } from './reef-habitat.mjs?v=abd04a3ba86c';
+import { reefTerrain, reefRockFragments } from './reef-terrain.mjs?v=abd04a3ba86c';
+import { reefCurrent, reefPlankton } from './reef-current.mjs?v=abd04a3ba86c';
+import { movingTurtle } from './reef-turtle.mjs?v=abd04a3ba86c';
+import { fishPose } from './reef-fish-motion.mjs?v=abd04a3ba86c';
+import { reefSurfaceSteps, reefActorPreparationSteps, paintReefActors, reefInverseDepthAt } from './reef-surface.mjs?v=abd04a3ba86c';
 
 const TAU = Math.PI * 2;
 const WATER = [12, 22, 48];
@@ -286,8 +286,13 @@ export class Reef {
   async prewarmReef(s, isCurrent = () => true) {
     const state={...s},started=performance.now(),stats={slices:0,maxSliceMs:0,durationMs:0};
     const channel=typeof MessageChannel==='function'&&typeof window!=='undefined'?new MessageChannel():null;
+    // While the reef is offscreen, give it one slice per frame so scrolling never drops frames;
+    // once it is in view, finish as fast as the slice budget allows.
+    const nextFrame=typeof requestAnimationFrame==='function'
+      ?()=>new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0))):null;
     const yieldSlice=()=>stats.slices<=1||!channel
       ?new Promise(resolve=>setTimeout(resolve,0))
+      :!s.visible&&nextFrame?nextFrame()
       :new Promise(resolve=>{channel.port1.onmessage=resolve;channel.port2.postMessage(null);});
     const run=async steps=>{
       let result;
@@ -340,6 +345,7 @@ export class Reef {
 
     for (const object of objects) {
       const points = object.vertices.map(p => cam.project(p));
+      yield;
       for(let faceIndex=0;faceIndex<object.faces.length;faceIndex++) {
         if(faceIndex%1024===0)yield;
         const face=object.faces[faceIndex];

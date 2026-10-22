@@ -82,9 +82,11 @@ export function* reefSurfaceSteps(ctx, triangles, width, height) {
     }
     return mp;
   }
-  let processed = 0;
+  // Pause by work done as well as by count: a few large terrain triangles can each fill
+  // thousands of pixels, so a fixed count alone could hold the main thread for ~100ms.
+  let processed = 0, work = 0;
   for (const triangle of triangles) {
-    if (++processed % 1024 === 0) yield;
+    if (++processed % 256 === 0 || work > 120000) { work = 0; yield; }
     const { a, b, c } = triangle;
     if (!a || !b || !c || !Number.isFinite(a.x + a.y + a.z + b.x + b.y + b.z + c.x + c.y + c.z)
       || a.z <= 0 || b.z <= 0 || c.z <= 0) continue;
@@ -94,6 +96,7 @@ export function* reefSurfaceSteps(ctx, triangles, width, height) {
     const left = Math.max(0, Math.floor(Math.min(ax, bx, cx))), right = Math.min(rasterWidth - 1, Math.floor(Math.max(ax, bx, cx)));
     const top = Math.max(0, Math.floor(Math.min(ay, by, cy))), bottom = Math.min(rasterHeight - 1, Math.floor(Math.max(ay, by, cy)));
     if (left > right || top > bottom) continue;
+    work += (right - left + 1) * (bottom - top + 1);
     const ux = (by - cy) / den, uy = (cx - bx) / den, vx = (cy - ay) / den, vy = (ax - cx) / den;
     const za = 1 / a.z, zb = 1 / b.z, zc = 1 / c.z;
     const dx = ux * (za - zc) + vx * (zb - zc), dy = uy * (za - zc) + vy * (zb - zc);

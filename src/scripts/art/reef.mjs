@@ -286,8 +286,13 @@ export class Reef {
   async prewarmReef(s, isCurrent = () => true) {
     const state={...s},started=performance.now(),stats={slices:0,maxSliceMs:0,durationMs:0};
     const channel=typeof MessageChannel==='function'&&typeof window!=='undefined'?new MessageChannel():null;
+    // While the reef is offscreen, give it one slice per frame so scrolling never drops frames;
+    // once it is in view, finish as fast as the slice budget allows.
+    const nextFrame=typeof requestAnimationFrame==='function'
+      ?()=>new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0))):null;
     const yieldSlice=()=>stats.slices<=1||!channel
       ?new Promise(resolve=>setTimeout(resolve,0))
+      :!s.visible&&nextFrame?nextFrame()
       :new Promise(resolve=>{channel.port1.onmessage=resolve;channel.port2.postMessage(null);});
     const run=async steps=>{
       let result;
@@ -340,6 +345,7 @@ export class Reef {
 
     for (const object of objects) {
       const points = object.vertices.map(p => cam.project(p));
+      yield;
       for(let faceIndex=0;faceIndex<object.faces.length;faceIndex++) {
         if(faceIndex%1024===0)yield;
         const face=object.faces[faceIndex];

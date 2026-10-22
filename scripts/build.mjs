@@ -132,7 +132,8 @@ export function renderSite(basePath = './', { launch = false } = {}) {
       else files.set(name, readFileSync(resolve(sourceDir, name)));
     }
   }
-  ['styles', 'scripts', 'assets', 'content'].forEach(walk);
+  // content/ is read at build time only, so it is not published.
+  ['styles', 'scripts', 'assets'].forEach(walk);
   for (const [name, bytes] of files) {
     if (!name.endsWith('.html')) continue;
     const html = bytes.toString();
