@@ -1,14 +1,37 @@
-import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets } from './research.mjs?v=1e501cc37711';
-import { coralStudies } from './coral.mjs?v=1e501cc37711';
-import { drawInspectionObject } from './inspection-objects.mjs?v=1e501cc37711';
-import { adaptationPresentation, adaptationParticle, drawAdaptation } from './adaptation.mjs?v=1e501cc37711';
+import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets, RESEARCH_FORM_COUNT } from './research.mjs?v=c4fb63486639';
+import { coralStudies } from './coral.mjs?v=c4fb63486639';
+import { drawInspectionObject } from './inspection-objects.mjs?v=c4fb63486639';
+import { createAdaptGrow, adaptGrowPresentation, drawAdaptGrow, heapPull } from './adapt-grow.mjs?v=c4fb63486639';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));
 const smooth = n => { const t = clamp(n); return t * t * (3 - 2 * t); };
 const random = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const states = new WeakMap();
-const FORM_NAMES = ['A shared view of performance', 'Connected data tables', 'A connected workflow'];
+const FORM_NAMES = ['A working prototype', 'Connected data tables', 'A measure people trust', 'A connected workflow', 'A shared view of performance'];
+// Build & Learn starts from grains on the ground. They lift into the first object, swirl in the
+// water from each object into the next, and after the last, the dashboard, drip back down.
+const GROUND = 2.4, FORM_SPAN = 4.4, DRIP = 2.2;
+const BUILD_CYCLE = RESEARCH_FORM_COUNT * FORM_SPAN + DRIP;
+const STILL_FORM = RESEARCH_FORM_COUNT - 1;
+
+function buildMoment(age) {
+  if (age < GROUND) return { stage: 'ground', form: 0, within: age, cycle: -1 };
+  const elapsed = age - GROUND, cycle = Math.floor(elapsed / BUILD_CYCLE), local = elapsed - cycle * BUILD_CYCLE;
+  if (local < RESEARCH_FORM_COUNT * FORM_SPAN) {
+    const form = Math.floor(local / FORM_SPAN);
+    return { stage: 'form', form, within: local - form * FORM_SPAN, cycle };
+  }
+  return { stage: 'drip', form: RESEARCH_FORM_COUNT - 1, within: local - RESEARCH_FORM_COUNT * FORM_SPAN, cycle };
+}
+
+function buildAttraction(moment, p) {
+  if (moment.stage === 'ground') return 0;
+  if (moment.stage === 'drip') return 1 - smooth((moment.within - p.delay * .6) / .5);
+  if (moment.form === 0) return smooth((moment.within - p.delay) / 1.3);
+  // Between objects the grains loosen, swirl and sag a little, then hold the new form.
+  return 1 - .55 * Math.sin(Math.PI * clamp((moment.within - p.delay * .8) / 1));
+}
 const INSPECTIONS = [
   { u: .29, v: .30, label: 'People' },
   { u: .70, v: .37, label: 'Processes' },
@@ -56,10 +79,12 @@ function approachBounds(width, height) {
 }
 
 function placeHomes(scene, bounds) {
-  scene.homes = scene.locations.map(({ u, v }) => ({
-    x: (u - .5) * bounds.halfWidth * 2,
-    y: bounds.top + v * (bounds.bottom - bounds.top),
-  }));
+  const place = ({ u, v }) => ({ x: (u - .5) * bounds.halfWidth * 2, y: bounds.top + v * (bounds.bottom - bounds.top) });
+  scene.homes = scene.locations.map(place);
+  // With reduced motion the heap is already stacked; otherwise its grains fall into place.
+  const resting = (point, id) => ({ x: point.x, y: Math.min(point.y, bounds.bottom - scene.field.particles[id].r) });
+  scene.growTargets = scene.homes.map((home, id) => !scene.grow ? home : scene.grow.rock.has(id) ? resting(place(scene.grow.rock.get(id).still), id)
+    : scene.grow.coral.has(id) ? place(scene.grow.locations[id]) : home);
 }
 
 function inspectionNetwork(locations, { id: root, label }) {
@@ -81,7 +106,7 @@ function inspectionNetwork(locations, { id: root, label }) {
   return edges.map(edge => ({ ...edge, start: edge.start / longest, end: edge.end / longest }));
 }
 
-/** One population, retaining the original coral anchors for a stable inspection field. */
+/** One population, retaining the coral anchors that Adapt & Grow grows through. */
 export function createApproachScene(width, height) {
   const field = createParticleField(approachBounds(width, height));
   const locations = [], anchorMap = new Map();
@@ -106,7 +131,8 @@ export function createApproachScene(width, height) {
     locations.push({ u: .06 + random(i + 73) * .88, v: .07 + random(i + 421) * .85 });
   }
   inspections.forEach(inspection => { inspection.edges = inspectionNetwork(locations, inspection); });
-  const scene = { field, locations, studies, inspections, width, height, phase: 0, age: 0, elapsed: 0, last: null, grey: 0, opacity: .48, reducedMotion: false };
+  const grow = createAdaptGrow(locations, studies, new Set(inspections.map(({ id }) => id)));
+  const scene = { field, locations, studies, inspections, grow, width, height, phase: 0, age: 0, elapsed: 0, last: null, grey: 0, rock: 0, opacity: .48, reducedMotion: false };
   placeHomes(scene, field.bounds);
   field.particles.forEach((p, i) => Object.assign(p, scene.homes[i], { vx: 0, vy: 0 }));
   return scene;
@@ -115,11 +141,12 @@ export function createApproachScene(width, height) {
 export function approachPresentation(scene) {
   if (scene.phase === 0) return { caption: '01 / GO & SEE', detail: 'People, processes and relationships' };
   if (scene.phase === 1) {
-    const cycle = Math.max(0, scene.age - 3.3);
-    const index = scene.reducedMotion ? 0 : Math.floor(cycle / 11) % FORM_NAMES.length;
-    return { caption: '02 / BUILD & LEARN', detail: FORM_NAMES[index], form: index, cycle };
+    const moment = buildMoment(scene.age), form = scene.reducedMotion ? STILL_FORM : moment.form;
+    // The name changes once the new object has mostly formed, not as its grains set off.
+    const named = !scene.reducedMotion && moment.stage === 'form' && moment.form > 0 && moment.within < .8 ? form - 1 : form;
+    return { caption: '02 / BUILD & LEARN', detail: FORM_NAMES[named], form, stage: moment.stage };
   }
-  return adaptationPresentation(scene.age, scene.reducedMotion);
+  return adaptGrowPresentation(scene.grow, scene.age, scene.reducedMotion);
 }
 
 /** Scroll changes forces while preserving particle identities and visible positions. */
@@ -131,39 +158,27 @@ export function updateApproachScene(scene, width, height, seconds, { phase = 0, 
     const bounds = approachBounds(width, height);
     resizeParticleField(scene.field, bounds);
     placeHomes(scene, bounds);
+    scene.heapRest = null;
     scene.width = width;
     scene.height = height;
   }
   const next = clamp(Math.round(phase), 0, 2);
-  if (reducedMotion) scene.adaptationExit = null;
-  if (scene.adaptationExit) {
-    scene.adaptationExit.age += dt;
-    if (scene.adaptationExit.age >= .45) scene.adaptationExit = null;
+  if (reducedMotion) scene.coralExit = null;
+  if (scene.coralExit) {
+    scene.coralExit.age += dt;
+    if (scene.coralExit.age >= .45) scene.coralExit = null;
   }
   if (next !== scene.phase) {
-    if (scene.phase === 2 && !reducedMotion) {
-      const state = adaptationPresentation(scene.age, scene.reducedMotion);
-      // Bake the projected view back into the physical field before gravity resumes.
-      const projected = scene.field.particles.map(p => adaptationParticle(scene, p.id, state));
-      scene.field.particles.forEach((p, i) => Object.assign(p, {
-        x: (projected[i].x - width / 2) / scene.field.bounds.scale,
-        y: (projected[i].y - height / 2) / scene.field.bounds.scale,
-        vx: 0, vy: 0, asleep: false, sleepTime: 0,
-      }));
-      scene.field.resting = false;
-      scene.adaptationExit = {
-        age: 0, state,
-        points: projected.map(point => ({ ...point, rgb: point.colour.match(/\d+/g).map(Number) })),
-      };
-    }
-    if (next === 2 || reducedMotion) scene.adaptationExit = null;
-    scene.phase = next; scene.age = 0;
+    // The grains are always where they are drawn, so only the coral's lines need a brief fade.
+    if (scene.phase === 2 && !reducedMotion) scene.coralExit = { age: 0, state: approachPresentation(scene) };
+    if (next === 2 || reducedMotion) scene.coralExit = null;
+    scene.phase = next; scene.age = 0; scene.heapRest = null;
   }
   if (!reducedMotion) {
     let nextAge = scene.age + dt;
     if (scene.phase === 1 && !scene.field.resting) {
-      const boundary = scene.age < 3.3 ? 3.3 : 3.3 + (Math.floor((scene.age - 3.3) / 11) + 1) * 11;
-      // A deeper pile gets the extra contact time it needs before the next lift.
+      // Grains lift from the ground only once the whole pile has settled.
+      const boundary = scene.age < GROUND ? GROUND : GROUND + (Math.floor((scene.age - GROUND) / BUILD_CYCLE) + 1) * BUILD_CYCLE;
       if (nextAge >= boundary) nextAge = boundary - .000001;
     }
     scene.age = nextAge;
@@ -171,23 +186,34 @@ export function updateApproachScene(scene, width, height, seconds, { phase = 0, 
   }
   scene.reducedMotion = reducedMotion;
   if (reducedMotion) {
-    const points = scene.phase === 1 ? researchTargets(0) : scene.homes;
+    const points = scene.phase === 1 ? researchTargets(STILL_FORM) : scene.phase === 2 ? scene.growTargets : scene.homes;
     scene.field.particles.forEach((p, i) => Object.assign(p, points[i], { vx: 0, vy: 0, asleep: false, sleepTime: 0 }));
     scene.field.resting = false;
     scene.grey = scene.phase === 2 ? 1 : 0;
+    scene.rock = scene.phase === 2 ? 1 : 0;
     scene.opacity = scene.phase === 1 ? 1 : scene.phase === 2 ? .30 : .48;
     return scene;
   }
   const blend = 1 - Math.exp(-dt * 3);
   scene.grey += ((scene.phase === 2 ? 1 : 0) - scene.grey) * blend;
+  scene.rock += ((scene.phase === 2 ? 1 : 0) - scene.rock) * blend;
   scene.opacity += ((scene.phase === 1 ? 1 : scene.phase === 2 ? .30 : .48) - scene.opacity) * blend;
   if (scene.phase === 1) {
-    const { form, cycle } = approachPresentation(scene);
-    const age = cycle % 11;
-    advanceParticleField(scene.field, dt, {
-      targets: researchTargets(form),
-      attraction: p => scene.age < 3.3 ? 0 : smooth((age - p.delay) / 1.5) * (1 - smooth((age - 6.6 - p.delay * .4) / .55)),
-    });
+    const moment = buildMoment(scene.age);
+    advanceParticleField(scene.field, dt, { targets: researchTargets(moment.form), attraction: p => buildAttraction(moment, p) });
+  } else if (scene.phase === 2) {
+    const { rock } = scene.grow, particles = scene.field.particles;
+    // Once the heap has come to rest it is held where it lies, so a settled stage costs no physics.
+    if (!scene.heapRest && scene.age > 3 && (scene.age > 7 || [...rock.keys()].every(id => Math.hypot(particles[id].vx, particles[id].vy) < .01))) {
+      scene.heapRest = scene.growTargets.map((target, id) => rock.has(id) ? { x: particles[id].x, y: particles[id].y } : target);
+    }
+    if (scene.heapRest) advanceParticleField(scene.field, dt, { targets: scene.heapRest, attraction: 1, gravity: 0, damping: 8, curl: 0 });
+    else {
+      // Heap grains fall freely, drawn a little towards the middle, and settle as a natural pile.
+      const halfWidth = scene.field.bounds.halfWidth * 2, pull = heapPull(scene.age);
+      const targets = particles.map((p, id) => rock.has(id) ? { x: rock.get(id).offset * halfWidth, y: p.y } : scene.growTargets[id]);
+      advanceParticleField(scene.field, dt, { targets, attraction: p => rock.has(p.id) ? pull : 1, curl: 0 });
+    }
   } else {
     advanceParticleField(scene.field, dt, { targets: scene.homes, attraction: 1, gravity: 0, damping: 8, curl: 0 });
   }
@@ -353,37 +379,38 @@ function drawLens(ctx, scene) {
   ctx.restore();
 }
 
+// The coral's root sits on whichever heap grain is highest near the middle.
+function heapTop(scene) {
+  let top = null;
+  for (const id of scene.grow.rock.keys()) {
+    const p = scene.field.particles[id];
+    if (Math.abs(p.x) < p.r * 7 && (!top || p.y - p.r < top.y - top.r)) top = p;
+  }
+  const point = top ? { x: top.x, y: top.y - top.r } : { x: 0, y: scene.field.bounds.bottom };
+  return project(scene, point);
+}
+
 /** The caller owns the canvas clear, DPR and visible animation clock. */
 export function drawApproach(ctx, width, height, seconds, options = {}) {
   if (!(width > 0 && height > 0)) return;
   let scene = states.get(ctx);
   if (!scene) { scene = createApproachScene(width, height); states.set(ctx, scene); }
   updateApproachScene(scene, width, height, seconds, options);
-  if (scene.phase === 2) {
-    drawAdaptation(ctx, scene);
-    return approachPresentation(scene);
-  }
   const rgb = [36, 78, 255].map((v, i) => Math.round(v + ([112, 119, 131][i] - v) * scene.grey));
-  const exitWeight = scene.adaptationExit ? 1 - smooth(scene.adaptationExit.age / .45) : 0;
   ctx.save(); ctx.fillStyle = `rgb(${rgb.join(',')})`;
   for (const p of scene.field.particles) {
     const appeared = scene.reducedMotion ? 1 : smooth((scene.elapsed - random(p.id + 19) * 1.1) / .4);
-    ctx.globalAlpha = scene.opacity * appeared;
-    let radius = p.radius * scene.field.bounds.grainSize;
-    if (scene.adaptationExit) {
-      const from = scene.adaptationExit.points[p.id];
-      ctx.globalAlpha += (from.alpha - ctx.globalAlpha) * exitWeight;
-      radius += (from.radius - radius) * exitWeight;
-      ctx.fillStyle = `rgb(${rgb.map((v, i) => Math.round(v + (from.rgb[i] - v) * exitWeight)).join(',')})`;
-    }
+    // The rock reads as one solid form, a little darker than the grains left in the water.
+    const alpha = scene.grow.rock.has(p.id) ? scene.opacity + (.6 - scene.opacity) * scene.rock : scene.opacity;
+    ctx.globalAlpha = alpha * appeared;
     const point = project(scene, p);
-    dot(ctx, point.x, point.y, radius);
+    dot(ctx, point.x, point.y, p.radius * scene.field.bounds.grainSize);
   }
   ctx.restore();
   if (scene.phase === 0) drawLens(ctx, scene);
-  if (scene.adaptationExit) drawAdaptation(ctx, scene, {
-    particles: false, state: scene.adaptationExit.state,
-    opacity: 1 - smooth(scene.adaptationExit.age / .45),
-  });
-  return approachPresentation(scene);
+  const grain = id => id === scene.grow.root ? heapTop(scene) : project(scene, scene.field.particles[id]);
+  const presentation = approachPresentation(scene);
+  if (scene.phase === 2) drawAdaptGrow(ctx, grain, presentation, { width, height });
+  if (scene.coralExit) drawAdaptGrow(ctx, grain, scene.coralExit.state, { width, height, opacity: 1 - smooth(scene.coralExit.age / .45) });
+  return presentation;
 }

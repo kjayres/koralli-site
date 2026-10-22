@@ -2,18 +2,16 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { createApproachScene, updateApproachScene, approachPresentation, drawApproach } from '../src/scripts/art/approach.mjs';
 import { researchTargets, RESEARCH_FORM_COUNT } from '../src/scripts/art/research.mjs';
-import { adaptationParticle, adaptationPresentation } from '../src/scripts/art/adaptation.mjs';
+import { HEAP } from '../src/scripts/art/adapt-grow.mjs';
 
 const costs = [];
 const sizes = process.argv.includes('--visual-only') ? [] : [400, 240, 418, 224, 260];
 const positions = scene => scene.field.particles.map(({ x, y }) => [x, y]);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-const screenPositions = scene => {
-  const state = adaptationPresentation(scene.age, scene.reducedMotion);
-  return scene.field.particles.map(p => scene.phase === 2
-    ? adaptationParticle(scene, p.id, state)
-    : { x: scene.width / 2 + p.x * scene.field.bounds.scale, y: scene.height / 2 + p.y * scene.field.bounds.scale });
-};
+const screenPositions = scene => scene.field.particles.map(p =>
+  ({ x: scene.width / 2 + p.x * scene.field.bounds.scale, y: scene.height / 2 + p.y * scene.field.bounds.scale }));
+// Build & Learn: grains rest on the ground, then form each object in turn and drip down after the last.
+const GROUND = 2.4, FORM_SPAN = 4.4, DRIP = 2.2, LAST_FORM = RESEARCH_FORM_COUNT - 1;
 
 function finiteAndContained(scene, originals) {
   const { bounds } = scene.field;
@@ -52,49 +50,55 @@ for (const size of sizes) {
   const changePhase = phase => {
     const previousPhase = scene.phase, before = positions(scene), displayed = screenPositions(scene);
     updateApproachScene(scene, scene.width, scene.height, clock, { phase });
-    if (previousPhase !== 2) assert.deepEqual(positions(scene), before, 'Changing scroll stage alone must not teleport particles');
+    assert.deepEqual(positions(scene), before, 'Changing scroll stage alone must not teleport particles');
     screenPositions(scene).forEach((point, i) => assert.ok(distance(point, displayed[i]) < 1e-8,
-      'Changing scroll stage alone must preserve displayed particle positions, including the projected regression view'));
+      'Changing scroll stage alone must preserve displayed particle positions'));
   };
 
   advance(1);
   assert.deepEqual(positions(scene), originalHomes.map(({ x, y }) => [x, y]));
   changePhase(1);
-  advance(3.3);
+  advance(GROUND);
   for (let frame = 0; !scene.field.resting && frame < 8 * 60; frame++) {
-    assert.ok(scene.field.particles.every(p => p.attraction === 0), 'The initial pile must settle before attraction begins');
+    assert.ok(scene.field.particles.every(p => p.attraction === 0), 'The grains must settle on the ground before they lift');
     advance(1 / 60);
   }
   groundedPile(scene);
-  assert.ok(scene.age >= 3.3 - .00001, 'The initial fall must retain its minimum settling interval');
+  assert.ok(scene.age >= GROUND - .00001, 'The grains must rest on the ground for its minimum interval');
   const initialSettledAt = clock - 1, rollovers = [];
 
+  // Each object forms in the water straight from the last, with no fall in between.
   for (let form = 0; form < RESEARCH_FORM_COUNT; form++) {
-    advance(5.8);
+    advance(form === 0 ? FORM_SPAN - .3 : FORM_SPAN);
     const presentation = approachPresentation(scene);
     assert.equal(presentation.form, form, 'The particles must make distinct tools in sequence');
+    assert.equal(presentation.detail.length > 0, true);
     assert.ok(scene.field.particles.every((p, i) => distance(p, researchTargets(form)[i]) < .003), 'A tool must become a legible stable formation');
+    assert.ok(!scene.field.resting, 'Objects follow one another in the water, without settling on the ground between them');
     finiteAndContained(scene, originals);
-    let released = false, settled = false, changed = false;
-    for (let frame = 0; frame < 12 * 60; frame++) {
-      const wasResting = scene.field.resting;
-      advance(1 / 60);
-      if (scene.field.particles.every(p => p.attraction === 0)) released = true;
-      if (scene.field.resting) { groundedPile(scene); settled = true; }
-      if (approachPresentation(scene).form !== form) {
-        assert.ok(released && settled && wasResting, 'Each tool must fall into a settled pile before the next one forms');
-        rollovers.push((clock - 1).toFixed(2));
-        changed = true;
-        break;
-      }
-    }
-    assert.ok(changed, 'The settled grains must eventually build the next tool');
+    rollovers.push((clock - 1).toFixed(2));
   }
+  assert.equal(approachPresentation(scene).detail, 'A shared view of performance', 'The dashboard must come last');
+  // After the dashboard the grains drip to the ground and settle before the sequence starts again.
+  let settled = false;
+  for (let frame = 0; frame < (DRIP + 4) * 60 && !settled; frame++) {
+    advance(1 / 60);
+    if (scene.field.resting) { groundedPile(scene); settled = true; }
+  }
+  assert.ok(settled, 'After the last object the grains must drip down into a settled pile');
+  advance(FORM_SPAN - .3);
+  assert.equal(approachPresentation(scene).form, 0, 'The sequence must begin again from the ground');
 
   changePhase(2);
-  advance(3);
+  advance(4);
   assert.ok(scene.grey > .999, 'The returned background field must become grey');
-  assert.ok(scene.field.particles.every((p, i) => distance(p, originalHomes[i]) < .0001), 'Adapt & Grow must return to the original Go & See positions');
+  const heap = [...scene.grow.rock.keys()];
+  assert.equal(heap.length, HEAP.count, 'A fixed share of the grains fall into the heap');
+  const floor = scene.field.bounds.bottom;
+  assert.ok(heap.every(id => floor - scene.field.particles[id].y < .4), 'Heap grains must lie on the floor of the frame');
+  const loose = scene.field.particles.filter((p, i) => !scene.grow.rock.has(i) && !scene.grow.coral.has(i));
+  assert.ok(loose.length > scene.field.particles.length * .5, 'Most grains stay in the water for the coral to grow through');
+  assert.ok(loose.every(p => distance(p, scene.homes[p.id]) < .0001), 'Grains in the water must return to their Go & See positions');
   assert.deepEqual(scene.homes, originalHomes);
   for (const { study, ids } of scene.studies) {
     assert.equal(ids.length, study.nodes.length);
@@ -112,7 +116,7 @@ for (const size of sizes) {
 
   for (const phase of [0, 1, 2]) {
     updateApproachScene(scene, scene.width, scene.height, clock, { phase, reducedMotion: true });
-    const targets = phase === 1 ? researchTargets(0) : scene.homes;
+    const targets = phase === 1 ? researchTargets(LAST_FORM) : phase === 2 ? scene.growTargets : scene.homes;
     assert.ok(scene.field.particles.every((p, i) => distance(p, targets[i]) === 0 && p.vx === 0 && p.vy === 0));
     assert.equal(scene.grey, phase === 2 ? 1 : 0);
     const still = positions(scene), age = scene.age;
@@ -318,78 +322,71 @@ assert.ok(Math.min(...centre.map(p => p.scale)) > Math.max(...middle.map(p => p.
 assert.ok(Math.min(...middle.map(p => p.scale)) > Math.max(...edge.map(p => p.scale)), 'The middle must enlarge grains more than the rim');
 assert.ok(edge.every(p => p.scale < 1.002 && p.output - p.input < .002), 'Position and size must approach the unchanged field smoothly at the rim');
 
-const regressionCtx = recorder();
-const finalRegression = drawApproach(regressionCtx, 400, 400, 0, { phase: 2, reducedMotion: true });
+// Adapt & Grow: a coral of fine blue branches grows up from the heap through the grey grains.
+const coralCtx = recorder();
 const grainFills = ctx => ctx.fills.filter(fill => fill.path.length === 1 && fill.path[0].arc);
-assert.equal(finalRegression.caption, '03 / ADAPT & GROW');
-assert.equal(finalRegression.detail, 'Learning from new evidence');
-assert.equal(finalRegression.observations.length, 8, 'The static illustration must show a completed example after three single-observation updates');
-assert.equal(finalRegression.pending.length, 0);
-for (const key of ['intercept', 'slopeX', 'slopeZ']) assert.ok(Math.abs(finalRegression.fit[key] - finalRegression.targetFit[key]) < 1e-12,
-  'The completed static plane must use the fitted coefficients within floating-point precision');
-assert.equal(grainFills(regressionCtx).length, finalRegression.observations.length, 'The completed cube must show the observed sample without the dense context field');
-assert.equal(regressionCtx.strokeRecords.filter(stroke => stroke.style === '#526eaa' && stroke.path.length === 4).length, 1,
-  'The third stage must draw one fitted plane');
-const stillRegression = structuredClone({ fills: regressionCtx.fills, strokes: regressionCtx.strokeRecords });
-regressionCtx.reset();
-drawApproach(regressionCtx, 400, 400, 100, { phase: 2, reducedMotion: true });
-assert.deepEqual({ fills: regressionCtx.fills, strokes: regressionCtx.strokeRecords }, stillRegression,
-  'The complete reduced-motion regression must remain unchanged over time');
+const branches = ctx => ctx.strokeRecords.filter(stroke => /^rgba\(36,78,255,/.test(stroke.style));
+const finalCoral = drawApproach(coralCtx, 400, 400, 0, { phase: 2, reducedMotion: true });
+assert.equal(finalCoral.caption, '03 / ADAPT & GROW');
+assert.equal(branches(coralCtx).length, 1, 'The coral is drawn as one stroke of fine branches');
+assert.ok(finalCoral.edges.length >= 20, 'The still coral must show its full form');
+assert.ok(finalCoral.edges.every(({ progress }) => progress >= 0 && progress <= 1));
+assert.ok(branches(coralCtx)[0].width < 1.1 && branches(coralCtx)[0].alpha === 1, 'Branches keep a fine line weight');
+assert.equal(grainFills(coralCtx).length, 1800 + finalCoral.marks.length, 'Every grain stays drawn; coral grains are marked over them');
+const stillCoral = structuredClone({ fills: coralCtx.fills, strokes: coralCtx.strokeRecords });
+coralCtx.reset();
+drawApproach(coralCtx, 400, 400, 100, { phase: 2, reducedMotion: true });
+assert.deepEqual({ fills: coralCtx.fills, strokes: coralCtx.strokeRecords }, stillCoral, 'The reduced-motion coral must remain unchanged over time');
 
-// Follow the same population from the dashboard into the fit and back to gravity.
-const returningCtx = recorder(), returningScene = createApproachScene(400, 400);
-const returningParticles = [...returningScene.field.particles];
-const paintReturn = (time, options) => {
-  returningCtx.reset();
-  updateApproachScene(returningScene, 400, 400, time, options);
-  return drawApproach(returningCtx, 400, 400, time, options);
+// The coral grows, takes in evidence and lets branches go, while keeping its shape.
+const growScene = createApproachScene(400, 400), growCtx = recorder();
+const growParticles = [...growScene.field.particles];
+const paintGrow = (time, options) => {
+  growCtx.reset();
+  updateApproachScene(growScene, 400, 400, time, options);
+  approachPresentation(growScene);
+  return drawApproach(growCtx, 400, 400, time, options);
 };
-paintReturn(0, { phase: 1, reducedMotion: true });
-const dashboardPositions = screenPositions(returningScene);
-paintReturn(0, { phase: 2 });
-const entryPositions = new Set(grainFills(returningCtx).map(fill => {
-  assert.equal(fill.path.length, 1);
-  const point = fill.path[0].arc;
-  return `${point.x.toFixed(8)},${point.y.toFixed(8)}`;
-}));
-assert.equal(grainFills(returningCtx).length, returningParticles.length);
-for (const point of dashboardPositions) assert.ok(entryPositions.has(`${point.x.toFixed(8)},${point.y.toFixed(8)}`),
-  'Regression entry must start at every existing dashboard grain, rather than drawing a replacement field');
-for (let frame = 1; frame <= 20 * 20; frame++) {
-  const state = paintReturn(frame / 20, { phase: 2 });
-  finiteAndContained(returningScene, returningParticles);
-  assert.ok(grainFills(returningCtx).length <= returningParticles.length, 'Arriving observations must reuse grains, not add particles');
-  if (state.assemble === 1) assert.equal(grainFills(returningCtx).length, state.observations.filter(p => p.presence > 0).length,
-    'Context grains must fade away as the bounded data sample becomes readable');
+paintGrow(0, { phase: 1, reducedMotion: true });
+const enteringPositions = screenPositions(growScene);
+paintGrow(0, { phase: 2 });
+grainFills(growCtx).slice(0, 1800).forEach((fill, id) => assert.ok(distance(fill.path[0].arc, enteringPositions[id]) < 1e-8,
+  'Adapt & Grow must start from every existing grain, rather than drawing a replacement field'));
+const details = new Set(), coralSizes = [];
+let reached = 0;
+const originalCoral = new Set(growScene.grow.base.map(({ id }) => id));
+for (let frame = 1; frame <= 60 * 20; frame++) {
+  const state = paintGrow(frame / 20, { phase: 2 });
+  finiteAndContained(growScene, growParticles);
+  details.add(state.detail);
+  if (state.growth === 1) {
+    coralSizes.push(state.marks.length);
+    reached = Math.max(reached, state.marks.filter(({ id }) => originalCoral.has(id)).length);
+  }
 }
-const beforeExit = screenPositions(returningScene);
-const heldPlane = returningCtx.strokeRecords.find(stroke => stroke.style === '#526eaa' && stroke.path.length === 4);
-paintReturn(20, { phase: 1 });
-assert.equal(grainFills(returningCtx).length, returningParticles.length);
-grainFills(returningCtx).forEach((fill, id) => {
-  const point = fill.path[0].arc, before = beforeExit[id];
-  assert.ok(distance(point, before) < 1e-8, 'Returning to Build & Learn must preserve each grain screen position');
-  assert.ok(Math.abs(point.radius - before.radius) < 1e-9, 'Returning grains must retain their current radius');
-  assert.ok(Math.abs(fill.alpha - before.alpha) < 1e-9, 'Invisible context grains must fade back rather than pop into view');
-  assert.equal(fill.style, before.colour, 'Returning grains must retain their current colour at the boundary');
-});
-assert.deepEqual(returningCtx.strokeRecords.find(stroke => stroke.style === '#526eaa' && stroke.path.length === 4).path, heldPlane.path,
-  'The retiring fitted plane must keep its current geometry as the grains leave');
-for (let frame = 1; frame <= 10; frame++) paintReturn(20 + frame / 20, { phase: 1 });
-assert.equal(returningCtx.strokeRecords.filter(stroke => stroke.style === '#526eaa').length, 0,
-  'The retiring regression must disappear after its brief exit fade');
-finiteAndContained(returningScene, returningParticles);
-paintReturn(20.5, { phase: 2, reducedMotion: true });
-paintReturn(20.5, { phase: 1 });
-assert.ok(returningScene.adaptationExit, 'The toggle check must begin during an active exit fade');
-paintReturn(20.55, { phase: 1, reducedMotion: true });
-assert.equal(returningScene.adaptationExit, null, 'Enabling reduced motion must immediately clear a mid-exit regression');
-assert.equal(returningCtx.strokeRecords.filter(stroke => stroke.style === '#526eaa').length, 0);
+for (const detail of ['Growing from what we built', 'New evidence arrives', 'Growing towards it', 'Learning from new evidence'])
+  assert.ok(details.has(detail), `Adapt & Grow must show: ${detail}`);
+assert.ok(growScene.grow.events.every(({ add }) => add >= 0), 'Every event must grow towards new evidence');
+assert.ok(growScene.grow.events.some(({ prune }) => prune >= 0), 'The coral must sometimes let a branch go');
+assert.ok(Math.max(...coralSizes) - Math.min(...coralSizes) <= 4, 'The coral keeps its size: revisions stay restrained');
+assert.ok(reached >= originalCoral.size - 1, 'The coral keeps nearly all of its original form');
 
-console.log('Canvas sequence checked: radial magnification, five inspection objects, anchored networks, lens dwell, stable regression still, shared-grain entry and continuous return to gravity.');
+// Leaving Adapt & Grow fades the branches out without moving any grain.
+const beforeExit = screenPositions(growScene);
+paintGrow(60, { phase: 1 });
+grainFills(growCtx).forEach((fill, id) => { if (id < 1800) assert.ok(distance(fill.path[0].arc, beforeExit[id]) < 1e-8, 'Returning to Build & Learn must preserve each grain position'); });
+assert.ok(growScene.coralExit, 'The coral must fade out as the stage changes');
+for (let frame = 1; frame <= 12; frame++) paintGrow(60 + frame / 20, { phase: 1 });
+assert.equal(branches(growCtx).length, 0, 'The retiring coral must disappear after its brief fade');
+paintGrow(61, { phase: 2 });
+paintGrow(61.05, { phase: 1 });
+paintGrow(61.1, { phase: 1, reducedMotion: true });
+assert.equal(growScene.coralExit, null, 'Enabling reduced motion must immediately clear a fading coral');
+
+console.log('Canvas sequence checked: radial magnification, five inspection objects, anchored networks, lens dwell, a still coral, shared-grain entry, restrained growth and a clean exit.');
 if (costs.length) {
   costs.sort((a, b) => a - b);
   const percentile = p => costs[Math.floor((costs.length - 1) * p)].toFixed(2);
-  console.log(`Our Work checked at ${sizes.join('/')}px: one particle population, grounded releases, ${RESEARCH_FORM_COUNT} tool forms, grey return, reversing, resizing and reduced motion.`);
+  console.log(`Our Work checked at ${sizes.join('/')}px: one particle population, ground start, ${RESEARCH_FORM_COUNT} tool forms, drip and heap, reversing, resizing and reduced motion.`);
   console.log(`Update CPU time: median ${percentile(.5)}ms; 95th percentile ${percentile(.95)}ms; maximum ${costs.at(-1).toFixed(2)}ms. Canvas rasterisation is not included.`);
 }

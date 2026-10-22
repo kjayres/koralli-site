@@ -52,22 +52,42 @@ function makeShape(build) {
 }
 
 const shapes = [
-  makeShape(({ line, path, box, fill }) => {
-    box(-.61, -.38, 1.22, .76);
-    line(-.61, -.24, .61, -.24);
-    line(-.43, -.24, -.43, .38);
-    line(-.54, -.31, -.31, -.31);
-    for (let i = 0; i < 4; i++) line(-.55, -.13 + i * .11, -.48, -.13 + i * .11);
+  makeShape(({ line, path, box, circle, fill }) => {
+    // A prototype on a phone, with the team's feedback beside it and the checks it has passed.
+    const round = (x, y, w, h, r) => {
+      line(x + r, y, x + w - r, y); line(x + w, y + r, x + w, y + h - r);
+      line(x + w - r, y + h, x + r, y + h); line(x, y + h - r, x, y + r);
+      circle(x + w - r, y + r, r, -Math.PI / 2, 0); circle(x + w - r, y + h - r, r, 0, Math.PI / 2);
+      circle(x + r, y + h - r, r, Math.PI / 2, Math.PI); circle(x + r, y + r, r, Math.PI, Math.PI * 1.5);
+    };
+    round(-.17, -.38, .34, .76, .05);
+    line(-.035, -.35, .035, -.35);
+    line(-.14, -.29, .14, -.29);
+    line(-.12, -.32, .02, -.32);
     for (let i = 0; i < 3; i++) {
-      box(-.35 + i * .31, -.16, .24, .15);
-      line(-.31 + i * .31, -.085, -.20 + i * .31, -.085);
+      const y = -.22 + i * .085;
+      circle(-.095, y, .022);
+      line(-.055, y - .01, .12, y - .01);
+      line(-.055, y + .014, .06, y + .014);
     }
-    path([[-.33, .06], [-.33, .29], [.05, .29]]);
-    fill(-.26, .18, .055, .10);
-    fill(-.15, .12, .055, .16);
-    fill(-.04, .065, .055, .215);
-    path([[.15, .29], [.15, .065], [.15, .29], [.52, .29]]);
-    path([[.17, .24], [.24, .20], [.31, .22], [.40, .11], [.47, .13], [.53, .055]]);
+    box(-.13, .05, .26, .14);
+    fill(-.10, .13, .03, .045); fill(-.05, .10, .03, .075); fill(0, .08, .03, .095); fill(.05, .11, .03, .065);
+    round(-.10, .25, .20, .065, .03);
+    line(-.045, .2825, .045, .2825);
+    // Feedback from the team, pointing at the screen.
+    box(-.60, -.25, .30, .17);
+    line(-.56, -.20, -.36, -.20); line(-.56, -.15, -.42, -.15);
+    path([[-.52, -.08], [-.50, -.02], [-.45, -.08]]);
+    path([[-.29, -.165], [-.22, -.165], [-.22, -.12]]);
+    path([[-.245, -.14], [-.22, -.11], [-.195, -.14]]);
+    // The checks it has passed.
+    box(.30, -.12, .30, .32);
+    for (let i = 0; i < 3; i++) {
+      const y = -.06 + i * .095;
+      box(.33, y - .02, .04, .04);
+      if (i < 2) path([[.338, y], [.35, y + .012], [.365, y - .014]]);
+      line(.40, y, .56, y);
+    }
   }),
   makeShape(({ line, path, box, circle }) => {
     // Related records: three tables, connected through shared keys.
@@ -92,6 +112,26 @@ const shapes = [
     }
   }),
   makeShape(({ line, path, box, circle }) => {
+    // A measure people trust: one dial everyone reads the same way, and the figures beneath it.
+    const cx = 0, cy = .02;
+    circle(cx, cy, .30, Math.PI, Math.PI * 2);
+    circle(cx, cy, .23, Math.PI * 1.08, Math.PI * 1.62);
+    line(cx - .36, cy, cx + .36, cy);
+    for (let i = 0; i <= 8; i++) {
+      const angle = Math.PI + i * Math.PI / 8;
+      line(cx + Math.cos(angle) * .30, cy + Math.sin(angle) * .30, cx + Math.cos(angle) * (i % 2 ? .275 : .255), cy + Math.sin(angle) * (i % 2 ? .275 : .255));
+    }
+    line(cx, cy, cx + Math.cos(Math.PI * 1.7) * .22, cy + Math.sin(Math.PI * 1.7) * .22);
+    circle(cx, cy, .024);
+    for (let i = 0; i < 3; i++) {
+      const x = -.59 + i * .41;
+      box(x, .10, .36, .25);
+      line(x + .03, .145, x + .16, .145);
+      line(x + .03, .20, x + .11, .20);
+      path([[x + .03, .32], [x + .10, .29], [x + .17, .305], [x + .25, .26], [x + .33, .235 - i * .015]]);
+    }
+  }),
+  makeShape(({ line, path, box, circle }) => {
     // Three agents pass work through a central decision to a shared output.
     for (const y of [-.29, 0, .29]) {
       box(-.61, y - .105, .24, .21);
@@ -104,6 +144,23 @@ const shapes = [
     path([[.27, -.05], [.34, 0], [.27, .05]]);
     box(.35, -.18, .26, .36);
     for (let i = 0; i < 3; i++) line(.40, -.09 + i * .09, .56, -.09 + i * .09);
+  }),
+  makeShape(({ line, path, box, fill }) => {
+    box(-.61, -.38, 1.22, .76);
+    line(-.61, -.24, .61, -.24);
+    line(-.43, -.24, -.43, .38);
+    line(-.54, -.31, -.31, -.31);
+    for (let i = 0; i < 4; i++) line(-.55, -.13 + i * .11, -.48, -.13 + i * .11);
+    for (let i = 0; i < 3; i++) {
+      box(-.35 + i * .31, -.16, .24, .15);
+      line(-.31 + i * .31, -.085, -.20 + i * .31, -.085);
+    }
+    path([[-.33, .06], [-.33, .29], [.05, .29]]);
+    fill(-.26, .18, .055, .10);
+    fill(-.15, .12, .055, .16);
+    fill(-.04, .065, .055, .215);
+    path([[.15, .29], [.15, .065], [.15, .29], [.52, .29]]);
+    path([[.17, .24], [.24, .20], [.31, .22], [.40, .11], [.47, .13], [.53, .055]]);
   }),
 ];
 

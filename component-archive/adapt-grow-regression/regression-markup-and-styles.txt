@@ -1,0 +1,11 @@
+In src/our-work.html, the approach figure's caption carried a key and a note for this stage:
+
+<figcaption><span class="figure-caption" data-approach-caption>01 / GO &amp; SEE</span><span class="approach-detail" data-approach-detail>Finding what matters.</span><span class="trace-key approach-key"><span>In the model</span><span>New evidence</span></span><span class="approach-illustration">Illustrative data</span></figcaption>
+
+In src/styles/approach.css, the stage hid the square frame and showed its key:
+
+[data-approach][data-phase="2"] .approach-frame::after { opacity:0; }
+.approach-key,.approach-illustration { visibility:hidden; }
+[data-approach][data-phase="2"] :is(.approach-key,.approach-illustration) { visibility:visible; }
+.approach-key span+span::before { background:#e87883; }
+.approach-illustration { font:9px/1.4 var(--mono); color:#77746c; }

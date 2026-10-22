@@ -252,6 +252,14 @@ function finishSteps(steps) {
   return result.value;
 }
 
+// Tall seaweed is placed across the whole reef, but how much of the reef fits depends on the
+// screen's width. A plant rooted beyond either edge would only show a stray blade leaning in.
+function rootedOffscreen(object, cam, width) {
+  if (!object.motion || object.height < 200 || !object.anchor) return false;
+  const { x } = cam.project([object.anchor[0], object.anchor[1], object.base]);
+  return x < 40 || x > width - 40;
+}
+
 export class Reef {
   props = { fish: true, turtles: true };
 
@@ -336,7 +344,7 @@ export class Reef {
   *directReefSteps(s) {
     const { ctx } = s, time = Number.isFinite(s.t) ? s.t / 60 : 0;
     const cam = camera(s.w, s.h, time, s.reefCompact), triangles = [], landmarks = [];
-    const objects=s.reefScene.map(object=>!object.motion?object:this.props.motion===false?
+    const objects=s.reefScene.filter(object=>!rootedOffscreen(object,cam,s.w)).map(object=>!object.motion?object:this.props.motion===false?
       coralSection(object,false):movingCoral(object,time));
     if (this.props.fish ?? true) {
       for (let i = 0; i < 4; i += 1) objects.push(movingFish(time, i, s.reefCompact));
@@ -408,7 +416,7 @@ export class Reef {
     ctx.clearRect(0,0,s.w,s.h);ctx.drawImage(cache.canvas,0,0,s.w,s.h);
     const time=Number.isFinite(s.t)?s.t/60:0,cam=camera(s.w,s.h,time,s.reefCompact),faces=[],nodes=[];
     if(this.props.motion!==false)waterDrift(ctx,s.w,s.h,time);
-    const moving=this.props.motion===false?[]:s.reefScene.filter(object=>object.motion)
+    const moving=this.props.motion===false?[]:s.reefScene.filter(object=>object.motion&&!rootedOffscreen(object,cam,s.w))
       .map(object=>movingCoral(coralSection(object,true),time));
     if(this.props.fish!==false)for(let i=0;i<4;i++)moving.push(movingFish(time,i,s.reefCompact));
     if(this.props.turtles!==false)for(let i=0;i<2;i++)moving.push(movingTurtle(time,s.reefCompact,i));
