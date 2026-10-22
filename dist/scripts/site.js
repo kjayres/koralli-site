@@ -7,11 +7,11 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=03234f5c69a5'),
-  approach: () => import('./art/approach.mjs?v=03234f5c69a5'),
-  'work-coral': () => import('./art/coral.mjs?v=03234f5c69a5'),
-  reef: () => import('./art/reef.mjs?v=03234f5c69a5'),
-  'journal-water': () => import('./art/journal-water.mjs?v=03234f5c69a5')
+  wave: () => import('./art/wave.mjs?v=6e1f723872e2'),
+  approach: () => import('./art/approach.mjs?v=6e1f723872e2'),
+  'work-coral': () => import('./art/coral.mjs?v=6e1f723872e2'),
+  reef: () => import('./art/reef.mjs?v=6e1f723872e2'),
+  'journal-water': () => import('./art/journal-water.mjs?v=6e1f723872e2')
 };
 
 function artworkFailed(state, error) {
@@ -81,7 +81,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=03234f5c69a5');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=6e1f723872e2');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -250,7 +250,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=03234f5c69a5').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=6e1f723872e2').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -386,7 +386,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=03234f5c69a5').then(module => {
+if (building && svg) import('./art/building.mjs?v=6e1f723872e2').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -430,7 +430,7 @@ if (thesisStage || redesignersStage) {
       schedule();
     }).observe(redesignersStage);
   }
-  import('./art/thesis-cards.mjs?v=03234f5c69a5').then(({ initThesisCards, initRedesignersMech }) => {
+  import('./art/thesis-cards.mjs?v=6e1f723872e2').then(({ initThesisCards, initRedesignersMech }) => {
     if (thesisStage) {
       renderThesis = initThesisCards(thesisStage);
       updateThesisScroll();

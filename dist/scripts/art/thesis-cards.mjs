@@ -479,7 +479,6 @@ function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y
   };
 
   let out = '';
-  out += poly([local(-5.4, -4.4, .2), local(5.4, -4.4, .2), local(5.4, 4.4, .2), local(-5.4, 4.4, .2)], GLASS, 'fill-opacity=".5" stroke-opacity=".6"');
   for (const side of [-2.4, 2.4]) {
     // Legs swing in opposition; the forward foot lifts as it passes under the hip.
     const swing = (side < 0 ? 1 : -1) * stride, reach = swing * 3.2, lift = Math.max(0, swing) * 1.6;
