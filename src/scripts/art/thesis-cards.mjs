@@ -438,7 +438,7 @@ function human3DMarkup(p, {
 /**
  * Isometric 3D articulated blue SVG robot/agent with rotating torso and dual gripper arms.
  */
-function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y + 14, 24], held = '' } = {}) {
+function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y + 14, 24], held = '', stride = 0 } = {}) {
   const s = scale;
   const forward = [Math.sin(heading), Math.cos(heading), 0];
   const right = [Math.cos(heading), -Math.sin(heading), 0];
@@ -481,10 +481,13 @@ function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y
   let out = '';
   out += poly([local(-5.4, -4.4, .2), local(5.4, -4.4, .2), local(5.4, 4.4, .2), local(-5.4, 4.4, .2)], GLASS, 'fill-opacity=".5" stroke-opacity=".6"');
   for (const side of [-2.4, 2.4]) {
-    out += prism(side - 1.3, -1.8, 0, 2.6, 4.0, 2.4, PAPER, PAPER, SHADE);
-    out += seg(local(side, 0, 2.4), local(side, .4, 10.5), 'stroke-width="1.8"');
-    out += node(local(side, .4, 10.5), 1.55);
-    out += seg(local(side, .4, 10.5), local(side, 0, 18.2), 'stroke-width="1.8"');
+    // Legs swing in opposition; the forward foot lifts as it passes under the hip.
+    const swing = (side < 0 ? 1 : -1) * stride, reach = swing * 3.2, lift = Math.max(0, swing) * 1.6;
+    const knee = local(side, reach * .5 + .4, 10.5 + lift * .5);
+    out += prism(side - 1.3, -1.8 + reach, lift, 2.6, 4.0, 2.4, PAPER, PAPER, SHADE);
+    out += seg(local(side, reach, 2.4 + lift), knee, 'stroke-width="1.8"');
+    out += node(knee, 1.55);
+    out += seg(knee, local(side, 0, 18.2), 'stroke-width="1.8"');
   }
   out += prism(-4.5, -2.7, 17.8, 9.0, 5.4, 2.8, PAPER, PAPER, SHADE);
   out += seg(local(0, 0, 20.6), local(0, 0, 22.4), 'stroke-width="2.2"');
@@ -640,10 +643,15 @@ function card1DynamicMarkup(step) {
   const holding = keyframes(phase, [[0, 1], [0.42, 1], [0.5, 0], [0.9, 0], [1, 1]]);
 
   // Agent: walks over to the person, takes the parcel, turns and walks back to the outgoing belt.
-  const robotX = keyframes(phase, [[0, 128], [0.32, 117.5], [0.5, 117.5], [0.72, 135], [0.86, 135], [1, 128]]);
+  const ROBOT_PATH = [[0, 128], [0.32, 117.5], [0.5, 117.5], [0.72, 135], [0.86, 135], [1, 128]];
+  const robotX = keyframes(phase, ROBOT_PATH);
   const robotHeading = keyframes(phase, [[0, -Math.PI * 0.46], [0.48, -Math.PI * 0.46], [0.6, Math.PI * 0.46], [0.86, Math.PI * 0.46], [1, -Math.PI * 0.46]]);
   const robotHold = keyframes(phase, [[0, 0], [0.38, 0], [0.44, 1], [0.8, 1], [0.86, 0], [1, 0]]);
-  const robotStep = Math.abs(Math.sin(Math.PI * clamp(phase / 0.32))) + Math.abs(Math.sin(Math.PI * clamp((phase - 0.5) / 0.22)));
+  // Walking: the legs cycle with distance covered (one stride every 6.4 units), so the feet
+  // never slide, and they settle together whenever the agent stands still.
+  const speed = Math.abs(keyframes(Math.min(1, phase + .004), ROBOT_PATH) - keyframes(Math.max(0, phase - .004), ROBOT_PATH)) / .008;
+  const walking = clamp(speed / 30);
+  const robotStride = Math.sin(robotX * TAU / 6.4) * walking;
 
   // The parcel follows whoever holds it, from belt to hands to hands to belt.
   const humanCarry = [...ahead(humanX, 82, humanHeading, 6.5), lerp(BELT_TOP, CARRY_Z, smooth((phase - 0.04) / 0.12))];
@@ -683,7 +691,9 @@ function card1DynamicMarkup(step) {
   });
   d += robotMarkup(p, {
     x: robotX,
-    y: 84 + Math.min(1, robotStep) * 0.3,
+    y: 84,
+    z: (1 - Math.abs(robotStride)) * .35 * walking,
+    stride: robotStride,
     scale: 0.82,
     heading: robotHeading,
     target: robotTarget,
@@ -751,7 +761,7 @@ function radcliffeCameraMarkup(p, iso) {
     decorate: f => {
       let d = '';
       for (const z of [5.4, 9.6]) d += line(on(f, 26.1, 0, z), on(f, 26.1, 1, z), 'stroke-width=".5" stroke-opacity=".45"');
-      if (f.i === RADCAM.door) return d + arch(f, 26.15, .26, .74, 1.6, 8.6, 3.2, GLASS, `fill-opacity=".9" stroke="${CORAL}" stroke-width="1.0"`);
+      if (f.i === RADCAM.door) return d + arch(f, 26.15, .26, .74, 1.6, 8.6, 3.2, GLASS, 'fill-opacity=".9" stroke-width="1.0"');
       return d + (f.i % 2
         ? arch(f, 26.15, .36, .64, 4.2, 9.0, 1.8, SHADE, 'stroke-width=".6"')
         : arch(f, 26.15, .26, .74, 1.6, 8.6, 3.2, GLASS, 'fill-opacity=".55" stroke-width=".7"'));
@@ -830,9 +840,9 @@ function radcliffeCameraMarkup(p, iso) {
 
 
 /**
- * Modern office in the operators' coral: glazed lobby behind slim columns with a
- * blue-framed entrance and canopy, four floors of ribbon glazing over solid spandrels,
- * a parapet and a louvred plant room.
+ * Modern office in the operators' coral throughout: glazed lobby behind slim columns,
+ * entrance and canopy, four floors of ribbon glazing over solid spandrels, a parapet
+ * and a louvred plant room.
  */
 const OFFICE = { x: 106, y: 20, w: 44, d: 40, lobby: 10, floor: 9.5, floors: 4 };
 const OFFICE_GLASS = '#F7DDD6';
@@ -850,8 +860,8 @@ function officeBuildingMarkup(p, iso) {
   out += box(ox + 2, oy + 2, w - 4, d - 4, lobby, PAPER, GLASS, GLASS, 0, 'fill-opacity=".75" stroke-width=".8"');
   for (let x = ox + 7.4; x < fx - 3; x += 7.4) out += line(p(x, fy - 1.9, 0), p(x, fy - 1.9, lobby), 'stroke-width=".5" stroke-opacity=".6"');
   for (let y = oy + 8; y < fy - 3; y += 8) out += line(p(fx - 1.9, y, 0), p(fx - 1.9, y, lobby), 'stroke-width=".5" stroke-opacity=".6"');
-  out += panelX(ox + 18, fy - 1.85, 0, 8, 7.4, GLASS, `fill-opacity=".95" stroke="${BLUE}" stroke-width=".95"`);
-  out += line(p(ox + 22, fy - 1.8, 0), p(ox + 22, fy - 1.8, 7.4), `stroke="${BLUE}" stroke-width=".7"`);
+  out += panelX(ox + 18, fy - 1.85, 0, 8, 7.4, GLASS, `fill-opacity=".95" stroke="${CORAL}" stroke-width=".95"`);
+  out += line(p(ox + 22, fy - 1.8, 0), p(ox + 22, fy - 1.8, 7.4), `stroke="${CORAL}" stroke-width=".7"`);
   for (const x of [ox, ox + 11, ox + 22, ox + 33, fx - 1.6]) out += box(x, fy - 1.6, 1.6, 1.6, lobby, PAPER, PAPER, SHADE, 0, 'stroke-width=".75"');
   for (const y of [oy, oy + 13, oy + 26]) out += box(fx - 1.6, y, 1.6, 1.6, lobby, PAPER, PAPER, SHADE, 0, 'stroke-width=".75"');
 
@@ -871,14 +881,14 @@ function officeBuildingMarkup(p, iso) {
   }
 
   // Canopy over the entrance.
-  out += box(ox + 15, fy - 1, 14, 6, 0.9, PAPER, PAPER, SHADE, lobby - 1.4, `stroke="${BLUE}" stroke-width=".9"`);
+  out += box(ox + 15, fy - 1, 14, 6, 0.9, PAPER, PAPER, SHADE, lobby - 1.4, `stroke="${CORAL}" stroke-width=".9"`);
 
-  // Parapet, roof deck, plant room with louvres and a blue roof light.
+  // Parapet, roof deck, plant room with louvres and a roof light.
   out += box(ox, oy, w, d, 1.6, PAPER, PAPER, SHADE, top, 'stroke-width=".85"');
   out += surface(ox + 1.4, oy + 1.4, w - 2.8, d - 2.8, top + 1.0, SHADE, 'stroke-width=".55"');
   out += box(ox + 8, oy + 6, 18, 14, 6.5, PAPER, PAPER, SHADE, top + 1.0, 'stroke-width=".8"');
   for (let z = top + 2.6; z < top + 7; z += 1.2) out += line(p(ox + 9.5, oy + 20.05, z), p(ox + 24.5, oy + 20.05, z), 'stroke-width=".45" stroke-opacity=".7"');
-  out += surface(ox + 30, oy + 22, 8, 10, top + 1.1, GLASS, `stroke="${BLUE}" stroke-width=".9"`);
+  out += surface(ox + 30, oy + 22, 8, 10, top + 1.1, GLASS, `stroke="${CORAL}" stroke-width=".9"`);
   return `<g stroke="${CORAL}">${out}</g>`;
 }
 
