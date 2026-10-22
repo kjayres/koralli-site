@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
+import { journalViewportBand } from '../src/scripts/journal-viewport.mjs';
 
 const source = await fs.readFile('src/scripts/site.js', 'utf8');
 const probes = '\nexport { canvasStates, paint, renderBuilding, schedule, prepareArtwork };';
@@ -21,14 +22,15 @@ async function setup({kind, reduced=false, building=false, importFailure, firstF
   const imports=[], errors=[], observers=[], frames=new Map(), events=new Map();
   const warmups=[],resizers=[];
   let nextFrame=0, failDraw=firstFailure, calls=0, failBuilding=false, clearCalls=0, letterCalls=0, boundsReads=0;
+  const transforms=[];
   const journalDraws=[]; let canvasTop=0, headingTop=100;
   const host=element(), canvas=element();
   canvas.dataset.art=kind; canvas.parentElement=host;
-  canvas.getContext=()=>({clearRect(){clearCalls++;},setTransform(){}});
+  canvas.getContext=()=>({clearRect(){clearCalls++;},setTransform(...args){transforms.push(args);}});
   const heading=element();
   if(kind==='journal-water') {
-    host.getBoundingClientRect=()=>({width:600,height:2200,top:canvasTop,bottom:canvasTop+2200});
-    canvas.getBoundingClientRect=()=>{boundsReads++;return host.getBoundingClientRect();};
+    host.getBoundingClientRect=()=>{boundsReads++;return{width:600,height:2200,top:canvasTop,bottom:canvasTop+2200};};
+    canvas.getBoundingClientRect=()=>host.getBoundingClientRect();
     heading.getBoundingClientRect=()=>{boundsReads++;return{top:headingTop,bottom:headingTop+100};};
   }
   const section=element(), svg=element(), chamber=element();
@@ -60,12 +62,15 @@ async function setup({kind, reduced=false, building=false, importFailure, firstF
     const imported=new vm.SyntheticModule(entries.map(([k])=>k),function(){for(const [k,v]of entries)this.setExport(k,v);},{context});
     await imported.link(()=>{});await imported.evaluate();return imported;
   }});
-  await mod.link(()=>{});await mod.evaluate();
+  await mod.link(path=>{
+    assert.equal(path,'./journal-viewport.mjs');
+    return new vm.SyntheticModule(['journalViewportBand'],function(){this.setExport('journalViewportBand',journalViewportBand);},{context});
+  });await mod.evaluate();
   const settle=()=>new Promise(resolve=>setImmediate(resolve));
   await settle();
   return {api:mod.namespace,host,canvas,section,svg,chamber,panels,depths,imports,errors,frames,events,document,motion,observers,settle,warmups,resizers,
     setDrawFailure(v){failDraw=v;},setBuildingFailure(v){failBuilding=v;},calls:()=>calls,
-    clearCalls:()=>clearCalls,letterCalls:()=>letterCalls,boundsReads:()=>boundsReads,journalDraws,
+    clearCalls:()=>clearCalls,letterCalls:()=>letterCalls,boundsReads:()=>boundsReads,journalDraws,transforms,
     setJournalPosition(canvasY,headingY){canvasTop=canvasY;headingTop=headingY;},
     flush(now=1000){const pending=[...frames.values()];frames.clear();for(const callback of pending)callback(now);},
     async intersect(visible=true){for(const o of observers)o.callback([{isIntersecting:visible}]);await settle();},
@@ -156,7 +161,11 @@ async function setup({kind, reduced=false, building=false, importFailure, firstF
   t.setJournalPosition(-1100,-1000);t.events.get('scroll')();
   t.api.paint(state,1/60);
   assert.equal(t.letterCalls(),before,'Hidden heading paths are not rewritten');
-  assert.equal(state.viewport.top,815);assert.equal(state.viewport.bottom,2335);
+  assert.equal(state.viewport.top,680);assert.equal(state.viewport.bottom,2200);
+  assert.equal(t.canvas.height,1520,'Pixel buffer is limited to the viewport and overscan');
+  assert.equal(t.canvas.style.transform,'translateY(680px)');
+  assert.deepEqual(t.transforms.at(-1),[1,0,0,1,0,-680],'Drawing stays in full-scene coordinates');
+  assert.equal(t.observers[0].target,t.host,'Observe the full ocean, so moving the buffer cannot stop the renderer');
   const updated=t.boundsReads();t.flush();assert.equal(t.boundsReads(),updated,'Scroll and animation callbacks share one bounds refresh');
   t.setJournalPosition(0,100);t.events.get('scroll')();t.api.paint(state,1/60);
   assert.equal(t.letterCalls(),before+1,'Heading resumes at the current scene time before it enters view');
@@ -167,7 +176,11 @@ async function setup({kind, reduced=false, building=false, importFailure, firstF
 }
 {
   const t=await setup({kind:'journal-water',reduced:true});
-  assert.equal(t.journalDraws.at(-1)[4].viewport,undefined,'Reduced motion renders the complete still for scrolling');
+  assert.equal(t.journalDraws.at(-1)[4].viewport.height,1520,'Reduced motion uses the same bounded pixel buffer');
   await t.intersect();t.flush();assert.equal(t.frames.size,0,'Reduced motion never starts an animation loop');
+  const before=t.calls();t.setJournalPosition(-1100,-1000);t.events.get('scroll')();t.flush();
+  assert.equal(t.calls(),before+1,'Scrolling redraws the static scene in its new crop');
+  assert.equal(t.journalDraws.at(-1)[4].reducedMotion,true);
+  assert.equal(t.frames.size,0,'Static repaint does not restart animation');
 }
 console.log('Artwork lifecycle passed: scoped imports, fallbacks, reef prewarm cancellation, reduced motion, cached journal viewport, offscreen heading/tab/canvas suspension and empty-page scroll handling.');

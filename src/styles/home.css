@@ -179,39 +179,11 @@
   margin-top:10px;
   justify-content:space-between;
 }
-/* The redesigners' scene fills the space beneath the heading, standing on the line of the last
-   link opposite, so it never makes the section taller than its text. */
-.invitation-lead-col {
-  display:flex;
-  flex-direction:column;
-  gap:22px;
-  align-self:stretch;
-}
-.redesigners-stage {
-  position:relative;
-  flex:1 1 0;
-  min-height:180px;
-  margin:0;
-}
-.redesigners-stage svg {
-  position:absolute;
-  inset:0;
-  display:block;
-  width:100%;
-  height:100%;
-  overflow:visible;
-}
 @media(max-width:960px) {
   .thesis-section.thesis-enhanced { height:auto; }
   .thesis-section.thesis-enhanced .thesis-sticky { position:static; min-height:0; display:block; padding:48px var(--gutter); }
   .thesis-grid { grid-template-columns:1fr; gap:24px; }
   .thesis-card-copy h2 { font-size:25px; }
-}
-/* In one column the scene follows the text instead of sitting between heading and copy. */
-@media(max-width:759px) {
-  .home-page .invitation-lead-col { display:contents; }
-  .home-page .redesigners-stage { order:1; flex:none; min-height:0; }
-  .home-page .redesigners-stage svg { position:static; height:auto; aspect-ratio:var(--stage-ratio, 2); }
 }
 @media(max-width:759px) {
   .home-page .hero {

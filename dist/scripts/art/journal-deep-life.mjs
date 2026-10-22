@@ -123,7 +123,8 @@ export function drawDeepFish(ctx, scene, time = 0, current = 0, scroll = 0, view
 }
 
 /**
- * The redesigners' diving suit from the homepage, out in open water in Views from the Reef.
+ * The fish's diving suit (once also on the home page; see component-archive/redesigners-scene), out
+ * in open water in Views from the Reef.
  * Side view of the same rounded build: barrel hull, water-filled glass dome with the coral
  * fish piloting inside, twin thruster tanks on the back, claw arms ahead and fins kicking behind.
  */
