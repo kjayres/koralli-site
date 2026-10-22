@@ -221,8 +221,8 @@ function magnify(point, lens, aperture) {
 
 function drawInspectionNetwork(ctx, scene, lens, aperture = 0) {
   if (!lens.networkProgress || !lens.networkFade) return;
-  ctx.save(); ctx.lineWidth = .45; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#707783'; ctx.fillStyle = '#707783';
+  ctx.save(); ctx.lineWidth = .6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#707783';
   for (const { from, to, start, end } of lens.current.edges) {
     const growth = clamp((lens.networkProgress - start) / (end - start));
     if (!growth || [from, to].some(id => Math.hypot(scene.field.particles[id].x - scene.homes[id].x, scene.field.particles[id].y - scene.homes[id].y) >= .018)) continue;
@@ -248,8 +248,10 @@ function drawInspectionNetwork(ctx, scene, lens, aperture = 0) {
     ctx.stroke();
     if (growth === 1) {
       const p = scene.field.particles[to], point = aperture ? magnify(b, lens, aperture) : b;
-      ctx.globalAlpha = .7 * lens.networkFade;
-      dot(ctx, point.x, point.y, p.radius * scene.field.bounds.grainSize * (point.magnification || 1));
+      // Each discovered node is a researcher or an operator, keyed as in the opening network.
+      ctx.globalAlpha = .9 * lens.networkFade;
+      ctx.fillStyle = to % 2 ? '#ff6655' : '#244eff';
+      dot(ctx, point.x, point.y, Math.max(1.6, 1.5 * p.radius * scene.field.bounds.grainSize * (point.magnification || 1)));
     }
   }
   ctx.restore();

@@ -3,7 +3,7 @@ const clamp = value => Math.max(0, Math.min(1, value));
 const ease = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
 const BLUE = [36, 78, 255], GREY = [112, 119, 131], CORAL = [232, 120, 131];
-const INITIAL_COUNT = 5, CAPACITY = 12, FIRST_EVIDENCE = 5.5, INTERVAL = 5;
+const INITIAL_COUNT = 5, CAPACITY = 12, FIRST_EVIDENCE = 5.5, INTERVAL = 4;
 const EVIDENCE_HOLD = 1.5, REFIT_DURATION = .35;
 const colour = (a, b, t) => a.map((value, i) => mix(value, b[i], t));
 const css = rgb => `rgb(${rgb.map(Math.round).join(',')})`;
@@ -33,8 +33,8 @@ const mixFit = (a, b, t) => ({ intercept: mix(a.intercept, b.intercept, t), slop
 
 // Five non-collinear starting measurements, then one surprising local observation.
 const INITIAL = [[-.48, -.42, -.22], [-.48, .42, .34], [.48, -.42, .34], [.48, .42, -.22], [0, 0, -.24]];
-const CLUSTERS = [[.34, .27], [-.36, .25], [-.30, -.32], [.32, -.28]];
-const EARLY_DEPARTURES = [.24, -.22, .24, -.22];
+const CLUSTERS = [[.46, .37], [-.47, .35], [-.41, -.42], [.44, -.38]];
+const EARLY_DEPARTURES = [.32, -.30, .32, -.30];
 const RESPONSE_OFFSETS = [.20, .133, .066, 0, -.066, -.133, -.20];
 function observation(id) {
   let x, z, deviation;
@@ -48,7 +48,7 @@ function observation(id) {
     z = mix(centre[1] + .018 * Math.cos(event * 1.37), depth, spread);
     // Early surprises make learning legible; later evidence is wider and more regular.
     deviation = event < EARLY_DEPARTURES.length ? EARLY_DEPARTURES[event]
-      : RESPONSE_OFFSETS[(event - EARLY_DEPARTURES.length) % RESPONSE_OFFSETS.length] * .6;
+      : RESPONSE_OFFSETS[(event - EARLY_DEPARTURES.length) % RESPONSE_OFFSETS.length] * .7;
   }
   return { id, slot: id % CAPACITY, x, y: .04 + .20 * x + .10 * z + deviation, z };
 }

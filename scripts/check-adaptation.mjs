@@ -11,7 +11,7 @@ const pointNear = (actual, expected, message) => {
 const coordinates = points => points.map(({ id, x, y, z }) => ({ id, x, y, z }));
 const predict = (fit, p) => fit.intercept + fit.slopeX * p.x + fit.slopeZ * p.z;
 const initialCount = 5, capacityLimit = 12, projectionScale = .36;
-const arrivalAt = event => 5.5 + (event - 1) * 5;
+const arrivalAt = event => 5.5 + (event - 1) * 4;
 const settledAt = event => arrivalAt(event) + 1.9;
 const fitNear = (actual, expected, message) => {
   for (const key of ['intercept', 'slopeX', 'slopeZ']) near(actual[key], expected[key], message, 1e-12);
@@ -109,7 +109,7 @@ for (const event of [1, 2, 3, 4, 5, 6, 7, 8, 16, 28, 250]) {
     'The first four surprising observations must move the actual fitted plane by at least 4px in a 180px pane');
   const display = observationsAt(colourScene, fitted);
   assert.equal(display.get(fitted.observations.at(-1).id).colour, 'rgb(36,78,255)');
-  const hold = adaptationPresentation(arrival + 4.4);
+  const hold = adaptationPresentation(arrival + 3.6);
   assert.deepEqual(hold.fit, fitted.fit, 'The updated plane must remain readable for several seconds');
   assert.deepEqual(coordinates(hold.fitObservations), coordinates(fitted.fitObservations));
   const retained = new Map(before.observations.map(p => [p.id, p]));

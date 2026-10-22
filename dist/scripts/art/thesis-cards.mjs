@@ -132,6 +132,65 @@ function isoPrimitives(p, palette = { paper: PAPER, shade: SHADE }) {
   return { polygon, line, planLine, surface, panelX, panelY, box, ruledNote };
 }
 
+// ----------------------------------------------------------------------------
+// Rounded solids for the mech suit, so the machine is drawn in the same
+// capsule language as the people.
+// ----------------------------------------------------------------------------
+
+// World direction that points out of the screen towards the viewer.
+function viewToward(angle) {
+  const rad = angle * Math.PI / 180;
+  return unit3([Math.cos(rad) + Math.sin(rad), Math.cos(rad) - Math.sin(rad), 0]);
+}
+
+function bodyFrame(x, y, heading, z = 0, scale = 1) {
+  const forward = [Math.sin(heading), Math.cos(heading), 0];
+  const right = [Math.cos(heading), -Math.sin(heading), 0];
+  const local = (u, v, h) => [
+    x + (right[0] * u + forward[0] * v) * scale,
+    y + (right[1] * u + forward[1] * v) * scale,
+    z + h * scale,
+  ];
+  return { forward, right, local, scale };
+}
+
+function solid(d, { fill, stroke, width = 1.0, extra = '' }) {
+  return `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${width}" ${extra}/>`;
+}
+
+function capsule(p, a, rA, b, rB, style) {
+  return solid(roundedPath(hull([...p.sphereOutline(a, rA), ...p.sphereOutline(b, rB)])), style);
+}
+
+function ball(p, c, r, style) {
+  return solid(roundedPath(p.sphereOutline(c, r, 20)), style);
+}
+
+// Smooth hull through stacked elliptical rings: [height, half-width, half-depth, forward offset].
+function shell(p, frame, rings, style) {
+  const pts = [];
+  for (const [h, uRad, vRad, vOff = 0] of rings) {
+    for (let i = 0; i < 18; i++) {
+      const t = (TAU * i) / 18;
+      pts.push(p(...frame.local(uRad * Math.cos(t), vOff + vRad * Math.sin(t), h)));
+    }
+  }
+  return solid(roundedPath(hull(pts)), style);
+}
+
+// The part of an elliptical ring around a body that faces the viewer.
+function visibleArc(p, frame, view, h, uRad, vRad, vOff = 0, extra = '') {
+  const pts = [];
+  for (let i = 0; i <= 48; i++) {
+    const t = (TAU * i) / 48;
+    const normal = add3(mul3(frame.right, Math.cos(t) / uRad), mul3(frame.forward, Math.sin(t) / vRad));
+    if (dot3(normal, view) > 0.02) pts.push(p(...frame.local(uRad * Math.cos(t), vOff + vRad * Math.sin(t), h)));
+    else if (pts.length) break;
+  }
+  if (pts.length < 2) return '';
+  return `<path d="M${pts.map(pair).join(' L')}" fill="none" ${extra}/>`;
+}
+
 /**
  * Volumetric 3D world-space human figure:
  * - Continuous, seamless 3D torso + legs + feet silhouette (two-pass stroke-then-fill removes
@@ -218,7 +277,7 @@ function human3DMarkup(p, {
   const unifiedBodyMarkup =
     `<g fill="${color}" stroke="${color}" stroke-width="${strokeW}" stroke-linejoin="round">${allBodyPaths}</g>` +
     `<g fill="${fillPaper}" stroke="none">${allBodyPaths}</g>` +
-    `<g fill="${color}" fill-opacity=".08" stroke="none">${allBodyPaths}</g>`;
+    `<g fill="${color}" opacity=".08" stroke="none">${allBodyPaths}</g>`;
 
   // 3. Faceless 3D Spherical Head floating cleanly above shoulders (+ optional 3D Welder Mask)
   const headCenter = local(0, lean * 1.05 + 0.2, headZ);
@@ -248,10 +307,17 @@ function human3DMarkup(p, {
   const frontArms = [];
   const solvedHands = [];
 
+  // Each hand reaches with the arm on its own side of the body, so targets
+  // given in world space never make the arms cross over the chest.
+  const sideOf = pt => (pt[0] - x) * right[0] + (pt[1] - y) * right[1];
+  const swapped = leftTarget && rightTarget && sideOf(leftTarget) > sideOf(rightTarget);
+  const targets = swapped ? [rightTarget, leftTarget] : [leftTarget, rightTarget];
+  const boardHand = swapped ? 1 : 0;
+
   for (const side of [-1, 1]) {
     const shoulder = local(side * 4.25, lean * 0.92, shoulderZ - 0.3);
-    const defaultHand = local(side * 5.2, -side * stride * 2.4 + 0.8, 18.5);
-    const requested = (side < 0 ? leftTarget : rightTarget) || defaultHand;
+    const defaultHand = local(side * 5.0, -side * stride * 2.4 + 0.8, 16.8);
+    const requested = targets[side < 0 ? 0 : 1] || defaultHand;
 
     const delta = sub3(requested, shoulder);
     const dist = len3(delta);
@@ -296,7 +362,7 @@ function human3DMarkup(p, {
       `<g fill="${color}" stroke="${color}" stroke-width="${strokeW}" stroke-linejoin="round">${armPaths}</g>` +
       seam +
       `<g fill="${fillPaper}" stroke="none">${armPaths}</g>` +
-      `<g fill="${color}" fill-opacity=".08" stroke="none">${armPaths}</g>`;
+      `<g fill="${color}" opacity=".08" stroke="none">${armPaths}</g>`;
 
     if (isFrontShoulder || elbowDepth > torsoDepth + 0.5) {
       frontArms.push(armMarkup);
@@ -320,7 +386,7 @@ function human3DMarkup(p, {
 
   // Optional 3D clipboard / inspection board held in left hand (for the head-scratching designer)
   if (holdingBoard && solvedHands.length >= 1) {
-    const lh = solvedHands[0];
+    const lh = solvedHands[boardHand];
     const bCorners = [
       add3(lh, add3(mul3(right, -3.8 * s), add3(mul3(forward, -1.0 * s), [0, 0, -3.5 * s]))),
       add3(lh, add3(mul3(right, 4.2 * s), add3(mul3(forward, 2.0 * s), [0, 0, -3.5 * s]))),
@@ -545,13 +611,8 @@ function card1DynamicMarkup(step) {
 
   let activeBoxPos, boxChecked = false, boxAgent = false;
   let humanX = 99, humanHeading = 0, humanLean = 0.8, humanStride = 0;
-  let leftTarget, rightTarget;
+  let grip = null;
   let robotHeading, robotTarget;
-
-  const boxSideHands = (bx, by, bz) => [
-    [bx, by - 4.2, bz + 4.2],
-    [bx, by + 4.2, bz + 4.2],
-  ];
 
   if (phase < 0.36) {
     const u = smooth(phase / 0.36);
@@ -564,7 +625,7 @@ function card1DynamicMarkup(step) {
       86,
       lerp(15.8, 20.5, Math.sin(u * Math.PI * 0.55)),
     ];
-    [leftTarget, rightTarget] = boxSideHands(...activeBoxPos);
+    grip = activeBoxPos;
 
     robotHeading = lerp(Math.PI * 0.44, -Math.PI * 0.46, u);
     robotTarget = [lerp(150, 122, u), 86, lerp(19.0, 21.0, u)];
@@ -579,7 +640,7 @@ function card1DynamicMarkup(step) {
       lerp(20.5, 21.2, Math.sin(u * Math.PI)),
     ];
     boxChecked = u > 0.3;
-    [leftTarget, rightTarget] = boxSideHands(activeBoxPos[0] - 1.5, activeBoxPos[1], activeBoxPos[2]);
+    grip = [activeBoxPos[0] - 1.5, activeBoxPos[1], activeBoxPos[2]];
 
     robotHeading = -Math.PI * 0.46;
     robotTarget = [activeBoxPos[0] + 1.5, activeBoxPos[1], activeBoxPos[2] + 3.8];
@@ -597,9 +658,7 @@ function card1DynamicMarkup(step) {
     boxChecked = true;
     boxAgent = u > 0.2;
 
-    const reachX = lerp(112, 83, u);
-    const reachZ = lerp(20.0, 16.5, u);
-    [leftTarget, rightTarget] = boxSideHands(reachX, 86, reachZ);
+    // Hands go back to the sides while turning for the next parcel.
 
     robotHeading = lerp(-Math.PI * 0.46, Math.PI * 0.46, u);
     robotTarget = [activeBoxPos[0], activeBoxPos[1], activeBoxPos[2] + 3.8];
@@ -611,7 +670,7 @@ function card1DynamicMarkup(step) {
     activeBoxPos = [lerp(154, 166, u), 86, 15.8];
     boxChecked = true;
     boxAgent = true;
-    [leftTarget, rightTarget] = boxSideHands(83, 86, lerp(16.5, 15.8, u));
+    grip = [83, 86, lerp(16.5, 15.8, u)];
 
     robotHeading = Math.PI * 0.44;
     robotTarget = [lerp(154, 150, u), 86, 19.0];
@@ -619,6 +678,10 @@ function card1DynamicMarkup(step) {
 
   const outX = lerp(166, 206, phase);
   d += parcelBox(card1Iso, outX, 86, 15.8, { checked: true, agent: true });
+
+  // Hold the parcel by its sides as the person sees them, whichever way they face.
+  const handSide = [Math.cos(humanHeading), -Math.sin(humanHeading), 0];
+  const handOn = side => add3([grip[0], grip[1] + 2.5, grip[2] + 4.2], mul3(handSide, side * 5.4));
 
   const humanStr = human3DMarkup(p, {
     id: 'c1-human',
@@ -629,8 +692,8 @@ function card1DynamicMarkup(step) {
     lean: humanLean,
     stride: humanStride,
     color: CORAL,
-    leftTarget,
-    rightTarget,
+    leftTarget: grip ? handOn(-1) : null,
+    rightTarget: grip ? handOn(1) : null,
   });
   const robotStr = robotMarkup(p, {
     x: 135,
@@ -657,137 +720,172 @@ function card1DynamicMarkup(step) {
 // ============================================================================
 const card2Projector = makeProjector({ originX: 266, originY: 162, centerX: 86, centerY: 82, angle: -4, scale: 1.56, pitch: 0.44 });
 const card2Iso = isoPrimitives(card2Projector);
+const card2View = viewToward(-4);
 let card2StaticCache = '';
 
+// Radcliffe door faces the courtyard; the exchange starts on its step.
+const RADCAM = { x: 38, y: 98, door: 14 };
+
+/**
+ * The Radcliffe Camera, tier by tier: plinth, rusticated arcade, the main storey of paired
+ * columns with pedimented windows, balustrade with urns, windowed drum, ribbed dome and lantern.
+ * Only faces turned towards the viewer are drawn, so the rotunda needs no depth sorting.
+ */
 function radcliffeCameraMarkup(p, iso) {
-  const { polygon, line, planLine } = iso;
-  const cx = 38, cy = 98;
+  const { polygon, line } = iso;
+  const { x: cx, y: cy } = RADCAM;
+  const at = (r, a, z) => p(cx + r * Math.cos(a), cy + r * Math.sin(a), z);
+  const facing = a => Math.cos(a) * card2View[0] + Math.sin(a) * card2View[1];
+  const tone = a => (Math.cos(a) * 0.8 - Math.sin(a) * 0.6 > 0.3 ? SHADE : PAPER);
+  const faces = n => Array.from({ length: n }, (_, i) => {
+    const a0 = (i * TAU) / n, a1 = ((i + 1) * TAU) / n;
+    return { i, a0, a1, mid: (a0 + a1) / 2 };
+  }).filter(f => facing(f.mid) > 0.02);
+  // A point on a flat face: fraction t across it, at height z, sitting just proud of radius r.
+  const on = (f, r, t, z) => p(cx + r * lerp(Math.cos(f.a0), Math.cos(f.a1), t), cy + r * lerp(Math.sin(f.a0), Math.sin(f.a1), t), z);
+  const band = (r0, r1, z0, z1, { n = 16, fill, extra = '', decorate } = {}) => faces(n).map(f =>
+    polygon([at(r0, f.a0, z0), at(r0, f.a1, z0), at(r1, f.a1, z1), at(r1, f.a0, z1)], fill || tone(f.mid), extra) + (decorate ? decorate(f) : '')
+  ).join('');
+  const cap = (r, z, n = 16, fill = PAPER, extra = '') => polygon(Array.from({ length: n }, (_, i) => at(r, (i * TAU) / n, z)), fill, extra);
+  const arch = (f, r, t0, t1, z0, spring, rise, fill, extra) => {
+    const pts = [on(f, r, t0, z0)];
+    for (let k = 0; k <= 8; k++) pts.push(on(f, r, lerp(t0, t1, k / 8), spring + rise * Math.sin((Math.PI * k) / 8)));
+    pts.push(on(f, r, t1, z0));
+    return polygon(pts, fill, extra);
+  };
   let out = '';
 
-  const ringPoints = (r, z, n = 16, angleOffset = 0) => {
-    const pts = [];
-    for (let i = 0; i < n; i++) {
-      const a = angleOffset + (i * TAU) / n;
-      pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a), z]);
-    }
-    return pts;
-  };
+  // Plinth and rusticated ground storey with its arcade.
+  out += band(28, 28, 0, 1.6, { extra: 'stroke-width=".8"' }) + cap(28, 1.6);
+  out += band(26, 26, 1.6, 14, {
+    extra: 'stroke-width=".85"',
+    decorate: f => {
+      let d = '';
+      for (const z of [5.4, 9.6]) d += line(on(f, 26.1, 0, z), on(f, 26.1, 1, z), 'stroke-width=".5" stroke-opacity=".45"');
+      if (f.i === RADCAM.door) return d + arch(f, 26.15, .26, .74, 1.6, 8.6, 3.2, GLASS, `fill-opacity=".9" stroke="${CORAL}" stroke-width="1.0"`);
+      return d + (f.i % 2
+        ? arch(f, 26.15, .36, .64, 4.2, 9.0, 1.8, SHADE, 'stroke-width=".6"')
+        : arch(f, 26.15, .26, .74, 1.6, 8.6, 3.2, GLASS, 'fill-opacity=".55" stroke-width=".7"'));
+    },
+  });
+  out += band(26.8, 26.8, 14, 15.4, { extra: 'stroke-width=".75"' }) + cap(26.8, 15.4);
 
-  const cylinderBand = (r0, r1, z0, z1, n = 16, fill = PAPER, shadeFill = SHADE, extra = '') => {
-    const bot = ringPoints(r0, z0, n);
-    const top = ringPoints(r1, z1, n);
-    const quads = [];
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const q = [bot[i], bot[j], top[j], top[i]];
-      const midAngle = ((i + 0.5) * TAU) / n;
-      const depth = q.reduce((s, pt) => s + p(pt[0], pt[1], 0)[1] + 0.25 * pt[2], 0);
-      const isShaded = Math.cos(midAngle - 0.2) > 0.15;
-      quads.push({ q, depth, fill: isShaded ? shadeFill : fill });
-    }
-    quads.sort((a, b) => a.depth - b.depth);
-    let band = quads.map(({ q, fill: f }) => polygon(q.map(pt => p(...pt)), f, extra)).join('');
-    band += polygon(top.map(pt => p(...pt)), PAPER, 'stroke-width=".8"');
-    return band;
-  };
+  // Main storey: paired columns at every angle, pedimented windows alternating with niches.
+  out += band(24.6, 24.6, 15.4, 29.4, {
+    extra: 'stroke-width=".85"',
+    decorate: f => {
+      let d = '';
+      for (const t of [.05, .13, .87, .95]) d += line(on(f, 24.75, t, 15.6), on(f, 24.75, t, 29.2), 'stroke-width=".7"');
+      for (const t of [.09, .91]) d += line(on(f, 24.8, t - .06, 28.4), on(f, 24.8, t + .06, 28.4), 'stroke-width=".7"');
+      if (f.i % 2 === 0) {
+        d += polygon([on(f, 24.8, .33, 18.0), on(f, 24.8, .67, 18.0), on(f, 24.8, .67, 25.2), on(f, 24.8, .33, 25.2)], GLASS, 'fill-opacity=".7" stroke-width=".65"');
+        d += polygon([on(f, 24.9, .3, 25.8), on(f, 24.9, .7, 25.8), on(f, 24.9, .5, 27.4)], PAPER, 'stroke-width=".65"');
+      } else {
+        d += arch(f, 24.8, .4, .6, 18.6, 23.6, 1.4, 'none', 'stroke-width=".55" stroke-opacity=".7"');
+      }
+      return d;
+    },
+  });
 
-  out += cylinderBand(26, 26, 0, 13, 16, PAPER, SHADE, 'stroke-width=".85"');
-  out += cylinderBand(24, 24, 13, 16, 16, PAPER, SHADE, 'stroke-width=".75"');
-
-  const doorAngle = 0.15;
-  const da0 = doorAngle - 0.22, da1 = doorAngle + 0.22;
-  out += polygon(
-    [
-      p(cx + 26.2 * Math.cos(da0), cy + 26.2 * Math.sin(da0), 0),
-      p(cx + 26.2 * Math.cos(da1), cy + 26.2 * Math.sin(da1), 0),
-      p(cx + 26.2 * Math.cos(da1), cy + 26.2 * Math.sin(da1), 11.5),
-      p(cx + 26.2 * Math.cos(da0), cy + 26.2 * Math.sin(da0), 11.5),
-    ],
-    GLASS,
-    'fill-opacity=".85" stroke-width=".95"'
-  );
-
-  out += cylinderBand(21.5, 21.5, 16, 38, 16, PAPER, SHADE, 'stroke-width=".75"');
+  // Entablature, then the balustrade with urns over each pair of columns.
+  out += band(25.8, 25.8, 29.4, 31.4, { extra: 'stroke-width=".8"' }) + cap(25.8, 31.4);
+  out += band(24.8, 24.8, 31.4, 34.0, {
+    extra: 'stroke-width=".7"',
+    decorate: f => [.2, .35, .5, .65, .8].map(t => line(on(f, 24.9, t, 31.8), on(f, 24.9, t, 33.6), 'stroke-width=".45" stroke-opacity=".6"')).join(''),
+  }) + cap(24.8, 34.0);
   for (let i = 0; i < 16; i++) {
     const a = (i * TAU) / 16;
-    if (Math.sin(a) + Math.cos(a) > -0.45) {
-      const w0 = a + 0.09, w1 = a + (TAU / 16) - 0.09;
-      if (Math.sin(w0) + Math.cos(w0) > -0.35) {
-        out += polygon(
-          [
-            p(cx + 21.7 * Math.cos(w0), cy + 21.7 * Math.sin(w0), 19),
-            p(cx + 21.7 * Math.cos(w1), cy + 21.7 * Math.sin(w1), 19),
-            p(cx + 21.7 * Math.cos(w1), cy + 21.7 * Math.sin(w1), 34),
-            p(cx + 21.7 * Math.cos(w0), cy + 21.7 * Math.sin(w0), 34),
-          ],
-          GLASS,
-          'fill-opacity=".55" stroke-width=".55"'
-        );
-      }
-      for (const da of [-0.042, 0.042]) {
-        const x0 = cx + 22.3 * Math.cos(a + da), y0 = cy + 22.3 * Math.sin(a + da);
-        out += line(p(x0, y0, 16), p(x0, y0, 37.5), 'stroke-width=".85"');
-      }
-    }
-  }
-  out += cylinderBand(23.0, 22.0, 38, 41.5, 16, PAPER, SHADE, 'stroke-width=".85"');
-
-  const domeRings = [
-    [20.8, 41.5],
-    [19.2, 47.5],
-    [16.2, 53.5],
-    [11.6, 59.0],
-    [5.8, 63.5],
-  ];
-  for (let r = 0; r < domeRings.length - 1; r++) {
-    const [r0, z0] = domeRings[r];
-    const [r1, z1] = domeRings[r + 1];
-    out += cylinderBand(r0, r1, z0, z1, 16, PAPER, SHADE, 'stroke-width=".65" stroke-opacity=".75"');
-  }
-  for (let i = 0; i < 12; i++) {
-    const a = (i * TAU) / 12;
-    if (Math.sin(a) + Math.cos(a) > -0.4) {
-      const rib = domeRings.map(([rad, z]) => [cx + rad * Math.cos(a), cy + rad * Math.sin(a), z]);
-      out += planLine(rib, 'stroke-width=".75" stroke-opacity=".8"');
-    }
+    if (facing(a) <= 0.05) continue;
+    const [ux, uy] = at(24.6, a, 35.1);
+    out += `<ellipse cx="${number(ux)}" cy="${number(uy)}" rx="1.25" ry="1.6" fill="${PAPER}" stroke-width=".7"/>`;
   }
 
-  out += cylinderBand(4.8, 4.8, 63.5, 71, 8, GLASS, SHADE, 'stroke-width=".8"');
-  out += cylinderBand(5.0, 1.0, 71, 75, 8, PAPER, SHADE, 'stroke-width=".8"');
-  out += line(p(cx, cy, 75), p(cx, cy, 80.5), 'stroke-width="1.1"');
+  // Drum with small windows and buttresses, its cornice, then the ribbed dome.
+  out += band(19.2, 19.2, 34.0, 41.6, {
+    extra: 'stroke-width=".75"',
+    decorate: f => line(on(f, 19.3, 0, 34.2), on(f, 19.3, 0, 41.4), 'stroke-width=".8"') +
+      (f.i % 2 === 0 ? polygon([on(f, 19.3, .36, 36.0), on(f, 19.3, .64, 36.0), on(f, 19.3, .64, 39.6), on(f, 19.3, .36, 39.6)], GLASS, 'fill-opacity=".65" stroke-width=".55"') : ''),
+  });
+  out += band(20.2, 20.2, 41.6, 43.0, { extra: 'stroke-width=".75"' }) + cap(20.2, 43.0);
+  const profile = [0, 16, 32, 48, 62, 76].map(deg => {
+    const t = deg * Math.PI / 180;
+    return [19.2 * Math.cos(t), 43 + 15.2 * Math.sin(t)];
+  });
+  for (let k = 0; k < profile.length - 1; k++) {
+    out += band(profile[k][0], profile[k + 1][0], profile[k][1], profile[k + 1][1], { extra: 'stroke-width=".55" stroke-opacity=".55"' });
+  }
+  for (let i = 0; i < 16; i++) {
+    const a = (i * TAU) / 16;
+    if (facing(a) <= 0.05) continue;
+    out += `<path d="M${profile.map(([r, z]) => pair(at(r, a, z))).join(' L')}" fill="none" stroke-width=".8"/>`;
+  }
+  const top = profile.at(-1);
+  out += cap(top[0], top[1]);
+
+  // Lantern: open colonnade, cap, small dome and finial.
+  out += band(5.0, 5.0, top[1], top[1] + 1.2, { n: 8, extra: 'stroke-width=".7"' });
+  out += band(4.2, 4.2, top[1] + 1.2, top[1] + 6.4, {
+    n: 8,
+    fill: GLASS,
+    extra: 'fill-opacity=".6" stroke-width=".6"',
+    decorate: f => line(on(f, 4.3, 0, top[1] + 1.2), on(f, 4.3, 0, top[1] + 6.4), 'stroke-width=".9"'),
+  });
+  out += band(5.0, 5.0, top[1] + 6.4, top[1] + 7.4, { n: 8, extra: 'stroke-width=".7"' }) + cap(5.0, top[1] + 7.4, 8);
+  out += band(4.4, 2.6, top[1] + 7.4, top[1] + 9.4, { n: 8, extra: 'stroke-width=".6"' });
+  out += band(2.6, 0.6, top[1] + 9.4, top[1] + 10.8, { n: 8, extra: 'stroke-width=".6"' });
+  out += line(at(0, 0, top[1] + 10.8), at(0, 0, top[1] + 14.6), 'stroke-width="1.0"');
+  const [fx, fy] = at(0, 0, top[1] + 14.9);
+  out += `<circle cx="${number(fx)}" cy="${number(fy)}" r=".9" fill="${PAPER}" stroke-width=".7"/>`;
   return out;
 }
 
+/**
+ * Modern office: glazed lobby behind slim columns with a coral-edged entrance canopy,
+ * four floors of ribbon glazing over solid spandrels, a parapet and a louvred plant room.
+ */
+const OFFICE = { x: 104, y: 20, w: 44, d: 40, lobby: 10, floor: 9.5, floors: 4 };
+
 function officeBuildingMarkup(p, iso) {
   const { surface, panelX, panelY, box, line } = iso;
-  const ox = 104, oy = 20, ow = 44, od = 40;
+  const { x: ox, y: oy, w, d, lobby, floor, floors } = OFFICE;
+  const top = lobby + floor * floors;
+  const fy = oy + d, fx = ox + w;
   let out = '';
 
-  const tiers = [
-    { z0: 0, h: 19 },
-    { z0: 19, h: 18 },
-    { z0: 37, h: 18 },
-  ];
-  for (const { z0, h } of tiers) {
-    out += box(ox, oy, ow, od, h, PAPER, PAPER, SHADE, z0, 'stroke-width=".9"');
-    for (let col = 0; col < 3; col++) {
-      const wx = ox + 3.8 + col * 13.0;
-      out += panelX(wx, oy + od + .1, z0 + 2.6, 10.4, h - 4.8, GLASS, 'fill-opacity=".55" stroke-width=".65" stroke-opacity=".75"');
-      out += line(p(wx, oy + od + .15, z0 + h * 0.55), p(wx + 10.4, oy + od + .15, z0 + h * 0.55), 'stroke-width=".5" stroke-opacity=".45"');
-    }
-    for (let col = 0; col < 3; col++) {
-      const wy = oy + 3.5 + col * 11.8;
-      out += panelY(ox + ow + .1, wy, z0 + 2.6, 9.4, h - 4.8, GLASS, 'fill-opacity=".42" stroke-width=".65" stroke-opacity=".75"');
-    }
-    out += box(ox - 0.8, oy - 0.8, ow + 1.6, od + 1.6, 1.5, PAPER, PAPER, SHADE, z0 + h - 0.7, 'stroke-width=".85"');
+  // Lobby: glass box set back behind columns.
+  out += box(ox + 2, oy + 2, w - 4, d - 4, lobby, PAPER, GLASS, GLASS, 0, 'fill-opacity=".75" stroke-width=".8"');
+  for (let x = ox + 7.4; x < fx - 3; x += 7.4) out += line(p(x, fy - 1.9, 0), p(x, fy - 1.9, lobby), 'stroke-width=".5" stroke-opacity=".6"');
+  for (let y = oy + 8; y < fy - 3; y += 8) out += line(p(fx - 1.9, y, 0), p(fx - 1.9, y, lobby), 'stroke-width=".5" stroke-opacity=".6"');
+  out += panelX(ox + 18, fy - 1.85, 0, 8, 7.4, GLASS, `fill-opacity=".95" stroke="${CORAL}" stroke-width=".95"`);
+  out += line(p(ox + 22, fy - 1.8, 0), p(ox + 22, fy - 1.8, 7.4), `stroke="${CORAL}" stroke-width=".7"`);
+  for (const x of [ox, ox + 11, ox + 22, ox + 33, fx - 1.6]) out += box(x, fy - 1.6, 1.6, 1.6, lobby, PAPER, PAPER, SHADE, 0, 'stroke-width=".75"');
+  for (const y of [oy, oy + 13, oy + 26]) out += box(fx - 1.6, y, 1.6, 1.6, lobby, PAPER, PAPER, SHADE, 0, 'stroke-width=".75"');
+
+  // Office floors: solid mass, then ribbon glazing with mullions and a glint on each face.
+  out += box(ox, oy, w, d, floor * floors, PAPER, PAPER, SHADE, lobby, 'stroke-width=".9"');
+  for (let k = 0; k < floors; k++) {
+    const z0 = lobby + k * floor + 2.0, h = floor - 3.6;
+    out += panelX(ox + 1.4, fy + .05, z0, w - 2.8, h, GLASS, 'fill-opacity=".7" stroke-width=".65"');
+    out += panelY(fx + .05, oy + 1.4, z0, d - 2.8, h, GLASS, 'fill-opacity=".55" stroke-width=".65"');
+    for (let x = ox + 1.4 + 4.75; x < fx - 1.5; x += 4.75) out += line(p(x, fy + .1, z0), p(x, fy + .1, z0 + h), 'stroke-width=".45" stroke-opacity=".7"');
+    for (let y = oy + 1.4 + 4.6; y < fy - 1.5; y += 4.6) out += line(p(fx + .1, y, z0), p(fx + .1, y, z0 + h), 'stroke-width=".45" stroke-opacity=".7"');
+    out += line(p(ox + 6 + k * 3, fy + .12, z0 + .8), p(ox + 11 + k * 3, fy + .12, z0 + h - .8), `stroke="${PAPER}" stroke-width=".9" stroke-opacity=".7"`);
+  }
+  // Floor slabs read as thin lines between the glazing bands.
+  for (let k = 1; k < floors; k++) {
+    const z = lobby + k * floor;
+    out += line(p(ox, fy, z), p(fx, fy, z), 'stroke-width=".6"') + line(p(fx, oy, z), p(fx, fy, z), 'stroke-width=".6"');
   }
 
-  out += box(ox + 8, oy + 8, 28, 24, 9, PAPER, PAPER, SHADE, 55.8, 'stroke-width=".85"');
-  out += panelX(ox + 12, oy + 32.1, 57.5, 20, 5.5, GLASS, 'fill-opacity=".55" stroke-width=".6"');
-  out += surface(ox + 12, oy + 12, 20, 16, 65.0, PAPER, `stroke="${CORAL}" stroke-width=".95"`);
+  // Canopy over the entrance.
+  out += box(ox + 15, fy - 1, 14, 6, 0.9, PAPER, PAPER, SHADE, lobby - 1.4, `stroke="${CORAL}" stroke-width=".9"`);
 
-  out += panelX(ox + 14, oy + od + .2, 0, 14, 13.5, GLASS, `fill-opacity=".85" stroke="${CORAL}" stroke-width="1.0"`);
-  out += box(ox + 12, oy + od - 0.4, 18, 5.0, 1.4, PAPER, PAPER, SHADE, 13.5, `stroke="${CORAL}" stroke-width=".85"`);
+  // Parapet, roof deck, plant room with louvres and a coral roof light.
+  out += box(ox, oy, w, d, 1.6, PAPER, PAPER, SHADE, top, 'stroke-width=".85"');
+  out += surface(ox + 1.4, oy + 1.4, w - 2.8, d - 2.8, top + 1.0, SHADE, 'stroke-width=".55"');
+  out += box(ox + 8, oy + 6, 18, 14, 6.5, PAPER, PAPER, SHADE, top + 1.0, 'stroke-width=".8"');
+  for (let z = top + 2.6; z < top + 7; z += 1.2) out += line(p(ox + 9.5, oy + 20.05, z), p(ox + 24.5, oy + 20.05, z), 'stroke-width=".45" stroke-opacity=".7"');
+  out += surface(ox + 30, oy + 22, 8, 10, top + 1.1, GLASS, `fill-opacity=".7" stroke="${CORAL}" stroke-width=".9"`);
   return out;
 }
 
@@ -802,11 +900,13 @@ function card2StaticMarkup() {
   s += polygon([p(160, 10, 0), p(160, 152, 0), p(160, 152, -4.5), p(160, 10, -4.5)], SHADE);
   s += surface(11, 17, 142, 128, .2, 'none', 'stroke-opacity=".18"');
 
+  // Paths worn between the two doors and the table.
+  s += planLine([[62, 84, .3], [76, 74, .3], [92, 66, .3], [126, 64, .3]], 'stroke-dasharray="3 3" stroke-opacity=".4"');
+  s += planLine([[74, 76, .3], [82, 96, .3], [88, 104, .3]], 'stroke-dasharray="3 3" stroke-opacity=".4"');
+  s += planLine([[126, 64, .3], [130, 80, .3], [130, 92, .3]], `stroke="${CORAL}" stroke-dasharray="3 3" stroke-opacity=".45"`);
+
   s += radcliffeCameraMarkup(p, card2Iso);
   s += officeBuildingMarkup(p, card2Iso);
-
-  s += planLine([[64, 98, .3], [84, 88, .3], [96, 104, .3]], 'stroke-dasharray="3 3" stroke-opacity=".48"');
-  s += planLine([[121, 62, .3], [104, 78, .3], [116, 96, .3]], `stroke="${CORAL}" stroke-dasharray="3 3" stroke-opacity=".48"`);
 
   for (const [dx, dy] of [[2, 2], [26, 2], [2, 14], [26, 14]]) {
     s += box(94 + dx, 96 + dy, 1.8, 1.8, 13.0, PAPER, PAPER, SHADE, 0);
@@ -819,6 +919,64 @@ function card2StaticMarkup() {
   return s;
 }
 
+// A form held upright between two hands, facing the way the holder faces.
+function formMarkup(p, centre, heading, colour, scale = 0.66) {
+  const { right, forward } = bodyFrame(0, 0, heading);
+  const c = (u, v, h) => p(...add3(centre, add3(mul3(right, u * scale), add3(mul3(forward, v * scale), [0, 0, h * scale]))));
+  const sheet = [c(-3.2, 0, -2.6), c(3.2, 0, -2.6), c(3.2, 1.4, 2.8), c(-3.2, 1.4, 2.8)];
+  let out = `<polygon points="${points(sheet)}" fill="${PAPER}" stroke="${colour}" stroke-width=".85"/>`;
+  out += `<path d="M${pair(c(-2.2, .9, 1.6))} L${pair(c(2.2, .9, 1.6))} M${pair(c(-2.2, .6, .3))} L${pair(c(1.2, .6, .3))}" fill="none" stroke="${colour}" stroke-width=".55" stroke-opacity=".7"/>`;
+  return out;
+}
+
+/**
+ * A researcher and an operator walk out from their buildings, meet in the courtyard,
+ * swap forms and walk home with each other's paperwork.
+ */
+function exchangeMarkup(p, phase) {
+  const R = { id: 'c2-res-walk', colour: BLUE, home: [62, 84], meet: [80, 69], form: BLUE };
+  const O = { id: 'c2-op-walk', colour: CORAL, home: [126, 64], meet: [90, 64], form: CORAL };
+  const walkOut = smooth((phase - 0.06) / 0.3);
+  const swap = smooth((phase - 0.44) / 0.14);
+  const reach = smooth((phase - 0.38) / 0.06) * (1 - smooth((phase - 0.6) / 0.06));
+  const walkBack = smooth((phase - 0.7) / 0.26);
+  const turned = smooth((phase - 0.64) / 0.06) * (1 - smooth((phase - 0.97) / 0.03));
+  const moving = Math.sin(Math.PI * clamp((phase - 0.06) / 0.3)) + Math.sin(Math.PI * clamp((phase - 0.7) / 0.26));
+
+  const place = who => {
+    const t = walkOut * (1 - walkBack);
+    return [lerp(who.home[0], who.meet[0], t), lerp(who.home[1], who.meet[1], t)];
+  };
+  const rPos = place(R), oPos = place(O);
+  let out = '';
+  for (const [who, pos, other] of [[R, rPos, oPos], [O, oPos, rPos]]) {
+    const outward = Math.atan2(who.meet[0] - who.home[0], who.meet[1] - who.home[1]);
+    const heading = outward + Math.PI * turned;
+    const frame = bodyFrame(pos[0], pos[1], heading);
+    const carrying = frame.local(0, 4.2, 17.2);
+    // During the swap each form travels from one pair of hands to the other's.
+    const mid = [(rPos[0] + oPos[0]) / 2, (rPos[1] + oPos[1]) / 2];
+    const held = [lerp(carrying[0], mid[0], reach * 0.82), lerp(carrying[1], mid[1], reach * 0.82), lerp(17.2, 19.5, reach)];
+    const own = swap < 0.5 ? who.form : (who === R ? O.form : R.form);
+    const handsOn = centre => [add3(centre, mul3(frame.right, -2.0)), add3(centre, mul3(frame.right, 2.0))];
+    const [leftTarget, rightTarget] = handsOn(held);
+    out += human3DMarkup(p, {
+      id: who.id,
+      x: pos[0],
+      y: pos[1],
+      scale: 0.66,
+      heading,
+      lean: 0.6 + reach * 0.5,
+      stride: Math.sin(phase * TAU * 6) * 0.7 * Math.min(1, moving),
+      color: who.colour,
+      leftTarget,
+      rightTarget,
+    });
+    out += formMarkup(p, held, heading, own);
+  }
+  return out;
+}
+
 const card2FrameCache = new Map();
 function card2DynamicMarkup(step) {
   if (card2FrameCache.has(step)) return card2FrameCache.get(step);
@@ -826,6 +984,7 @@ function card2DynamicMarkup(step) {
   const p = card2Projector;
   const { ruledNote } = card2Iso;
 
+  // At the table a researcher and an operator work the same note between them.
   const pass = 0.5 - 0.5 * Math.cos(phase * TAU);
   const arc = Math.sin(phase * TAU);
   const sharedNoteX = lerp(102, 110, pass);
@@ -856,257 +1015,342 @@ function card2DynamicMarkup(step) {
     rightTarget: [121, 96, 15.8 + Math.max(0, arc) * 2.2],
   });
 
-  const walk = 0.5 - 0.5 * Math.cos(phase * TAU);
-  const stride = Math.sin(phase * TAU * 2) * 0.65 * (1 - walk * 0.6);
-  const raise = smooth(Math.max(0, (walk - 0.3) / 0.7));
-
-  const rwX = lerp(74, 83, walk);
-  const rwY = lerp(92, 85, walk);
-  const resWalker = human3DMarkup(p, {
-    id: 'c2-res-walk',
-    x: rwX,
-    y: rwY,
-    scale: 0.66,
-    heading: Math.PI * 0.68,
-    lean: 0.6 + raise * 0.4,
-    stride,
-    color: BLUE,
-    leftTarget: [rwX + 3.5, rwY - 4.2, 14.5 + raise * 3.2],
-    rightTarget: [rwX + 5.2, rwY - 1.5, 14.8 + raise * 3.6],
-    holdingNote: BLUE,
-  });
-
-  const owX = lerp(112, 101, walk);
-  const owY = lerp(66, 74, walk);
-  const opWalker = human3DMarkup(p, {
-    id: 'c2-op-walk',
-    x: owX,
-    y: owY,
-    scale: 0.66,
-    heading: -Math.PI * 0.32,
-    lean: 0.6 + raise * 0.4,
-    stride: -stride,
-    color: CORAL,
-    leftTarget: [owX - 3.5, owY + 4.2, 14.5 + raise * 3.2],
-    rightTarget: [owX - 5.2, owY + 1.5, 14.8 + raise * 3.6],
-    holdingNote: CORAL,
-  });
-
-  const markup = resWalker + opWalker + sharedNote + resLead + opLead;
+  const markup = exchangeMarkup(p, phase) + sharedNote + resLead + opLead;
   card2FrameCache.set(step, markup);
   return markup;
 }
 
 // ============================================================================
 // REDESIGNERS STAGE: "koralli is for the redesigners."
-// 3D Isometric Fish-in-a-Mech-Suit Subsea Workshop:
-// - Seated 3D Aquatic Mech Suit with water-filled glass dome cockpit & coral fish swimming inside
-// - Human 1 holding a board and scratching his head while examining the mech
-// - Human 2 wearing a welder mask with a blowtorch repairing the mech joint with sparks
-// - Human 3 walking organically between the pressure telemetry stand and the mech
+// A fish's diving exosuit, broken down and sat on a maintenance crate, built from the
+// same rounded capsule forms as the people so the suit and its makers read as one family:
+// - Cracked glass dome, water-filled, with the coral fish still inside
+// - Researcher with a clipboard, scratching their head
+// - Welder at the open shoulder socket, the dead arm hanging beside them
+// - Engineer standing back, hand at the chin, thinking it over
 // ============================================================================
 const mechProjector = makeProjector({ originX: 290, originY: 168, centerX: 98, centerY: 86, angle: -10, scale: 1.82, pitch: 0.43 });
 const mechIso = isoPrimitives(mechProjector, { paper: DEEP_BG, shade: DEEP_SHADE });
-let mechStaticCache = '';
+const MECH_FILL = '#14295A';
+const MECH_LIT = '#1C3A78';
 
-function mechStaticMarkup() {
-  if (mechStaticCache) return mechStaticCache;
+const mechView = viewToward(-10);
+const mechFrame = (x, y, heading) => bodyFrame(x, y, heading);
+const MECH = mechFrame(98, 80, 0.32);
+// +1 when the suit's right side faces the viewer.
+const MECH_NEAR = Math.sign(dot3(MECH.right, mechView));
+const MECH_STYLE = { fill: MECH_FILL, stroke: DEEP_LINE };
+
+const mechCapsule = (a, rA, b, rB, opts) => capsule(mechProjector, a, rA, b, rB, { ...MECH_STYLE, ...opts });
+const mechBall = (c, r, opts) => ball(mechProjector, c, r, { ...MECH_STYLE, ...opts });
+const mechShell = (rings, opts) => shell(mechProjector, MECH, rings, { ...MECH_STYLE, ...opts });
+const mechVisibleArc = (h, uRad, vRad, vOff, extra) => visibleArc(mechProjector, MECH, mechView, h, uRad, vRad, vOff, extra);
+
+// The suit sits slumped on a maintenance crate, so every height is measured from the deck.
+const SEAT = 11;
+const SLUMP = 0.2;
+const TORSO_RINGS = [[16.5, 7.6, 5.6], [21.5, 10.0, 6.8], [28.0, 10.8, 7.3], [33.5, 9.8, 6.8], [36.6, 7.4, 5.4]]
+  .map(([h, u, v]) => [h, u, v, (h - 16.5) * SLUMP]);
+const lean = h => (h - 16.5) * SLUMP;
+
+// Shoulder, elbow and wrist positions are given directly: the arms are posed, not reaching.
+function mechArmMarkup(shoulder, elbow, hand, grip) {
+  const dir = unit3(sub3(hand, elbow));
+  let up = sub3([0, 0, 1], mul3(dir, dir[2]));
+  up = len3(up) < 0.2 ? MECH.forward : unit3(up);
+  let out = '';
+  out += mechCapsule(shoulder, 2.5, elbow, 2.4);
+  out += mechBall(elbow, 3.0, { fill: MECH_LIT });
+  out += mechCapsule(add3(elbow, mul3(dir, 1.6)), 2.6, add3(hand, mul3(dir, -1.2)), 3.3);
+  out += mechCapsule(add3(hand, mul3(dir, -1.4)), 3.4, hand, 3.4, { stroke: CORAL, width: 1.05 });
+  for (const jaw of [1, -1]) {
+    const base = add3(hand, mul3(dir, 1.2));
+    const knuckle = add3(add3(hand, mul3(dir, 4.8)), mul3(up, jaw * (1.2 + grip * 2.0)));
+    const tip = add3(add3(hand, mul3(dir, 8.2)), mul3(up, jaw * (0.3 + grip * 1.1)));
+    out += mechCapsule(base, 1.35, knuckle, 1.2);
+    out += mechCapsule(knuckle, 1.2, tip, 0.75);
+  }
+  return out;
+}
+
+// Seated leg: thigh forward along the crate, shin down to a fin flat on the deck.
+function mechLegMarkup(side) {
+  const { local } = MECH;
+  const u = side * 6.2;
+  const hip = local(u, 0.5, SEAT + 3.2);
+  const knee = local(u + side * 0.8, 12.5, SEAT + 3.6);
+  const ankle = local(u + side * 1.2, 15.5, 3.4);
+  const toe = local(u + side * 1.3, 18.6, 2.0);
+  let out = '';
+  const fin = [[-2.6, 15.6], [2.6, 15.6], [4.6, 27.4], [1.4, 25.2], [0, 26.6], [-1.4, 25.2], [-4.6, 27.4]]
+    .map(([du, v]) => mechProjector(...local(u + side * 1.3 + du, v, 0.5)));
+  out += `<polygon points="${points(fin)}" fill="${AQUA}" fill-opacity=".16" stroke="${AQUA}" stroke-width=".9"/>`;
+  out += mechCapsule(ankle, 2.6, toe, 2.3);
+  out += mechCapsule(knee, 3.0, ankle, 2.5);
+  out += mechCapsule(hip, 3.5, knee, 3.1);
+  out += mechBall(add3(knee, mul3(MECH.forward, 1.6)), 2.5, { fill: MECH_LIT });
+  const [kx, ky] = mechProjector(...add3(knee, add3(mul3(MECH.forward, 3.6), [0, 0, 0.4])));
+  out += `<circle cx="${number(kx)}" cy="${number(ky)}" r="1.2" fill="${CORAL}" stroke="none"/>`;
+  return out;
+}
+
+let mechBackCache = '';
+let mechBodyCache = '';
+
+// Deck, console and gas bottles: everything the thinking engineer can stand in front of.
+function mechBackMarkup() {
+  if (mechBackCache) return mechBackCache;
   const p = mechProjector;
-  const { polygon, line, planLine, surface, panelX, panelY, box } = mechIso;
+  const { polygon, line, planLine, surface, panelX, box } = mechIso;
+  const { local } = MECH;
   let s = '';
 
-  // 1. Subsea Engineering Deck Platform (x = 16..184, y = 36..136)
   s += surface(16, 36, 168, 100, 0, DEEP_BG);
   s += polygon([p(16, 136, 0), p(184, 136, 0), p(184, 136, -4.5), p(16, 136, -4.5)], DEEP_SHADE);
   s += polygon([p(184, 36, 0), p(184, 136, 0), p(184, 136, -4.5), p(184, 36, -4.5)], DEEP_SHADE);
   s += surface(23, 43, 154, 86, .2, 'none', 'stroke-opacity=".24"');
 
-  // 2. Back-Left Deep-Water Pressure Telemetry Console (x = 24..38, y = 44..58)
+  // Back-left telemetry console, showing a fault trace.
   s += box(24, 44, 14, 14, 18, DEEP_BG, DEEP_BG, DEEP_SHADE, 0);
   s += panelX(26, 58.2, 4, 10, 10, DEEP_GLASS, 'fill-opacity=".65" stroke-width=".75"');
-  s += line(p(28, 58.3, 10), p(34, 58.3, 12), `stroke="${AQUA}" stroke-width=".85"`);
-  s += line(p(28, 58.3, 7), p(33, 58.3, 7), `stroke="${CORAL}" stroke-width=".85"`);
+  s += planLine([[28, 58.3, 9], [29.5, 58.3, 9], [30.5, 58.3, 12], [31.5, 58.3, 6.5], [32.5, 58.3, 9], [34, 58.3, 9]], `stroke="${CORAL}" stroke-width=".85"`);
+  s += line(p(28, 58.3, 6), p(32, 58.3, 6), `stroke="${AQUA}" stroke-width=".85"`);
 
-  // Back-Right Subsea Calibration Bench (x = 154..170, y = 46..58)
-  s += box(154, 46, 16, 12, 12, DEEP_BG, DEEP_BG, DEEP_SHADE, 0);
-  s += surface(156, 48, 12, 8, 12.15, DEEP_GLASS, 'fill-opacity=".55" stroke-width=".7"');
+  s += planLine([[38, 54, .3], [62, 66, .3], [84, 74, .3]], 'stroke-dasharray="3 3" stroke-opacity=".48"');
 
-  // Hydraulic umbilical conduits across the deck to the central Mech Cradle
-  s += planLine([[38, 52, .3], [66, 62, .3], [82, 72, .3]], 'stroke-dasharray="3 3" stroke-opacity=".48"');
-  s += planLine([[154, 54, .3], [132, 62, .3], [114, 74, .3]], `stroke="${CORAL}" stroke-dasharray="3 3" stroke-opacity=".48"`);
-
-  // 3. Central Mech Docking Seat / Fabrication Cradle (x = 82..114, y = 62..88, z = 0..13)
-  s += box(80, 60, 36, 30, 3.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 0);
-  s += box(85, 63, 26, 20, 10.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 3.5);
-  // Rear gantry frame behind the seated mech
-  s += box(88, 56, 4, 4, 42, DEEP_BG, DEEP_BG, DEEP_SHADE, 3.5);
-  s += box(104, 56, 4, 4, 42, DEEP_BG, DEEP_BG, DEEP_SHADE, 3.5);
-  s += box(87, 55, 22, 6, 3.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 45.5);
-
-  // 4. Seated 3D Aquatic Mech Suit Chassis (sitting on the cradle at x = 98, y = 76)
-  // Pelvis block on seat (z = 14..19)
-  s += box(87, 68, 22, 16, 5.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 14.0);
-  // Seated Left & Right Mechanical Thighs extending forward (+y = 82..98, z = 14.5..19.5)
-  for (const lx of [87.5, 101.5]) {
-    s += box(lx, 82, 7.0, 15.0, 5.2, DEEP_BG, DEEP_BG, DEEP_SHADE, 14.2);
-    // Lower armored shins dropping vertically down from knees (y = 93..100, z = 3.0..15.0)
-    s += box(lx + 0.5, 93, 6.0, 6.8, 11.8, DEEP_BG, DEEP_BG, DEEP_SHADE, 3.0);
-    // Articulated hydro-fin dive boots resting flat on the deck (y = 93..107, z = 0..3.2)
-    s += box(lx, 93, 7.0, 13.5, 3.2, DEEP_BG, DEEP_BG, DEEP_SHADE, 0.2, `stroke="${AQUA}" stroke-width=".85"`);
-    // Knee servo drum ring
-    const [kx, ky] = p(lx + 3.5, 96.5, 15.5);
-    s += `<circle cx="${kx}" cy="${ky}" r="4.2" fill="${DEEP_SHADE}" stroke="${DEEP_LINE}" stroke-width=".95"/>`;
-    s += `<circle cx="${kx}" cy="${ky}" r="1.6" fill="${CORAL}" stroke="none"/>`;
+  // Welding gas bottles behind the welder; the hose to the torch is drawn with the welder.
+  for (const [i, colour] of [CORAL, DEEP_LINE].entries()) {
+    const base = local(MECH_NEAR * (26.5 + i * 4.6), -4.5 - i * 1.4, 0);
+    s += mechCapsule(add3(base, [0, 0, 2.6]), 2.5, add3(base, [0, 0, 13.0]), 2.5);
+    s += mechCapsule(add3(base, [0, 0, 13.6]), 1.2, add3(base, [0, 0, 15.6]), 0.9, { stroke: colour, width: 1.0 });
   }
 
-  // Main Pressurized Dive Torso (x = 85..111, y = 66..86, z = 19.5..35.5)
-  s += box(85, 66, 26, 20, 16.0, DEEP_BG, DEEP_BG, DEEP_SHADE, 19.5, 'stroke-width="1.0"');
-  // Chest viewport plate & depth pressure ribs
-  s += panelX(89, 86.2, 22.5, 18, 10.0, DEEP_GLASS, 'fill-opacity=".55" stroke-width=".8"');
-  s += line(p(89, 86.3, 27.5), p(107, 86.3, 27.5), 'stroke-width=".75" stroke-opacity=".75"');
-  // Brass/Coral neck seal collar ring at z = 35.5..38.0 supporting the water dome
-  s += box(88, 69, 20, 14, 2.6, DEEP_SHADE, DEEP_SHADE, DEEP_SHADE, 35.5, `stroke="${CORAL}" stroke-width=".95"`);
-
-  // Left & Right Heavy Mechanical Arms in Seated Calibration Pose
-  // Left Mech Arm (x = 79..85)
-  s += box(79.5, 70, 5.5, 8.0, 6.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 28.5);
-  s += box(80.0, 72, 4.5, 6.0, 9.0, DEEP_BG, DEEP_BG, DEEP_SHADE, 19.5);
-  s += box(80.0, 76, 4.8, 13.0, 4.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 18.5);
-  // Right Mech Arm (x = 111..116.5 — being calibrated/repaired by the Welder!)
-  s += box(111.0, 70, 5.5, 8.0, 6.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 28.5);
-  s += box(111.5, 72, 4.5, 6.0, 9.0, DEEP_BG, DEEP_BG, DEEP_SHADE, 19.5);
-  s += box(111.2, 76, 4.8, 13.5, 4.5, DEEP_BG, DEEP_BG, DEEP_SHADE, 18.5, `stroke="${CORAL}" stroke-width=".95"`);
-
-  mechStaticCache = s;
+  mechBackCache = s;
   return s;
 }
 
+// The crate and every fixed part of the slumped suit.
+function mechBodyMarkup() {
+  if (mechBodyCache) return mechBodyCache;
+  const p = mechProjector;
+  const { panelX, box } = mechIso;
+  const { local } = MECH;
+  const near = MECH_NEAR, far = -MECH_NEAR;
+  let s = '';
+
+  // Maintenance crate the suit has been sat down on.
+  s += box(88, 70, 21, 15, SEAT, DEEP_BG, DEEP_BG, DEEP_SHADE, 0);
+  s += panelX(91, 85.1, 3.5, 15, 2.2, CORAL, 'fill-opacity=".5" stroke="none"');
+
+  // Thruster tanks, far shoulder and the far arm resting on its knee.
+  for (const side of [far, near]) {
+    s += mechCapsule(local(side * 4.4, -7.4 + lean(18), 18), 3.1, local(side * 4.4, -7.4 + lean(34), 34), 3.1);
+    s += mechCapsule(local(side * 4.4, -7.4, 15.4), 2.2, local(side * 4.4, -7.4, 17.0), 2.6, { stroke: AQUA, width: .9 });
+  }
+  const farShoulder = local(far * 12.0, lean(31.5), 31.5);
+  s += mechBall(add3(farShoulder, [0, 0, 0.8]), 4.3);
+  s += mechArmMarkup(farShoulder, local(far * 13.4, 4.5 + lean(22), 21.5), local(far * 8.2, 13.0, SEAT + 7.6), 0.3);
+
+  s += mechLegMarkup(far);
+  s += mechLegMarkup(near);
+
+  s += mechShell([[SEAT + 0.6, 6.8, 4.8], [SEAT + 3.8, 7.8, 5.4], [SEAT + 6.2, 7.0, 5.0]]);
+  s += mechShell(TORSO_RINGS);
+
+  // Hull detailing: seams, coral depth stripe and lamps.
+  s += mechVisibleArc(18.8, 8.6, 6.1, lean(18.8), `stroke="${DEEP_LINE}" stroke-width=".7" stroke-opacity=".7"`);
+  s += mechVisibleArc(24.2, 10.45, 7.05, lean(24.2), `stroke="${CORAL}" stroke-width="1.6"`);
+  s += mechVisibleArc(32.2, 10.15, 7.0, lean(32.2), `stroke="${DEEP_LINE}" stroke-width=".7" stroke-opacity=".7"`);
+  for (const side of [-1, 1]) {
+    s += mechBall(local(side * 6.2, 6.2 + lean(34.4), 34.4), 1.25, { fill: DEEP_SHADE, stroke: DEEP_LINE, width: .7 });
+  }
+
+  // Open service hatch on the chest: wiring spilling out, door swung wide.
+  const front = h => 7.1 + lean(h);
+  const hatch = [[-1.0, 21.4], [5.6, 21.4], [5.6, 29.0], [-1.0, 29.0]].map(([u, h]) => p(...local(u, front(h) + 0.3, h)));
+  s += `<polygon points="${points(hatch)}" fill="${DEEP_BG}" stroke="${DEEP_LINE}" stroke-width=".9"/>`;
+  const wire = (pts, colour) => `<path d="M${pts.map(([u, h, dv]) => pair(p(...local(u, front(h) + 0.4 + dv, h)))).join(' L')}" fill="none" stroke="${colour}" stroke-width=".95"/>`;
+  s += wire([[0.4, 27.5, 0], [1.4, 25.0, 1.2], [0.9, 22.0, 2.6], [1.8, 19.4, 3.6]], CORAL);
+  s += wire([[2.6, 27.8, 0], [3.4, 25.6, 1.0], [4.4, 23.8, 2.2], [3.6, 21.0, 3.4]], AQUA);
+  s += wire([[4.4, 26.4, 0], [5.0, 24.6, 0.8], [6.8, 23.6, 1.6]], DEEP_LINE);
+  const swing = 0.6;
+  const door = [[21.4, 0], [29.0, 0], [29.0, 6.6], [21.4, 6.6]].map(([h, w]) => p(...local(5.6 + Math.cos(swing) * w, front(h) + 0.3 + Math.sin(swing) * w, h)));
+  s += `<polygon points="${points(door)}" fill="${MECH_LIT}" stroke="${DEEP_LINE}" stroke-width=".9"/>`;
+
+  // Collar that seats the dome.
+  const collar = (h, r) => Array.from({ length: 28 }, (_, i) => p(...local(r * Math.cos((TAU * i) / 28), 0.6 + lean(h) + r * Math.sin((TAU * i) / 28), h)));
+  s += `<polygon points="${points(collar(36.8, 7.9))}" fill="${MECH_LIT}" stroke="${CORAL}" stroke-width="1.15"/>`;
+  s += `<polygon points="${points(collar(37.8, 7.0))}" fill="${MECH_FILL}" stroke="${CORAL}" stroke-width=".8"/>`;
+
+  // Near side: the shoulder pad is off and on the deck, the arm hangs dead from an open socket.
+  const padAt = local(near * 17.5, 19.0, 0);
+  const pad = bodyFrame(padAt[0], padAt[1], 1.1);
+  s += shell(p, pad, [[0.3, 5.0, 4.4], [2.4, 4.4, 3.9], [4.0, 2.8, 2.5], [4.6, 1.2, 1.1]], MECH_STYLE);
+  s += visibleArc(p, pad, mechView, 0.6, 5.0, 4.4, 0, `stroke="${CORAL}" stroke-width="1.0"`);
+  const socket = local(near * 11.4, lean(31.5), 31.5);
+  const [sx, sy] = p(...socket);
+  s += `<circle cx="${number(sx)}" cy="${number(sy)}" r="3.6" fill="${DEEP_BG}" stroke="${CORAL}" stroke-width="1.0"/>`;
+  s += mechArmMarkup(add3(socket, mul3(MECH.right, near * 1.2)), local(near * 16.5, 0.5, 17.5), local(near * 19.5, -4.0, 3.6), 0.15);
+  const cable = [socket, local(near * 15.5, 3.0, 26.0), local(near * 17.0, 1.5, 19.0)].map(pt => p(...pt));
+  s += `<path d="M${pair(cable[0])} Q${pair(cable[1])} ${pair(cable[2])}" fill="none" stroke="${AQUA}" stroke-width=".9"/>`;
+  for (const [u, v] of [[23, 21], [13.5, 27], [21, 26]]) {
+    const [bx, by] = p(...local(near * u, v, 0.4));
+    s += `<circle cx="${number(bx)}" cy="${number(by)}" r="1.1" fill="${DEEP_SHADE}" stroke="${DEEP_LINE}" stroke-width=".6"/>`;
+  }
+
+  mechBodyCache = s;
+  return s;
+}
+
+function mechDomeMarkup(phase) {
+  const p = mechProjector;
+  const centre = MECH.local(0, 0.6 + lean(45.6), 45.6);
+  const r = 8.8;
+  const outline = roundedPath(p.sphereOutline(centre, r, 28));
+  const [dcx, dcy] = p(...centre);
+  let d = `<path d="${outline}" fill="${DEEP_GLASS}" fill-opacity=".62" stroke="none"/>`;
+
+  // Water line near the top of the dome.
+  const waterH = 4.2 + Math.sin(phase * TAU) * 0.35;
+  const waterR = Math.sqrt(r * r - waterH * waterH) * 0.96;
+  const ring = [];
+  for (let i = 0; i < 20; i++) {
+    const a = (i * TAU) / 20;
+    ring.push(p(centre[0] + waterR * Math.cos(a), centre[1] + waterR * Math.sin(a), centre[2] + waterH + 0.3 * Math.sin(a * 3 + phase * TAU * 2)));
+  }
+  d += `<polygon points="${points(ring)}" fill="${AQUA}" fill-opacity=".16" stroke="${AQUA}" stroke-width=".6" stroke-opacity=".7"/>`;
+
+  for (let b = 0; b < 3; b++) {
+    const u = (phase * 1.5 + b * 0.33) % 1;
+    const [bx, by] = p(centre[0] + (b - 1) * 3 + Math.sin(u * TAU + b) * 0.9, centre[1] + (b % 2 ? 1.6 : -1.4), lerp(centre[2] - 6, centre[2] + 3.8, u));
+    d += `<circle cx="${number(bx)}" cy="${number(by)}" r="${number(0.9 + (1 - u) * 0.4)}" fill="none" stroke="${AQUA}" stroke-width=".65" stroke-opacity="${number(0.85 - u * 0.5)}"/>`;
+  }
+
+  // The coral fish, nosing anxiously at the glass while the suit is repaired.
+  const swim = phase * TAU;
+  const fx = dcx + Math.cos(swim) * 4.6;
+  const fy = dcy + 2.4 + Math.sin(swim * 2) * 2.0;
+  const dir = Math.sin(swim) >= 0 ? -1 : 1;
+  const wag = Math.sin(phase * TAU * 6) * 1.8;
+  const k = 0.8;
+  const body = [
+    [7.4, 0], [2.6, -4.0], [-3.8, -2.4], [-6.2, -0.8 + wag * 0.3], [-9.8, -4.0 + wag], [-7.8, wag * 0.5],
+    [-9.8, 4.0 + wag], [-6.2, 0.8 + wag * 0.3], [-3.8, 2.4], [2.6, 4.0],
+  ].map(([u, v]) => [fx + dir * u * k, fy + v * k]);
+  d += `<polygon points="${points(body)}" fill="${CORAL}" stroke="${PAPER}" stroke-width=".6"/>`;
+  d += `<circle cx="${number(fx + dir * 3.6)}" cy="${number(fy - 0.7)}" r=".85" fill="${PAPER}" stroke="none"/>`;
+
+  // Glass: a meridian, a hairline crack, a glint and the rim.
+  const meridian = [];
+  for (let i = 0; i <= 14; i++) {
+    const phi = (i / 14) * Math.PI;
+    meridian.push(p(...add3(centre, add3(mul3(MECH.right, r * Math.cos(phi) * 0.42), [0, 0, r * Math.sin(phi) * 0.98]))));
+  }
+  d += `<path d="M${meridian.map(pair).join(' L')}" fill="none" stroke="${DEEP_LINE}" stroke-width=".6" stroke-opacity=".5"/>`;
+  const crack = [[0.62, 0.34], [0.44, 0.18], [0.5, -0.02], [0.3, -0.16], [0.36, -0.36]].map(([a, b]) => [dcx + a * r * 1.64, dcy + b * r * 1.64]);
+  d += `<path d="M${crack.map(pair).join(' L')}" fill="none" stroke="${PAPER}" stroke-width=".7" stroke-opacity=".75"/>`;
+  const glint = [];
+  for (let i = 0; i <= 8; i++) {
+    const a = Math.PI * (1.08 + i * 0.05);
+    glint.push([dcx + Math.cos(a) * r * 1.25, dcy + Math.sin(a) * r * 1.1]);
+  }
+  d += `<path d="M${glint.map(pair).join(' L')}" fill="none" stroke="${PAPER}" stroke-width="1.1" stroke-opacity=".55" stroke-linecap="round"/>`;
+  d += `<path d="${outline}" fill="none" stroke="${AQUA}" stroke-width="1.2"/>`;
+  return d;
+}
+
+const mechBackFrameCache = new Map();
 const mechFrameCache = new Map();
+
+// An engineer stands back behind the suit, one arm folded, hand at the chin, thinking it over.
+function mechThinkerMarkup(step) {
+  if (mechBackFrameCache.has(step)) return mechBackFrameCache.get(step);
+  const phase = (step % 80) / 80;
+  const [tx, ty] = [58, 58];
+  const heading = Math.atan2(98 - tx, 80 - ty);
+  const frame = mechFrame(tx, ty, heading);
+  const ponder = Math.sin(phase * TAU);
+  const out = human3DMarkup(mechProjector, {
+    id: 'mech-thinker',
+    x: tx,
+    y: ty,
+    scale: 0.76,
+    heading: heading + 0.1 * ponder,
+    lean: 0.3 + 0.12 * ponder,
+    color: DEEP_LINE,
+    fillPaper: DEEP_BG,
+    shadowColor: DEEP_SHADE,
+    leftTarget: frame.local(0.4, 3.8, 20.5),
+    rightTarget: frame.local(0.8, 3.2, 26.6 + 0.3 * ponder),
+  });
+  mechBackFrameCache.set(step, out);
+  return out;
+}
+
 function mechDynamicMarkup(step) {
   if (mechFrameCache.has(step)) return mechFrameCache.get(step);
   const phase = (step % 80) / 80;
   const p = mechProjector;
+  const { local } = MECH;
+  const near = MECH_NEAR;
+  const facing = (x, y, tx, ty) => Math.atan2(tx - x, ty - y);
 
-  let d = '';
+  let d = mechDomeMarkup(phase);
 
-  // 1. Water-Filled Spherical Glass Dome Cockpit (centered at cx = 98, cy = 76, cz = 46.5, r = 11.2)
-  //    with the Coral Reef Fish swimming in a smooth 3D orbit inside the water!
-  const domeCenter = [98, 76, 46.5];
-  const domeOutline = roundedPath(p.sphereOutline(domeCenter, 11.2, 24));
-  const [dcx, dcy] = p(...domeCenter);
-
-  // Translucent water fill inside the cockpit dome
-  d += `<path d="${domeOutline}" fill="${DEEP_GLASS}" fill-opacity=".58" stroke="${AQUA}" stroke-width="1.15"/>`;
-
-  // Elliptical water surface ripple near the top of the dome + rising bubbles
-  const waterZ = 52.8 + Math.sin(phase * TAU) * 0.4;
-  const waterRing = [];
-  for (let i = 0; i < 16; i++) {
-    const a = (i * TAU) / 16;
-    waterRing.push(p(98 + 8.6 * Math.cos(a), 76 + 8.6 * Math.sin(a), waterZ + 0.35 * Math.sin(a * 3 + phase * TAU * 2)));
-  }
-  d += `<polygon points="${points(waterRing)}" fill="${AQUA}" fill-opacity=".18" stroke="${AQUA}" stroke-width=".65" stroke-opacity=".75"/>`;
-
-  // Rising air bubbles inside the water cockpit
-  for (let b = 0; b < 3; b++) {
-    const bu = ((phase * 1.5 + b * 0.33) % 1);
-    const bx = 98 + (b - 1) * 3.8 + Math.sin(bu * TAU + b) * 1.1;
-    const by = 76 + (b % 2 ? 2.2 : -2.0);
-    const bz = lerp(40.5, 52.0, bu);
-    const [sbx, sby] = p(bx, by, bz);
-    d += `<circle cx="${sbx}" cy="${sby}" r="${number(1.1 + (1 - bu) * 0.5)}" fill="none" stroke="${AQUA}" stroke-width=".7" stroke-opacity="${number(0.85 - bu * 0.5)}"/>`;
+  // A stray spark now and then from the open hatch.
+  const flicker = (phase * 5) % 1;
+  if (flicker < 0.18) {
+    const [hx, hy] = p(...local(1.6, 7.6 + lean(23), 23));
+    d += `<circle cx="${number(hx)}" cy="${number(hy)}" r="${number(1.4 - flicker * 5)}" fill="${SPARK}" stroke="none"/>`;
   }
 
-  // Coral Reef Fish (#FF6655) swimming happily inside the water-filled cockpit!
-  const swimAngle = phase * TAU;
-  const fx = dcx + Math.cos(swimAngle) * 7.2;
-  const fy = dcy + 1.5 + Math.sin(swimAngle * 2) * 3.2;
-  const dir = Math.sin(swimAngle) >= 0 ? -1 : 1;
-  const wag = Math.sin(phase * TAU * 4) * 2.2;
-  const fishBody = [
-    [fx + dir * 7.4, fy],
-    [fx + dir * 2.6, fy - 4.0],
-    [fx - dir * 3.8, fy - 2.4],
-    [fx - dir * 6.2, fy - 0.8 + wag * 0.3],
-    [fx - dir * 9.8, fy - 4.0 + wag],
-    [fx - dir * 7.8, fy + wag * 0.5],
-    [fx - dir * 9.8, fy + 4.0 + wag],
-    [fx - dir * 6.2, fy + 0.8 + wag * 0.3],
-    [fx - dir * 3.8, fy + 2.4],
-    [fx + dir * 2.6, fy + 4.0],
-  ];
-  d += `<polygon points="${points(fishBody)}" fill="${CORAL}" stroke="${PAPER}" stroke-width=".65"/>`;
-  d += `<circle cx="${number(fx + dir * 4.4)}" cy="${number(fy - 0.8)}" r="1.0" fill="${PAPER}" stroke="none"/>`;
-
-  // Front geodesic glass meridian arch & specular highlight over the dome
-  const meridian = [];
-  for (let i = 0; i <= 12; i++) {
-    const phi = (i / 12) * Math.PI;
-    meridian.push(p(98 + 11.2 * Math.cos(phi) * 0.7, 76 + 11.2 * Math.cos(phi) * 0.7, 46.5 + 11.2 * Math.sin(phi)));
-  }
-  d += `<path d="${meridian.map((pt, i) => `${i ? 'L' : 'M'}${pair(pt)}`).join(' ')}" fill="none" stroke="${DEEP_LINE}" stroke-width=".75" stroke-opacity=".68"/>`;
-  d += `<path d="${domeOutline}" fill="none" stroke="${DEEP_LINE}" stroke-width="1.15"/>`;
-
-  // 2. Human 1 (Front-Left at x = 60, y = 104):
-  //    Holding an inspection board in his left hand & scratching his head with his right hand!
-  const scratchOsc = Math.sin(phase * TAU * 3);
-  const thinker = human3DMarkup(p, {
-    id: 'mech-thinker',
-    x: 60,
-    y: 104,
-    scale: 0.78,
-    heading: Math.PI * 0.30,
-    lean: 0.45 + 0.2 * Math.sin(phase * TAU),
-    color: CORAL,
-    fillPaper: DEEP_BG,
-    shadowColor: DEEP_SHADE,
-    leftTarget: [65.5, 98.5, 22.0 + 0.6 * Math.sin(phase * TAU)],
-    rightTarget: [59.2 + scratchOsc * 0.8, 104.2 - scratchOsc * 0.8, 33.8 + Math.abs(scratchOsc) * 1.1],
-    holdingBoard: true,
-  });
-
-  // 3. Human 2 (Front-Right at x = 136, y = 96):
-  //    Wearing a 3D Welder Mask & holding a Blowtorch with sparks repairing the mech's right joint!
+  // Welder at the open shoulder socket, torch on the joint.
+  const weld = local(near * 11.4, lean(31.5) + 1.5, 31.5);
+  const wx = weld[0] + MECH.right[0] * near * 11 + MECH.forward[0] * 4;
+  const wy = weld[1] + MECH.right[1] * near * 11 + MECH.forward[1] * 4;
+  const welderFrame = mechFrame(wx, wy, facing(wx, wy, weld[0], weld[1]));
   const weldOsc = Math.sin(phase * TAU * 2);
+  const valve = p(...local(near * 26.5, -4.5, 15.6));
+  const grip = p(...welderFrame.local(0, 5.0, 22.5 + weldOsc * 0.5));
+  const sag = p(...local(near * 25.5, 4.0, 0.4));
+  d += `<path d="M${pair(valve)} C${pair([valve[0], sag[1]])} ${pair(sag)} ${pair(grip)}" fill="none" stroke="${CORAL}" stroke-width=".9" stroke-opacity=".85"/>`;
   const welder = human3DMarkup(p, {
     id: 'mech-welder',
-    x: 136,
-    y: 96,
+    x: wx,
+    y: wy,
     scale: 0.78,
-    heading: -Math.PI * 0.42,
-    lean: 1.25 + 0.2 * weldOsc,
+    heading: facing(wx, wy, weld[0], weld[1]),
+    lean: 1.1 + 0.15 * weldOsc,
     color: CORAL,
     fillPaper: DEEP_BG,
     shadowColor: DEEP_SHADE,
     welderMask: true,
-    leftTarget: [122.5, 90.5, 20.2 + weldOsc * 0.6],
-    rightTarget: [123.5, 93.5, 20.6 + weldOsc * 0.6],
-    blowtorchTarget: [115.5, 87.5, 20.5 + weldOsc * 0.5],
+    leftTarget: welderFrame.local(-1.4, 6.0, 23.5 + weldOsc * 0.5),
+    rightTarget: welderFrame.local(1.4, 6.0, 23.5 + weldOsc * 0.5),
+    blowtorchTarget: weld,
     sparkPhase: phase,
   });
 
-  // 4. Human 3 (Upper-Right Walkway at x = 132..144, y = 56..64):
-  //    Organically walking back and forth between the calibration bench and the mech with natural stride & arm swing
-  const walk = 0.5 - 0.5 * Math.cos(phase * TAU);
-  const stride = Math.sin(phase * TAU * 2) * 0.72;
-  const wx = lerp(142, 128, walk);
-  const wy = lerp(56, 64, walk);
-  const walker = human3DMarkup(p, {
-    id: 'mech-walker',
-    x: wx,
-    y: wy,
-    scale: 0.72,
-    heading: -Math.PI * 0.38,
-    lean: 0.55,
-    stride,
-    color: DEEP_LINE,
+  // Researcher with a clipboard, scratching their head at what they're looking at.
+  const [cx, cy] = [56, 108];
+  const clipFrame = mechFrame(cx, cy, facing(cx, cy, 98, 82));
+  const scratch = Math.sin(phase * TAU * 4);
+  const scratcher = human3DMarkup(p, {
+    id: 'mech-clipboard',
+    x: cx,
+    y: cy,
+    scale: 0.78,
+    heading: facing(cx, cy, 98, 82),
+    lean: 0.4 + 0.12 * Math.sin(phase * TAU),
+    color: CORAL,
     fillPaper: DEEP_BG,
     shadowColor: DEEP_SHADE,
-    leftTarget: [wx - 5.5, wy + 2.5, 19.5 + walk * 3.0],
-    rightTarget: [wx - 3.5, wy - 3.5, 16.5 + Math.max(0, stride) * 2.2],
+    leftTarget: clipFrame.local(-3.4, 5.4, 20.5 + 0.5 * Math.sin(phase * TAU)),
+    rightTarget: clipFrame.local(2.2 + scratch * 0.5, 0.4, 34.2 + Math.abs(scratch) * 0.6),
+    holdingBoard: true,
   });
 
-  const out = walker + d + welder + thinker;
+  const out = d + welder + scratcher;
   mechFrameCache.set(step, out);
   return out;
 }
@@ -1115,7 +1359,8 @@ export function initRedesignersMech(stage) {
   const svg = stage?.querySelector('[data-redesigners-svg]');
   if (!svg) return () => {};
 
-  svg.innerHTML = `<g stroke="${DEEP_LINE}" stroke-width=".9" stroke-linejoin="round" stroke-linecap="round">${mechStaticMarkup()}<g data-mech-dynamic></g></g>`;
+  svg.innerHTML = `<g stroke="${DEEP_LINE}" stroke-width=".9" stroke-linejoin="round" stroke-linecap="round">${mechBackMarkup()}<g data-mech-back></g>${mechBodyMarkup()}<g data-mech-dynamic></g></g>`;
+  const back = svg.querySelector('[data-mech-back]');
   const dyn = svg.querySelector('[data-mech-dynamic]');
   let lastStep = -1;
 
@@ -1123,6 +1368,7 @@ export function initRedesignersMech(stage) {
     const step = reducedMotion ? 22 : Math.floor((((timeSeconds * 0.22) % 1) + 1) % 1 * 80);
     if (step !== lastStep) {
       lastStep = step;
+      back.innerHTML = mechThinkerMarkup(step);
       dyn.innerHTML = mechDynamicMarkup(step);
     }
   };

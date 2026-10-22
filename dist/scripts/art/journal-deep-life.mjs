@@ -123,9 +123,9 @@ export function drawDeepFish(ctx, scene, time = 0, current = 0, scroll = 0, view
 }
 
 /**
- * The Redesigner's Aquatic Mech Suit exploring the deep ocean in Views from the Reef:
- * An articulated wireframe deep-sea exosuit gliding horizontally through the open water
- * with a water-filled spherical dome cockpit housing a coral reef fish inside.
+ * The redesigners' diving suit from the homepage, out in open water in Views from the Reef.
+ * Side view of the same rounded build: barrel hull, water-filled glass dome with the coral
+ * fish piloting inside, twin thruster tanks on the back, claw arms ahead and fins kicking behind.
  */
 function drawDeepMechFish(ctx, scene, time = 0, current = 0, scroll = 0, viewport) {
   const { width, height, compact, size } = scene;
@@ -143,209 +143,188 @@ function drawDeepMechFish(ctx, scene, time = 0, current = 0, scroll = 0, viewpor
 
   const edge = Math.min(x, width - x) / width;
   const quiet = 1 - 0.65 * smooth(clamp((edge - 0.08) / 0.18, 0, 1));
-  const alpha = 0.46 * quiet;
+  const alpha = 0.56 * quiet;
 
-  // Forward-tilted deep-sea swimming trim (~18 deg pitch + gentle current sway)
-  const pitch = -0.24 + 0.03 * current + 0.04 * Math.sin(time * 0.14 + phase);
+  const LINE = '#9BB2FF', HULL = '#101F3F', LIT = '#1C3A78';
+  const AQUA = '#7CE0FF', CORAL = '#FF6655', GLASS = '#1D396B', PAPER = '#F3F0E8';
+
+  // Gentle nose-up glide with a little sway from the current.
+  const pitch = -0.12 + 0.03 * current + 0.04 * Math.sin(time * 0.14 + phase);
   const cp = Math.cos(pitch), sp = Math.sin(pitch);
   const map = (lx, ly) => [
     x + (lx * cp - ly * sp) * scale,
     y + (lx * sp + ly * cp) * scale,
   ];
-  const poly = (pts, close = true) => {
-    const mapped = pts.map(([lx, ly]) => map(lx, ly));
-    trace(ctx, mapped);
-    if (close) ctx.closePath();
+  // Tapered capsule between two local points, as one closed subpath.
+  const capsule = (a, rA, b, rB) => {
+    const [ax, ay] = map(...a), [bx, by] = map(...b);
+    const ra = rA * scale, rb = rB * scale;
+    const th = Math.atan2(by - ay, bx - ax);
+    const tilt = Math.PI / 2 - Math.asin(clamp((ra - rb) / (Math.hypot(bx - ax, by - ay) || 1e-6), -0.95, 0.95));
+    ctx.moveTo(ax + ra * Math.cos(th + tilt), ay + ra * Math.sin(th + tilt));
+    ctx.arc(ax, ay, ra, th + tilt, th + TAU - tilt);
+    ctx.arc(bx, by, rb, th - tilt, th + tilt);
+    ctx.closePath();
+  };
+  const ball = (c, r) => {
+    const [cx, cy] = map(...c);
+    ctx.moveTo(cx + r * scale, cy);
+    ctx.arc(cx, cy, r * scale, 0, TAU);
+  };
+  const part = (draw, { fill = HULL, stroke = LINE, width = 0.7, opacity = 1, fillOpacity = 1 } = {}) => {
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    draw();
+    ctx.globalAlpha = alpha * opacity * fillOpacity;
+    ctx.fill();
+    ctx.globalAlpha = alpha * opacity;
+    ctx.stroke();
+  };
+  const line = (pts, { stroke = LINE, width = 0.5, opacity = 0.6 } = {}) => {
+    ctx.globalAlpha = alpha * opacity;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    trace(ctx, pts.map(pt => map(...pt)));
+    ctx.stroke();
+  };
+
+  const leg = (kick, opacity) => {
+    const hip = [-15, 3], knee = [-28, 5 + kick * 0.5], ankle = [-40, 7 + kick];
+    part(() => trace(ctx, [
+      [-40, 5 + kick], [-53, 1.5 + kick * 1.25], [-50, 7 + kick * 1.2], [-54, 12.5 + kick * 1.3], [-40, 9 + kick],
+    ].map(pt => map(...pt))), { fill: AQUA, stroke: AQUA, opacity, fillOpacity: 0.14 });
+    part(() => { capsule(knee, 3.0, ankle, 2.4); capsule(hip, 3.6, knee, 3.0); }, { opacity });
+    part(() => ball(knee, 2.6), { fill: LIT, opacity });
+  };
+
+  const arm = (sway, grip, opacity) => {
+    const shoulder = [5, -1], elbow = [11, 10 + sway * 0.6], wrist = [23, 12.5 + sway];
+    const dx = wrist[0] - elbow[0], dy = wrist[1] - elbow[1], len = Math.hypot(dx, dy);
+    const dir = [dx / len, dy / len], perp = [-dir[1], dir[0]];
+    const at = (base, along, across) => [base[0] + dir[0] * along + perp[0] * across, base[1] + dir[1] * along + perp[1] * across];
+    part(() => capsule(shoulder, 2.5, elbow, 2.4), { opacity });
+    part(() => ball(elbow, 2.9), { fill: LIT, opacity });
+    part(() => capsule(at(elbow, 1.6, 0), 2.6, at(wrist, -1.2, 0), 3.2), { opacity });
+    part(() => capsule(at(wrist, -1.4, 0), 3.3, wrist, 3.3), { stroke: CORAL, opacity });
+    part(() => {
+      for (const jaw of [1, -1]) {
+        const base = at(wrist, 1.2, 0);
+        const knuckle = at(wrist, 4.6, jaw * (1.2 + grip * 1.8));
+        const tip = at(wrist, 7.6, jaw * (0.3 + grip * 1.0));
+        capsule(base, 1.2, knuckle, 1.1);
+        capsule(knuckle, 1.1, tip, 0.7);
+      }
+    }, { opacity });
   };
 
   ctx.save();
-  ctx.strokeStyle = '#9BB2FF';
-  ctx.fillStyle = '#0E1B38';
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
 
-  // 1. Articulated hydro-fin legs kicking in an alternating scissor stroke
-  const kickA = Math.sin(time * 2.2) * 5.2;
-  const kickB = -kickA;
-  ctx.lineWidth = 0.65;
-  for (const [legIdx, kick] of [[-1, kickA], [1, kickB]]) {
-    const hip = [-14, 6 + legIdx * 2.2];
-    const knee = [-30, 10 + kick * 0.55 + legIdx * 2.4];
-    const ankle = [-45, 13 + kick + legIdx * 2.4];
-    const finTip1 = [-58, 11 + kick * 1.15 + legIdx * 2.0];
-    const finTip2 = [-55, 19 + kick * 1.15 + legIdx * 2.6];
+  // 1. Legs tucked under the hull, the far one dimmed so the suit reads in depth.
+  const kick = Math.sin(time * 2.2) * 4.6;
+  const sway = Math.sin(time * 1.4 + 0.8) * 2.0;
+  const grip = 0.5 + 0.5 * Math.sin(time * 1.1);
+  leg(-kick, 0.55);
+  leg(kick, 1);
 
-    ctx.globalAlpha = alpha * (legIdx < 0 ? 0.62 : 0.92);
-    ctx.beginPath();
-    poly([
-      [hip[0], hip[1] - 2.4],
-      [knee[0], knee[1] - 2.1],
-      [knee[0], knee[1] + 2.1],
-      [hip[0], hip[1] + 2.4],
-    ]);
-    poly([
-      [knee[0], knee[1] - 1.9],
-      [ankle[0], ankle[1] - 1.7],
-      [ankle[0], ankle[1] + 1.7],
-      [knee[0], knee[1] + 1.9],
-    ]);
-    poly([ankle, finTip1, finTip2]);
-    ctx.fill();
-    ctx.stroke();
-
-    // Knee & ankle servo joints
-    const [kx, ky] = map(...knee);
-    const [ax, ay] = map(...ankle);
-    ctx.beginPath();
-    ctx.moveTo(kx + 2.1 * scale, ky);
-    ctx.arc(kx, ky, 2.1 * scale, 0, TAU);
-    ctx.moveTo(ax + 1.7 * scale, ay);
-    ctx.arc(ax, ay, 1.7 * scale, 0, TAU);
-    ctx.stroke();
-  }
-
-  // 2. Pressurized Mech Torso & Hydro-Thruster Dive Pack
-  ctx.globalAlpha = alpha * 0.95;
-  ctx.fillStyle = '#101F3F';
-  ctx.lineWidth = 0.72;
+  // 2. Twin thruster tanks along the back, with wake rings off the nozzles.
+  part(() => capsule([-19, -11.5], 3.0, [3, -13], 3.0), { opacity: 0.6 });
+  part(() => capsule([-20, -9.5], 3.2, [2, -11], 3.2));
+  part(() => capsule([-23.2, -9.3], 2.1, [-21, -9.4], 2.6), { stroke: AQUA });
+  ctx.globalAlpha = alpha * 0.5;
+  ctx.strokeStyle = AQUA;
+  ctx.lineWidth = 0.45;
   ctx.beginPath();
-  // Main chassis hull
-  poly([
-    [-16, -9],
-    [10, -11],
-    [16, -4],
-    [12, 9],
-    [-14, 10],
-    [-19, 2],
-  ]);
-  // Dorsal hydro-thruster pack
-  poly([
-    [-22, -12],
-    [-4, -13],
-    [-2, -9],
-    [-20, -7],
-  ]);
-  ctx.fill();
-  ctx.stroke();
-
-  // Internal chassis structural ribs + thruster wake rings
-  ctx.globalAlpha = alpha * 0.55;
-  ctx.lineWidth = 0.48;
-  ctx.beginPath();
-  poly([[-8, -9], [-8, 9]], false);
-  poly([[2, -10], [2, 9]], false);
-  poly([[-15, 0], [13, 0]], false);
   for (let w = 0; w < 2; w++) {
-    const pulse = ((time * 0.9 + w * 0.5) % 1);
-    const [wx, wy] = map(-25 - pulse * 14, -9.5);
-    const wr = (2.2 + pulse * 3.0) * scale;
+    const pulse = (time * 0.9 + w * 0.5) % 1;
+    const [wx, wy] = map(-26 - pulse * 14, -9.3);
+    const wr = (1.8 + pulse * 2.8) * scale;
     ctx.moveTo(wx + wr, wy);
     ctx.arc(wx, wy, wr, 0, TAU);
   }
   ctx.stroke();
 
-  // 3. Water-Filled Spherical Glass Dome Cockpit (front/head of the mech at [24, -2])
-  const [dx, dy] = map(24, -2);
-  const domeR = 13.5 * scale;
-  ctx.globalAlpha = alpha * 0.32;
-  ctx.fillStyle = '#1D396B';
+  // 3. Barrel hull with its seams, coral depth stripe and headlamp.
+  part(() => capsule([-14, 0.5], 8.6, [7, -0.5], 10.2), { width: 0.78 });
+  const band = (lx, top, bottom, bulge) => [[lx, top], [lx + bulge * 0.7, top * 0.5], [lx + bulge, 0], [lx + bulge * 0.7, bottom * 0.5], [lx, bottom]];
+  line(band(-9, -8.4, 9.0, 1.2));
+  line(band(4.5, -9.9, 9.2, 1.4));
+  line(band(-2.5, -9.4, 9.4, 1.6), { stroke: CORAL, width: 1.1, opacity: 1 });
+  part(() => ball([11.5, -5.5], 1.2), { fill: AQUA, stroke: LINE, width: 0.5 });
+
+  // 4. Coral collar seen edge-on, then the water-filled dome.
+  part(() => capsule([15.5, -8.5], 2.2, [15.5, 7.5], 2.2), { stroke: CORAL, width: 0.85 });
+  const [dx, dy] = map(25, -1);
+  const domeR = 10.5 * scale;
+  ctx.globalAlpha = alpha * 0.55;
+  ctx.fillStyle = GLASS;
   ctx.beginPath();
   ctx.moveTo(dx + domeR, dy);
   ctx.arc(dx, dy, domeR, 0, TAU);
   ctx.fill();
 
-  // Dome outer ring, brass/blue collar flange, and geodesic latitude/longitude ribs
-  ctx.globalAlpha = alpha * 0.98;
-  ctx.strokeStyle = '#B5C8FF';
-  ctx.lineWidth = 0.78;
-  ctx.beginPath();
-  ctx.moveTo(dx + domeR, dy);
-  ctx.arc(dx, dy, domeR, 0, TAU);
-  poly([[11, -10.5], [15, -11.5], [15, 7.5], [11, 6.5]]);
-  ctx.stroke();
-
-  // Water surface ripple & tiny air bubbles inside the dome cockpit
   ctx.globalAlpha = alpha * 0.55;
+  ctx.strokeStyle = AQUA;
   ctx.lineWidth = 0.46;
   ctx.beginPath();
   const waterPts = [];
   for (let i = -5; i <= 5; i++) {
     const u = i / 5;
-    const wx = dx + u * domeR * 0.86;
-    const wy = dy - domeR * 0.42 + Math.sin(time * 2.4 + u * 3.2) * 1.1 * scale;
-    waterPts.push([wx, wy]);
+    waterPts.push([dx + u * domeR * 0.86, dy - domeR * 0.45 + Math.sin(time * 2.4 + u * 3.2) * 0.9 * scale]);
   }
   trace(ctx, waterPts);
-  const [b1x, b1y] = [dx - 3.5 * scale, dy - (3 + ((time * 4) % 5)) * scale];
-  const [b2x, b2y] = [dx + 4.2 * scale, dy - (2 + ((time * 4 + 2.5) % 5)) * scale];
-  ctx.moveTo(b1x + 0.9 * scale, b1y);
-  ctx.arc(b1x, b1y, 0.9 * scale, 0, TAU);
-  ctx.moveTo(b2x + 0.7 * scale, b2y);
-  ctx.arc(b2x, b2y, 0.7 * scale, 0, TAU);
+  for (const [bx, rise, r] of [[-3, 0, 0.9], [3.6, 2.5, 0.7]]) {
+    const cx = dx + bx * scale, cy = dy - (2 + ((time * 4 + rise) % 5)) * scale;
+    ctx.moveTo(cx + r * scale, cy);
+    ctx.arc(cx, cy, r * scale, 0, TAU);
+  }
   ctx.stroke();
 
-  // 4. The Coral Reef Fish (#FF6655) swimming happily inside the water-filled cockpit!
-  const fishBobX = dx + Math.sin(time * 1.7) * 2.2 * scale;
-  const fishBobY = dy + 1.0 * scale + Math.cos(time * 2.3) * 1.5 * scale;
-  const tailWag = Math.sin(time * 6.5) * 1.8 * scale;
-  const fPts = [
-    [fishBobX + 6.2 * scale, fishBobY],
-    [fishBobX + 2.2 * scale, fishBobY - 3.3 * scale],
-    [fishBobX - 3.2 * scale, fishBobY - 2.1 * scale],
-    [fishBobX - 5.2 * scale, fishBobY - 0.6 * scale + tailWag * 0.3],
-    [fishBobX - 8.4 * scale, fishBobY - 3.4 * scale + tailWag],
-    [fishBobX - 6.8 * scale, fishBobY + tailWag * 0.5],
-    [fishBobX - 8.4 * scale, fishBobY + 3.4 * scale + tailWag],
-    [fishBobX - 5.2 * scale, fishBobY + 0.6 * scale + tailWag * 0.3],
-    [fishBobX - 3.2 * scale, fishBobY + 2.1 * scale],
-    [fishBobX + 2.2 * scale, fishBobY + 3.3 * scale],
-  ];
+  // The coral fish piloting the suit.
+  const fishX = dx + Math.sin(time * 1.7) * 1.8 * scale;
+  const fishY = dy + 1.2 * scale + Math.cos(time * 2.3) * 1.3 * scale;
+  const tailWag = Math.sin(time * 6.5) * 1.5 * scale;
+  const k = scale * 0.85;
+  const fish = [
+    [6.2, 0], [2.2, -3.3], [-3.2, -2.1], [-5.2, -0.6], [-8.4, -3.4], [-6.8, 0], [-8.4, 3.4], [-5.2, 0.6], [-3.2, 2.1], [2.2, 3.3],
+  ].map(([u, v], i) => [fishX + u * k, fishY + v * k + (i >= 3 && i <= 7 ? tailWag * (i === 5 ? 0.5 : i === 3 || i === 7 ? 0.3 : 1) : 0)]);
   ctx.globalAlpha = Math.min(0.92, alpha * 1.75);
-  ctx.fillStyle = '#FF6655';
-  ctx.strokeStyle = '#FF6655';
-  ctx.lineWidth = 0.68;
+  ctx.fillStyle = CORAL;
+  ctx.strokeStyle = CORAL;
+  ctx.lineWidth = 0.6;
   ctx.beginPath();
-  trace(ctx, fPts);
+  trace(ctx, fish);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
-
-  // Fish eye & pectoral fin inside dome
-  ctx.fillStyle = '#F3F0E8';
+  ctx.fillStyle = PAPER;
   ctx.beginPath();
-  ctx.moveTo(fishBobX + 4.3 * scale, fishBobY - 0.7 * scale);
-  ctx.arc(fishBobX + 3.6 * scale, fishBobY - 0.7 * scale, 0.7 * scale, 0, TAU);
+  ctx.moveTo(fishX + 4.3 * k, fishY - 0.7 * k);
+  ctx.arc(fishX + 3.6 * k, fishY - 0.7 * k, 0.7 * k, 0, TAU);
   ctx.fill();
 
-  // 5. Foreground articulated mechanical arm & manipulator claw swept along the hull
-  const armSway = Math.sin(time * 1.4 + 0.8) * 2.2;
-  const sh = [6, 5];
-  const el = [-4, 13 + armSway * 0.6];
-  const wr = [12, 15 + armSway];
-  ctx.globalAlpha = alpha * 0.92;
-  ctx.strokeStyle = '#9BB2FF';
-  ctx.fillStyle = '#101F3F';
-  ctx.lineWidth = 0.68;
+  // Glass rim and a soft glint.
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = AQUA;
+  ctx.lineWidth = 0.8;
   ctx.beginPath();
-  poly([
-    [sh[0] - 2, sh[1] - 1.8],
-    [el[0] - 1.8, el[1] - 1.8],
-    [el[0] + 1.8, el[1] + 1.8],
-    [sh[0] + 2, sh[1] + 1.8],
-  ]);
-  poly([
-    [el[0] - 1.5, el[1] - 1.6],
-    [wr[0] - 1.5, wr[1] - 1.6],
-    [wr[0] + 1.5, wr[1] + 1.6],
-    [el[0] + 1.5, el[1] + 1.6],
-  ]);
-  ctx.fill();
+  ctx.moveTo(dx + domeR, dy);
+  ctx.arc(dx, dy, domeR, 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = alpha * 0.6;
+  ctx.strokeStyle = PAPER;
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.arc(dx, dy, domeR * 0.74, Math.PI * 1.1, Math.PI * 1.42);
   ctx.stroke();
 
-  // Pincer claw tips
-  ctx.beginPath();
-  poly([[wr[0], wr[1] - 1.2], [wr[0] + 5.2, wr[1] - 2.8], [wr[0] + 7.2, wr[1] - 0.8]], false);
-  poly([[wr[0], wr[1] + 1.2], [wr[0] + 5.2, wr[1] + 2.8], [wr[0] + 7.2, wr[1] + 0.8]], false);
-  ctx.stroke();
+  // 5. Near arm reaching ahead under the dome, capped by the shoulder pad.
+  arm(sway, grip, 1);
+  part(() => ball([4, -2], 5.0));
 
   ctx.restore();
 }
-

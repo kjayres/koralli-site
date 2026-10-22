@@ -29,8 +29,8 @@
 .approach-step::before { content:''; position:absolute; top:calc(17px + var(--approach-copy-offset,0px)); bottom:calc(-17px - var(--approach-next-offset,0px)); left:16px; width:1px; background:#aab3cb; }
 .approach-step:last-child::before { display:none; }
 .approach-step:last-child { min-height:max(530px,65svh); padding-bottom:85px; }
-.approach-number { position:absolute; left:0; top:calc(var(--approach-copy-offset,0px) + 5px); display:flex; justify-content:center; align-items:center; width:34px; height:34px; border:2px solid var(--blue); border-radius:50%; background:transparent; color:var(--blue); font:500 12px/1 var(--mono); }
-.approach-number[aria-current=step] { border-color:var(--blue); background:transparent; color:var(--blue); }
+.approach-number { position:absolute; left:0; top:calc(var(--approach-copy-offset,0px) + 5px); display:flex; justify-content:center; align-items:center; width:34px; height:34px; border:2px solid #aab3cb; border-radius:50%; background:var(--paper); color:#7d869e; font:500 12px/1 var(--mono); transition:background-color .35s, border-color .35s, color .35s; }
+.approach-number[aria-current=step] { border-color:var(--blue); background:var(--blue); color:var(--paper); }
 .approach-number[aria-current=step]::after { content:''; position:absolute; top:50%; right:-16px; width:7px; height:7px; border-top:1.25px solid var(--blue); border-right:1.25px solid var(--blue); transform:translateY(-50%) rotate(45deg); }
 .approach-copy .eyebrow { font-size:9px; letter-spacing:.12em; color:#696861; padding-top:2px; }
 .approach-copy h3 { margin:0 0 18px; font-size:clamp(28px,2.5vw,36px); line-height:44px; }
