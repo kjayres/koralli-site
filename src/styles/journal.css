@@ -57,3 +57,4 @@
   .journal-articles .article-row>div>p:last-child { font-size:15px; margin-top:16px; }
 }
 @media(prefers-reduced-motion:reduce) { .journal-articles .article-arrow { transition:none; } }
+.journal-page .site-header.is-floating { background:rgba(12,22,48,.9); }

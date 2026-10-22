@@ -10,6 +10,12 @@ const escapeHTML = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;'
 export const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const sourceDir = resolve(projectDir, 'src');
 export const outputDir = resolve(projectDir, 'dist');
+// The address the site will live at. Every page names its koralli.io URL as canonical, so a
+// preview copy is never treated as the original.
+export const siteURL = 'https://www.koralli.io';
+const NOINDEX = '<meta name="robots" content="noindex,nofollow">';
+// Redirect pages point at the page they forward to.
+const canonicalPath = name => name === 'index.html' ? '/' : name === 'how-we-work.html' ? '/our-work.html' : `/${name}`;
 const pages = [
   'index.html', 'our-work.html', 'who-we-are.html', 'views-from-the-reef.html', 'how-we-work.html',
   'a-coherent-picture-comes-from-more-judgement-not-more-data.html',
@@ -80,7 +86,11 @@ export function withAssetVersions(files) {
   return files;
 }
 
-export function renderSite(basePath = './') {
+/**
+ * launch: build for the live domain. Pages drop the noindex tag that keeps preview copies
+ * out of search results, and the site gains robots.txt and sitemap.xml.
+ */
+export function renderSite(basePath = './', { launch = false } = {}) {
   checkedBasePath(basePath);
   const files = new Map();
   const people = JSON.parse(readFileSync(resolve(sourceDir, 'content/people.json'), 'utf8'));
@@ -88,9 +98,20 @@ export function renderSite(basePath = './') {
     const portrait = person.portrait ? `<img class="person-portrait" src="${escapeHTML(person.portrait)}" alt="Portrait of ${escapeHTML(person.name)}" width="320" height="384" loading="lazy" decoding="async">` : '';
     return `<article class="person"><div class="person-index" aria-hidden="true"><i class="${escapeHTML(person.kind)}"></i></div><div class="person-identity${person.portrait ? ' person-identity--portrait' : ''}">${portrait}<div><p class="eyebrow">${escapeHTML(person.field)}</p><h3>${escapeHTML(person.name)}</h3></div></div><div class="person-bio">${person.bio.split(/\n\n/).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join('')}</div></article>`;
   }).join('\n');
-  for (const name of pages) files.set(name, Buffer.from(expand(name)
-    .replace('<!-- content: articles -->', articlesMarkup())
-    .replace('<!-- content: people -->', profiles)));
+  for (const name of pages) {
+    let html = expand(name)
+      .replace('<!-- content: articles -->', articlesMarkup())
+      .replace('<!-- content: people -->', profiles);
+    if (!html.includes(NOINDEX)) throw new Error(`${name} must carry the preview noindex tag; launch builds remove it.`);
+    if (launch) html = html.replace(`  ${NOINDEX}\n`, '').replace(NOINDEX, '');
+    html = html.replace('</head>', `  <link rel="canonical" href="${siteURL}${canonicalPath(name)}">\n</head>`);
+    files.set(name, Buffer.from(html));
+  }
+  if (launch) {
+    const listed = pages.filter(name => name !== 'how-we-work.html');
+    files.set('robots.txt', Buffer.from(`User-agent: *\nAllow: /\n\nSitemap: ${siteURL}/sitemap.xml\n`));
+    files.set('sitemap.xml', Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${listed.map(name => `  <url><loc>${siteURL}${canonicalPath(name)}</loc></url>`).join('\n')}\n</urlset>\n`));
+  }
   function walk(directory) {
     for (const entry of readdirSync(resolve(sourceDir, directory), { withFileTypes: true })) {
       if (entry.name.startsWith('.')) continue;
@@ -157,7 +178,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const basePath = process.argv.find(arg => arg.startsWith('--base='))?.slice(7) ?? './';
     const destination = checkedOutputDir(process.argv.find(arg => arg.startsWith('--out='))?.slice(6) ?? outputDir);
-    const files = renderSite(basePath);
+    const files = renderSite(basePath, { launch: process.argv.includes('--launch') });
     if (process.argv.includes('--check')) {
       checkOutputFiles(files, destination);
       for (const [name, bytes] of files) {
@@ -170,7 +191,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       console.log(`All ${pages.length} pages, local links, assets and JavaScript checked. Build matches source.`);
     } else {
       writeSite(files, destination);
-      console.log(`Built ${pages.length} native HTML pages and ${files.size - pages.length} supporting files in ${destination}.`);
+      console.log(`Built ${pages.length} native HTML pages and ${files.size - pages.length} supporting files in ${destination}${process.argv.includes('--launch') ? ' for launch (indexable)' : ' (preview: not indexed)'}.`);
     }
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

@@ -505,3 +505,53 @@ document.querySelectorAll('.site-header nav a').forEach(link => {
   if (new URL(link.href).pathname === location.pathname && !link.hash) link.setAttribute('aria-current', 'page');
 });
 if (tracksScroll) onScroll();
+
+// The header returns as a floating bar when the reader scrolls up. It stays tucked away
+// while a pinned scene holds the screen, and after in-page jumps, so it never covers them.
+{
+  const header = document.querySelector('.site-header');
+  const pinned = [...document.querySelectorAll('.thesis-sticky, .building-sticky, [data-approach-page]')];
+  // A sticky stage is holding the screen when it has moved down from the top of its
+  // section but has not yet reached the bottom.
+  const holding = () => pinned.some(stage => {
+    if (getComputedStyle(stage).position !== 'sticky') return false;
+    const own = stage.getBoundingClientRect(), parent = stage.parentElement.getBoundingClientRect();
+    return own.top - parent.top > 1 && parent.bottom - own.bottom > 1 && own.bottom > 0 && own.top < innerHeight;
+  });
+  // Reads the colour of the page just under the bar, so it can match light or dark sections.
+  const darkBeneath = () => {
+    const probeY = Math.min(innerHeight - 1, header.offsetHeight + 2);
+    for (let node = document.elementFromPoint(innerWidth / 2, probeY); node && node !== document.documentElement; node = node.parentElement) {
+      if (header.contains(node)) return header.classList.contains('is-dark');
+      const match = getComputedStyle(node).backgroundColor.match(/[\d.]+/g);
+      if (!match || (match.length > 3 && Number(match[3]) < .5)) continue;
+      const [r, g, b] = match.map(Number);
+      return .2126 * r + .7152 * g + .0722 * b < 110;
+    }
+    return document.body.classList.contains('journal-page');
+  };
+  let last = scrollY, travel = 0, suppressUntil = 0;
+  const update = () => {
+    const y = scrollY, delta = y - last;
+    last = y;
+    if (y <= 1) { header.classList.remove('is-floating', 'is-shown'); travel = 0; return; }
+    if (y > header.offsetHeight) header.classList.add('is-floating');
+    if (!header.classList.contains('is-floating')) return;
+    travel = Math.sign(delta) === Math.sign(travel) ? travel + delta : delta;
+    if (travel > 8 || holding() || performance.now() < suppressUntil) header.classList.remove('is-shown');
+    else if (travel < -8) header.classList.add('is-shown');
+    if (header.classList.contains('is-shown')) header.classList.toggle('is-dark', darkBeneath());
+  };
+  const tuckAway = () => { suppressUntil = performance.now() + 900; header.classList.remove('is-shown'); };
+  if (header) {
+    addEventListener('scroll', update, { passive: true });
+    addEventListener('hashchange', tuckAway);
+    document.addEventListener('click', event => {
+      const link = event.target.closest?.('a[href^="#"]');
+      if (link && !header.contains(link)) tuckAway();
+    });
+    // Keyboard users tabbing back to the menu always see it.
+    header.addEventListener('focusin', () => header.classList.add('is-shown'));
+    update();
+  }
+}
