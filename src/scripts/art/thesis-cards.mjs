@@ -580,14 +580,23 @@ function card1StaticMarkup() {
   s += box(144, 74, 68, 24, 3.0, PAPER, PAPER, SHADE, 12.5);
   s += surface(146, 77, 64, 18, 15.6, GLASS, 'fill-opacity=".52" stroke-opacity=".68" stroke-width=".75"');
 
-  s += panelY(182, 73, 15.5, 26, 22, GLASS, 'fill-opacity=".34" stroke-width=".85"');
-  s += panelY(192, 73, 15.5, 26, 22, GLASS, 'fill-opacity=".22" stroke-width=".85"');
-  s += surface(182, 73, 10, 26, 37.5, PAPER, 'stroke-width=".9"');
-  s += line(p(187, 73, 37.5), p(187, 99, 37.5), 'stroke-opacity=".5"');
 
 
   card1StaticCache = s;
   return s;
+}
+
+// The scanner over the outgoing belt: an entry curtain, an exit curtain and a roof. It is
+// drawn with the moving parcels so each one passes between the curtains, not over them.
+const SCANNER_IN = 182, SCANNER_OUT = 192;
+function card1ScannerBack() {
+  return card1Iso.panelY(SCANNER_IN, 73, 15.5, 26, 22, GLASS, 'fill-opacity=".34" stroke-width=".85"');
+}
+function card1ScannerFront() {
+  const p = card1Projector, { panelY, surface, line } = card1Iso;
+  return panelY(SCANNER_OUT, 73, 15.5, 26, 22, GLASS, 'fill-opacity=".22" stroke-width=".85"') +
+    surface(SCANNER_IN, 73, SCANNER_OUT - SCANNER_IN, 26, 37.5, PAPER, 'stroke-width=".9"') +
+    line(p(187, 73, 37.5), p(187, 99, 37.5), 'stroke-opacity=".5"');
 }
 
 const card1FrameCache = new Map();
@@ -632,7 +641,10 @@ function card1DynamicMarkup(step) {
   const incomingX = 83 - BELT_SPEED * (1 - phase);
   d += parcelBox(card1Iso, incomingX, PARCEL_Y, BELT_TOP);
   const placeAt = 150, placed = 0.82;
-  d += parcelBox(card1Iso, placeAt + BELT_SPEED * (1 - placed) + BELT_SPEED * phase, PARCEL_Y, BELT_TOP, { checked: true, agent: true });
+  const outX = placeAt + BELT_SPEED * (1 - placed) + BELT_SPEED * phase;
+  const outgoing = parcelBox(card1Iso, outX, PARCEL_Y, BELT_TOP, { checked: true, agent: true });
+  const back = card1ScannerBack(), front = card1ScannerFront();
+  d += outX < SCANNER_IN ? outgoing + back + front : outX < SCANNER_OUT ? back + outgoing + front : back + front + outgoing;
 
   // Person: lifts the parcel, turns and steps towards the agent, hands it over, turns back.
   const HUMAN_PATH = [[0, 94], [0.16, 94], [0.32, 103], [0.5, 103], [0.7, 95], [1, 94]];
