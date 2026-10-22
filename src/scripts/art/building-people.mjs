@@ -60,8 +60,8 @@ function roundedPath(points) {
   return d+'Z';
 }
 
-function painted(d, shade=.065) {
-  return `<path d="${d}" fill="${PAPER}" stroke="none"/><path d="${d}" fill="${CORAL}" fill-opacity="${shade}" stroke="${CORAL}" stroke-width=".72" stroke-linejoin="round"/>`;
+function painted(d, shade=.065, colour=CORAL) {
+  return `<path d="${d}" fill="${PAPER}" stroke="none"/><path d="${d}" fill="${colour}" fill-opacity="${shade}" stroke="${colour}" stroke-width=".72" stroke-linejoin="round"/>`;
 }
 
 /**
@@ -72,9 +72,9 @@ function painted(d, shade=.065) {
  *
  * Returns separately sortable {name,x,y,z,depth,role,markup} parts. Only contact
  * forearms/hands have role='reach'. Supply an instance-unique id when several
- * figures share an SVG.
+ * figures share an SVG. colour defaults to the client's coral; koralli's people are blue.
  */
-export function humanParts({project,x,y,heading=0,pose='standing',kind='man',target,id}={}) {
+export function humanParts({project,x,y,heading=0,pose='standing',kind='man',target,id,colour=CORAL}={}) {
   if (typeof project!=='function' || ![x,y,heading].every(Number.isFinite)) throw new TypeError('A figure needs project and finite world coordinates.');
   if (!['man','woman'].includes(kind)) throw new RangeError('Building figures must be human.');
   const aliases={leaning:'collaborating',reading:'holding-records'};
@@ -115,7 +115,7 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
     const points=geometry.points.map(projected), outline=hull(points);
     return {d:roundedPath(outline),outline};
   };
-  const ellipsoid=(centre,radii,shade=.065)=>painted(ellipsoidGeometry(centre,radii).d,shade);
+  const ellipsoid=(centre,radii,shade=.065)=>painted(ellipsoidGeometry(centre,radii).d,shade,colour);
 
   // Project a world-space sphere into its screen ellipse. Joining the endpoint
   // ellipses gives a rounded capsule even when a limb points towards the viewer.
@@ -139,8 +139,8 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
   const limb=(joints,radii,shade=.065,shoulderClip='',attachment='') => {
     const contours=joints.slice(1).map((joint,i)=>roundedPath(hull([...sphereOutline(joints[i],radii[i]),...sphereOutline(joint,radii[i+1])])));
     const paths=contours.map(d=>`<path d="${d}"/>`).join('');
-    const seam=shoulderClip&&attachment?`<g clip-path="url(#${shoulderClip})"><path d="${attachment}" fill="${PAPER}" stroke="none"/><path d="${attachment}" fill="${CORAL}" fill-opacity="${shade}" stroke="none"/></g>`:'';
-    return `<g fill="${CORAL}" stroke="${CORAL}" stroke-width="1.44" stroke-linejoin="round">${paths}</g>${seam}<g fill="${PAPER}" stroke="none">${paths}</g><g fill="${CORAL}" stroke="none" opacity="${shade}">${paths}</g>`;
+    const seam=shoulderClip&&attachment?`<g clip-path="url(#${shoulderClip})"><path d="${attachment}" fill="${PAPER}" stroke="none"/><path d="${attachment}" fill="${colour}" fill-opacity="${shade}" stroke="none"/></g>`:'';
+    return `<g fill="${colour}" stroke="${colour}" stroke-width="1.44" stroke-linejoin="round">${paths}</g>${seam}<g fill="${PAPER}" stroke="none">${paths}</g><g fill="${colour}" stroke="none" opacity="${shade}">${paths}</g>`;
   };
   const canonicalDepth = point => .45 * (point[0] + point[1]) + .405 * point[2];
 
@@ -164,11 +164,11 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
   const projectedTorso=torso.map(projected);
   const torsoD=roundedPath(hull(projectedTorso));
   const torsoOrder=canonicalDepth(torsoCentre);
-  body.push({order:torsoOrder,markup:painted(torsoD,.075)});
+  body.push({order:torsoOrder,markup:painted(torsoD,.075,colour)});
   const neck=local(0,leanForward,shoulderZ+2.7), head=local(0,leanForward+.2,headZ);
   const neckGeometry=ellipsoidGeometry(neck,[1.45,1.4,1.7],false), headGeometry=ellipsoidGeometry(head,[3.0,3.25,3.5],false);
   const headOrder=canonicalDepth(head);
-  body.push({order:headOrder,markup:painted(neckGeometry.d,.065)+painted(headGeometry.d,.045)});
+  body.push({order:headOrder,markup:painted(neckGeometry.d,.065,colour)+painted(headGeometry.d,.045,colour)});
   const shoulderClipId=`${prefix}-body-surface-0`;
   const bodyDefinitions=`<defs><clipPath id="${shoulderClipId}"><path d="${torsoD}"/></clipPath></defs>`;
 
@@ -196,7 +196,7 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
     const attachmentEnd=mix(shoulder,elbow,.3);
     const attachment=roundedPath(hull([...sphereOutline(shoulder,1.8),...sphereOutline(attachmentEnd,1.6)]));
     const handGeometry=ellipsoidGeometry(hand,[.9,1.05,.9],false);
-    const handMarkup=painted(handGeometry.d,.055);
+    const handMarkup=painted(handGeometry.d,.055,colour);
     const elbowOrder=canonicalDepth(elbow);
     const behindTorso=elbowOrder<torsoOrder;
     const reachesAcrossFrontSurface=reaching && pose!=='holding-records' && target && (x+y < target[0]+target[1]-4);
@@ -217,7 +217,7 @@ export function humanParts({project,x,y,heading=0,pose='standing',kind='man',tar
   if(pose==='holding-records' && hands.length===2) {
     const corners=[add(hands[0],[0,0,-4]),add(hands[1],[0,0,-4]),add(hands[1],[0,0,4]),add(hands[0],[0,0,4])];
     const d=`M${corners.map(point=>pair(projected(point))).join('L')}Z`;
-    body.push({order:headOrder+.05,markup:painted(d,.035)});
+    body.push({order:headOrder+.05,markup:painted(d,.035,colour)});
   }
   body.sort((a,b) => a.order-b.order);
   parts.unshift({name:'human-body',x,y,z:(hipZ+headZ)/2,role:'body',markup:`${bodyDefinitions}<g data-figure="${kind}" data-pose="${pose}" data-human-geometry="world">${body.map(part=>part.markup).join('')}</g>`});

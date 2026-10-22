@@ -218,6 +218,7 @@ function human3DMarkup(p, {
   welderMask = false,
   blowtorchTarget = null,
   sparkPhase = 0,
+  held = '',
 } = {}) {
   const s = scale;
   const forward = [Math.sin(heading), Math.cos(heading), 0];
@@ -321,8 +322,8 @@ function human3DMarkup(p, {
 
     const delta = sub3(requested, shoulder);
     const dist = len3(delta);
-    const upper = 8.4 * s;
-    const lower = 8.4 * s;
+    const upper = 7.7 * s;
+    const lower = 7.7 * s;
     const maxReach = upper + lower - 0.04 * s;
     const used = Math.max(1.2 * s, Math.min(maxReach, dist));
     const dir = dist > 1e-6 ? unit3(delta) : [0, 0, -1];
@@ -431,13 +432,13 @@ function human3DMarkup(p, {
   const [gx, gy] = p(x, y, z + 0.2);
   const shadow = `<ellipse cx="${number(gx)}" cy="${number(gy)}" rx="${number(6.8 * s)}" ry="${number(3.0 * s)}" fill="${shadowColor}" fill-opacity=".65" stroke="none"/>`;
 
-  return `${defs}<g data-human-3d="${id}">${shadow}${backArms.join('')}${unifiedBodyMarkup}${ frontArms.join('') }${propMarkup}${headMarkup}</g>`;
+  return `${defs}<g data-human-3d="${id}">${shadow}${backArms.join('')}${unifiedBodyMarkup}${held}${frontArms.join('')}${propMarkup}${headMarkup}</g>`;
 }
 
 /**
  * Isometric 3D articulated blue SVG robot/agent with rotating torso and dual gripper arms.
  */
-function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y + 14, 24] } = {}) {
+function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y + 14, 24], held = '' } = {}) {
   const s = scale;
   const forward = [Math.sin(heading), Math.cos(heading), 0];
   const right = [Math.cos(heading), -Math.sin(heading), 0];
@@ -504,12 +505,13 @@ function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y
   );
   out += seg(local(0, 0, 42.3), local(0, 0, 45.6), 'stroke-width="1.05"');
   out += node(local(0, 0, 46.2), 1.45, GLASS, BLUE);
+  out += held;
 
   for (const side of [-1, 1]) {
     const shoulder = local(side * 6.4, 0.2, 31.8);
     const hand = [
-      target[0] + right[0] * side * 4.2 * s,
-      target[1] + right[1] * side * 4.2 * s,
+      target[0] + right[0] * side * 6.0 * s,
+      target[1] + right[1] * side * 6.0 * s,
       target[2],
     ];
     const mid = [
@@ -683,6 +685,11 @@ function card1DynamicMarkup(step) {
   const handSide = [Math.cos(humanHeading), -Math.sin(humanHeading), 0];
   const handOn = side => add3([grip[0], grip[1] + 2.5, grip[2] + 4.2], mul3(handSide, side * 5.4));
 
+  const boxStr = parcelBox(card1Iso, activeBoxPos[0], activeBoxPos[1] + 2.5, activeBoxPos[2], { checked: boxChecked, agent: boxAgent });
+  // While the person carries the parcel it sits between their body and near arm,
+  // so the hands grip its sides; once the agent takes it, its arms go over it.
+  const humanHolds = phase < 0.58;
+
   const humanStr = human3DMarkup(p, {
     id: 'c1-human',
     x: humanX,
@@ -694,6 +701,7 @@ function card1DynamicMarkup(step) {
     color: CORAL,
     leftTarget: grip ? handOn(-1) : null,
     rightTarget: grip ? handOn(1) : null,
+    held: humanHolds ? boxStr : '',
   });
   const robotStr = robotMarkup(p, {
     x: 135,
@@ -701,10 +709,9 @@ function card1DynamicMarkup(step) {
     scale: 0.82,
     heading: robotHeading,
     target: robotTarget,
+    held: humanHolds ? '' : boxStr,
   });
-  const boxStr = parcelBox(card1Iso, activeBoxPos[0], activeBoxPos[1] + 2.5, activeBoxPos[2], { checked: boxChecked, agent: boxAgent });
-
-  d += humanStr + robotStr + boxStr;
+  d += humanStr + robotStr;
 
   const pulseX = lerp(187, 100, phase);
   const [fx, fy] = p(pulseX, 124, 0.6);
@@ -715,16 +722,22 @@ function card1DynamicMarkup(step) {
 }
 
 // ============================================================================
-// CARD 2: 3D Isometric Radcliffe Camera (Back-Left) + Modern Office (Back-Right)
-//         + Open Central Courtyard Exchange
+// CARD 2: 3D Isometric Radcliffe Camera (researchers, blue) + Modern Office
+//         (operators, coral), with a researcher and an operator working a
+//         blueprint together at a table in the courtyard between them.
 // ============================================================================
-const card2Projector = makeProjector({ originX: 266, originY: 162, centerX: 86, centerY: 82, angle: -4, scale: 1.56, pitch: 0.44 });
+const card2Projector = makeProjector({ originX: 280, originY: 172, centerX: 79, centerY: 80, angle: -4, scale: 1.36, pitch: 0.44 });
 const card2Iso = isoPrimitives(card2Projector);
 const card2View = viewToward(-4);
 let card2StaticCache = '';
 
-// Radcliffe door faces the courtyard; the exchange starts on its step.
-const RADCAM = { x: 38, y: 98, door: 14 };
+// Buildings are drawn at their own detail and then enlarged about their centres,
+// so they stand well above the people without redrawing every measurement.
+const BUILDING_SCALE = 1.4;
+const scaledAbout = (p, cx, cy, k) => (x, y, z = 0) => p(cx + (x - cx) * k, cy + (y - cy) * k, z * k);
+
+// Radcliffe door faces the courtyard.
+const RADCAM = { x: 34, y: 100, door: 15 };
 
 /**
  * The Radcliffe Camera, tier by tier: plinth, rusticated arcade, the main storey of paired
@@ -839,15 +852,20 @@ function radcliffeCameraMarkup(p, iso) {
   return out;
 }
 
+
 /**
- * Modern office: glazed lobby behind slim columns with a coral-edged entrance canopy,
- * four floors of ribbon glazing over solid spandrels, a parapet and a louvred plant room.
+ * Modern office in the operators' coral: glazed lobby behind slim columns with a
+ * blue-framed entrance and canopy, four floors of ribbon glazing over solid spandrels,
+ * a parapet and a louvred plant room.
  */
-const OFFICE = { x: 104, y: 20, w: 44, d: 40, lobby: 10, floor: 9.5, floors: 4 };
+const OFFICE = { x: 106, y: 20, w: 44, d: 40, lobby: 10, floor: 9.5, floors: 4 };
+const OFFICE_GLASS = '#F7DDD6';
+const OFFICE_SHADE = '#EFE4E0';
 
 function officeBuildingMarkup(p, iso) {
   const { surface, panelX, panelY, box, line } = iso;
   const { x: ox, y: oy, w, d, lobby, floor, floors } = OFFICE;
+  const GLASS = OFFICE_GLASS, SHADE = OFFICE_SHADE;
   const top = lobby + floor * floors;
   const fy = oy + d, fx = ox + w;
   let out = '';
@@ -856,8 +874,8 @@ function officeBuildingMarkup(p, iso) {
   out += box(ox + 2, oy + 2, w - 4, d - 4, lobby, PAPER, GLASS, GLASS, 0, 'fill-opacity=".75" stroke-width=".8"');
   for (let x = ox + 7.4; x < fx - 3; x += 7.4) out += line(p(x, fy - 1.9, 0), p(x, fy - 1.9, lobby), 'stroke-width=".5" stroke-opacity=".6"');
   for (let y = oy + 8; y < fy - 3; y += 8) out += line(p(fx - 1.9, y, 0), p(fx - 1.9, y, lobby), 'stroke-width=".5" stroke-opacity=".6"');
-  out += panelX(ox + 18, fy - 1.85, 0, 8, 7.4, GLASS, `fill-opacity=".95" stroke="${CORAL}" stroke-width=".95"`);
-  out += line(p(ox + 22, fy - 1.8, 0), p(ox + 22, fy - 1.8, 7.4), `stroke="${CORAL}" stroke-width=".7"`);
+  out += panelX(ox + 18, fy - 1.85, 0, 8, 7.4, GLASS, `fill-opacity=".95" stroke="${BLUE}" stroke-width=".95"`);
+  out += line(p(ox + 22, fy - 1.8, 0), p(ox + 22, fy - 1.8, 7.4), `stroke="${BLUE}" stroke-width=".7"`);
   for (const x of [ox, ox + 11, ox + 22, ox + 33, fx - 1.6]) out += box(x, fy - 1.6, 1.6, 1.6, lobby, PAPER, PAPER, SHADE, 0, 'stroke-width=".75"');
   for (const y of [oy, oy + 13, oy + 26]) out += box(fx - 1.6, y, 1.6, 1.6, lobby, PAPER, PAPER, SHADE, 0, 'stroke-width=".75"');
 
@@ -865,116 +883,87 @@ function officeBuildingMarkup(p, iso) {
   out += box(ox, oy, w, d, floor * floors, PAPER, PAPER, SHADE, lobby, 'stroke-width=".9"');
   for (let k = 0; k < floors; k++) {
     const z0 = lobby + k * floor + 2.0, h = floor - 3.6;
-    out += panelX(ox + 1.4, fy + .05, z0, w - 2.8, h, GLASS, 'fill-opacity=".7" stroke-width=".65"');
-    out += panelY(fx + .05, oy + 1.4, z0, d - 2.8, h, GLASS, 'fill-opacity=".55" stroke-width=".65"');
+    out += panelX(ox + 1.4, fy + .05, z0, w - 2.8, h, GLASS, 'fill-opacity=".8" stroke-width=".65"');
+    out += panelY(fx + .05, oy + 1.4, z0, d - 2.8, h, GLASS, 'fill-opacity=".65" stroke-width=".65"');
     for (let x = ox + 1.4 + 4.75; x < fx - 1.5; x += 4.75) out += line(p(x, fy + .1, z0), p(x, fy + .1, z0 + h), 'stroke-width=".45" stroke-opacity=".7"');
     for (let y = oy + 1.4 + 4.6; y < fy - 1.5; y += 4.6) out += line(p(fx + .1, y, z0), p(fx + .1, y, z0 + h), 'stroke-width=".45" stroke-opacity=".7"');
-    out += line(p(ox + 6 + k * 3, fy + .12, z0 + .8), p(ox + 11 + k * 3, fy + .12, z0 + h - .8), `stroke="${PAPER}" stroke-width=".9" stroke-opacity=".7"`);
+    out += line(p(ox + 6 + k * 3, fy + .12, z0 + .8), p(ox + 11 + k * 3, fy + .12, z0 + h - .8), `stroke="${PAPER}" stroke-width=".9" stroke-opacity=".8"`);
   }
-  // Floor slabs read as thin lines between the glazing bands.
   for (let k = 1; k < floors; k++) {
     const z = lobby + k * floor;
     out += line(p(ox, fy, z), p(fx, fy, z), 'stroke-width=".6"') + line(p(fx, oy, z), p(fx, fy, z), 'stroke-width=".6"');
   }
 
   // Canopy over the entrance.
-  out += box(ox + 15, fy - 1, 14, 6, 0.9, PAPER, PAPER, SHADE, lobby - 1.4, `stroke="${CORAL}" stroke-width=".9"`);
+  out += box(ox + 15, fy - 1, 14, 6, 0.9, PAPER, PAPER, SHADE, lobby - 1.4, `stroke="${BLUE}" stroke-width=".9"`);
 
-  // Parapet, roof deck, plant room with louvres and a coral roof light.
+  // Parapet, roof deck, plant room with louvres and a blue roof light.
   out += box(ox, oy, w, d, 1.6, PAPER, PAPER, SHADE, top, 'stroke-width=".85"');
   out += surface(ox + 1.4, oy + 1.4, w - 2.8, d - 2.8, top + 1.0, SHADE, 'stroke-width=".55"');
   out += box(ox + 8, oy + 6, 18, 14, 6.5, PAPER, PAPER, SHADE, top + 1.0, 'stroke-width=".8"');
   for (let z = top + 2.6; z < top + 7; z += 1.2) out += line(p(ox + 9.5, oy + 20.05, z), p(ox + 24.5, oy + 20.05, z), 'stroke-width=".45" stroke-opacity=".7"');
-  out += surface(ox + 30, oy + 22, 8, 10, top + 1.1, GLASS, `fill-opacity=".7" stroke="${CORAL}" stroke-width=".9"`);
-  return out;
+  out += surface(ox + 30, oy + 22, 8, 10, top + 1.1, GLASS, `stroke="${BLUE}" stroke-width=".9"`);
+  return `<g stroke="${CORAL}">${out}</g>`;
 }
 
 function card2StaticMarkup() {
   if (card2StaticCache) return card2StaticCache;
   const p = card2Projector;
-  const { polygon, surface, planLine, box, ruledNote } = card2Iso;
+  const { polygon, surface, planLine } = card2Iso;
   let s = '';
 
-  s += surface(4, 10, 156, 142, 0, PAPER);
-  s += polygon([p(4, 152, 0), p(160, 152, 0), p(160, 152, -4.5), p(4, 152, -4.5)], SHADE);
-  s += polygon([p(160, 10, 0), p(160, 152, 0), p(160, 152, -4.5), p(160, 10, -4.5)], SHADE);
-  s += surface(11, 17, 142, 128, .2, 'none', 'stroke-opacity=".18"');
+  s += surface(-14, 0, 186, 160, 0, PAPER);
+  s += polygon([p(-14, 160, 0), p(172, 160, 0), p(172, 160, -4.5), p(-14, 160, -4.5)], SHADE);
+  s += polygon([p(172, 0, 0), p(172, 160, 0), p(172, 160, -4.5), p(172, 0, -4.5)], SHADE);
+  s += surface(-7, 7, 172, 146, .2, 'none', 'stroke-opacity=".18"');
 
-  // Paths worn between the two doors and the table.
-  s += planLine([[62, 84, .3], [76, 74, .3], [92, 66, .3], [126, 64, .3]], 'stroke-dasharray="3 3" stroke-opacity=".4"');
-  s += planLine([[74, 76, .3], [82, 96, .3], [88, 104, .3]], 'stroke-dasharray="3 3" stroke-opacity=".4"');
-  s += planLine([[126, 64, .3], [130, 80, .3], [130, 92, .3]], `stroke="${CORAL}" stroke-dasharray="3 3" stroke-opacity=".45"`);
+  // Paths worn from each door to the table.
+  s += planLine([[74, 93, .3], [86, 102, .3], [96, 112, .3]], 'stroke-dasharray="3 3" stroke-opacity=".45"');
+  s += planLine([[128, 70, .3], [127, 88, .3], [124, 106, .3]], `stroke="${CORAL}" stroke-dasharray="3 3" stroke-opacity=".5"`);
 
-  s += radcliffeCameraMarkup(p, card2Iso);
-  s += officeBuildingMarkup(p, card2Iso);
-
-  for (const [dx, dy] of [[2, 2], [26, 2], [2, 14], [26, 14]]) {
-    s += box(94 + dx, 96 + dy, 1.8, 1.8, 13.0, PAPER, PAPER, SHADE, 0);
-  }
-  s += box(94, 96, 30, 18, 1.8, PAPER, PAPER, SHADE, 13.0);
-  s += ruledNote(97, 99, 9.2, 7.2, 15.0, BLUE, false);
-  s += ruledNote(111, 100, 9.2, 7.2, 15.0, CORAL, true);
+  const rp = scaledAbout(p, RADCAM.x, RADCAM.y, BUILDING_SCALE);
+  s += radcliffeCameraMarkup(rp, isoPrimitives(rp));
+  const ocx = OFFICE.x + OFFICE.w / 2, ocy = OFFICE.y + OFFICE.d / 2;
+  const op = scaledAbout(p, ocx, ocy, BUILDING_SCALE);
+  s += officeBuildingMarkup(op, isoPrimitives(op));
 
   card2StaticCache = s;
   return s;
 }
 
-// A form held upright between two hands, facing the way the holder faces.
-function formMarkup(p, centre, heading, colour, scale = 0.66) {
-  const { right, forward } = bodyFrame(0, 0, heading);
-  const c = (u, v, h) => p(...add3(centre, add3(mul3(right, u * scale), add3(mul3(forward, v * scale), [0, 0, h * scale]))));
-  const sheet = [c(-3.2, 0, -2.6), c(3.2, 0, -2.6), c(3.2, 1.4, 2.8), c(-3.2, 1.4, 2.8)];
-  let out = `<polygon points="${points(sheet)}" fill="${PAPER}" stroke="${colour}" stroke-width=".85"/>`;
-  out += `<path d="M${pair(c(-2.2, .9, 1.6))} L${pair(c(2.2, .9, 1.6))} M${pair(c(-2.2, .6, .3))} L${pair(c(1.2, .6, .3))}" fill="none" stroke="${colour}" stroke-width=".55" stroke-opacity=".7"/>`;
-  return out;
-}
+// The plan table: a blueprint of a building's floor, with the route the pair are working out.
+const PLAN_TABLE = { x: 96, y: 110, w: 32, d: 14, h: 16 };
+const PLAN = { x: 98.5, y: 111.6, w: 27, d: 10.8, z: PLAN_TABLE.h + 1.85 };
+const ROUTE = [[106.5, 116], [110.5, 112.8], [115, 116.2], [119.5, 113]];
 
-/**
- * A researcher and an operator walk out from their buildings, meet in the courtyard,
- * swap forms and walk home with each other's paperwork.
- */
-function exchangeMarkup(p, phase) {
-  const R = { id: 'c2-res-walk', colour: BLUE, home: [62, 84], meet: [80, 69], form: BLUE };
-  const O = { id: 'c2-op-walk', colour: CORAL, home: [126, 64], meet: [90, 64], form: CORAL };
-  const walkOut = smooth((phase - 0.06) / 0.3);
-  const swap = smooth((phase - 0.44) / 0.14);
-  const reach = smooth((phase - 0.38) / 0.06) * (1 - smooth((phase - 0.6) / 0.06));
-  const walkBack = smooth((phase - 0.7) / 0.26);
-  const turned = smooth((phase - 0.64) / 0.06) * (1 - smooth((phase - 0.97) / 0.03));
-  const moving = Math.sin(Math.PI * clamp((phase - 0.06) / 0.3)) + Math.sin(Math.PI * clamp((phase - 0.7) / 0.26));
+// Split a figure at its held layer, so two people behind one table can each have
+// their bodies behind it and their hands and heads over it.
+const HELD = '<!--held-->';
+const figureLayers = markup => {
+  const [back, front] = markup.split(HELD);
+  return [`${back}</g>`, `<g>${front}`];
+};
+let planTableCache = '';
 
-  const place = who => {
-    const t = walkOut * (1 - walkBack);
-    return [lerp(who.home[0], who.meet[0], t), lerp(who.home[1], who.meet[1], t)];
-  };
-  const rPos = place(R), oPos = place(O);
-  let out = '';
-  for (const [who, pos, other] of [[R, rPos, oPos], [O, oPos, rPos]]) {
-    const outward = Math.atan2(who.meet[0] - who.home[0], who.meet[1] - who.home[1]);
-    const heading = outward + Math.PI * turned;
-    const frame = bodyFrame(pos[0], pos[1], heading);
-    const carrying = frame.local(0, 4.2, 17.2);
-    // During the swap each form travels from one pair of hands to the other's.
-    const mid = [(rPos[0] + oPos[0]) / 2, (rPos[1] + oPos[1]) / 2];
-    const held = [lerp(carrying[0], mid[0], reach * 0.82), lerp(carrying[1], mid[1], reach * 0.82), lerp(17.2, 19.5, reach)];
-    const own = swap < 0.5 ? who.form : (who === R ? O.form : R.form);
-    const handsOn = centre => [add3(centre, mul3(frame.right, -2.0)), add3(centre, mul3(frame.right, 2.0))];
-    const [leftTarget, rightTarget] = handsOn(held);
-    out += human3DMarkup(p, {
-      id: who.id,
-      x: pos[0],
-      y: pos[1],
-      scale: 0.66,
-      heading,
-      lean: 0.6 + reach * 0.5,
-      stride: Math.sin(phase * TAU * 6) * 0.7 * Math.min(1, moving),
-      color: who.colour,
-      leftTarget,
-      rightTarget,
-    });
-    out += formMarkup(p, held, heading, own);
-  }
-  return out;
+function planTableMarkup() {
+  if (planTableCache) return planTableCache;
+  const { box, surface, line } = card2Iso;
+  const p = card2Projector;
+  const { x, y, w, d, h } = PLAN_TABLE;
+  const { x: px, y: py, w: pw, d: pd, z } = PLAN;
+  let s = '';
+  for (const [dx, dy] of [[2, 2], [w - 3.8, 2], [2, d - 3.8], [w - 3.8, d - 3.8]]) s += box(x + dx, y + dy, 1.8, 1.8, h, PAPER, PAPER, SHADE, 0);
+  s += box(x, y, w, d, 1.8, PAPER, PAPER, SHADE, h);
+  s += surface(px, py, pw, pd, z, '#E3EAFB', 'stroke-width=".8"');
+  for (let gx = px + 3; gx < px + pw; gx += 3) s += line(p(gx, py, z + .02), p(gx, py + pd, z + .02), 'stroke-width=".3" stroke-opacity=".3"');
+  for (let gy = py + 3; gy < py + pd; gy += 3) s += line(p(px, gy, z + .02), p(px + pw, gy, z + .02), 'stroke-width=".3" stroke-opacity=".3"');
+  // Floor plan: outer walls, two partitions and a door gap.
+  s += surface(px + 2, py + 2, pw - 4, pd - 4, z + .04, 'none', 'stroke-width=".9"');
+  s += line(p(px + 11, py + 2, z + .05), p(px + 11, py + pd - 4.5, z + .05), 'stroke-width=".7"');
+  s += line(p(px + 11, py + 6, z + .05), p(px + pw - 2, py + 6, z + .05), 'stroke-width=".7"');
+  s += line(p(px + 18, py + 6, z + .05), p(px + 18, py + pd - 2, z + .05), 'stroke-width=".7"');
+  planTableCache = s;
+  return s;
 }
 
 const card2FrameCache = new Map();
@@ -982,40 +971,64 @@ function card2DynamicMarkup(step) {
   if (card2FrameCache.has(step)) return card2FrameCache.get(step);
   const phase = (step % 80) / 80;
   const p = card2Projector;
-  const { ruledNote } = card2Iso;
+  const z = PLAN.z + .1;
 
-  // At the table a researcher and an operator work the same note between them.
-  const pass = 0.5 - 0.5 * Math.cos(phase * TAU);
-  const arc = Math.sin(phase * TAU);
-  const sharedNoteX = lerp(102, 110, pass);
-  const sharedNoteY = lerp(105, 102, pass);
-  const sharedNote = ruledNote(sharedNoteX - 4.2, sharedNoteY - 3.2, 8.6, 6.8, 15.1, pass > 0.5 ? CORAL : BLUE, pass > 0.35);
+  // Three legs of the route: the researcher points to the next stop, the operator's pen follows.
+  const legs = ROUTE.length - 1;
+  const drawEnd = 0.88;
+  const progress = Math.min(1, phase / drawEnd) * legs;
+  const leg = Math.min(legs - 1, Math.floor(progress));
+  const u = smooth(progress - leg);
+  const pen = [lerp(ROUTE[leg][0], ROUTE[leg + 1][0], u), lerp(ROUTE[leg][1], ROUTE[leg + 1][1], u), z];
+  const fade = 1 - smooth((phase - 0.92) / 0.08);
+  const traced = [...ROUTE.slice(0, leg + 1), pen];
+  let route = `<path d="M${traced.map(([x, y]) => pair(p(x, y, z))).join(' L')}" fill="none" stroke="${CORAL}" stroke-width="1.3" stroke-opacity="${number(fade)}"/>`;
+  for (const [i, [x, y]] of ROUTE.entries()) {
+    if (i > leg + (u > .98 ? 1 : 0)) break;
+    const [cx, cy] = p(x, y, z);
+    route += `<circle cx="${cx}" cy="${cy}" r="1.3" fill="${CORAL}" stroke="none" fill-opacity="${number(fade)}"/>`;
+  }
 
-  const resLead = human3DMarkup(p, {
-    id: 'c2-res-lead',
-    x: 86,
-    y: 106,
+  // Both stand behind the table facing out, so the plan reads. The researcher points
+  // ahead to where the line goes next; the other hand rests on the edge.
+  const next = ROUTE[Math.min(legs, leg + 1)];
+  const lookAhead = smooth(Math.min(1, (progress - leg) * 2.2));
+  const prev = ROUTE[leg];
+  const point = [lerp(prev[0], next[0], lookAhead), lerp(prev[1], next[1], lookAhead), z + 1.2 + Math.sin(lookAhead * Math.PI) * 1.6];
+  const researcher = human3DMarkup(p, {
+    id: 'c2-researcher',
+    x: 107.6,
+    y: 107,
     scale: 0.72,
-    heading: Math.PI * 0.42,
-    lean: 1.15 + 0.35 * (1 - pass),
+    heading: 0.22 + 0.05 * Math.sin(phase * TAU),
+    lean: 1.3,
     color: BLUE,
-    leftTarget: [95, 101, 15.8 + Math.max(0, -arc) * 2.2],
-    rightTarget: [lerp(96, 101, pass), lerp(107, 105, pass), 15.5 + Math.max(0, arc) * 2.8],
+    leftTarget: [103.2, 111.4, PLAN_TABLE.h + 2.4],
+    rightTarget: point,
+    held: HELD,
   });
 
-  const opLead = human3DMarkup(p, {
-    id: 'c2-op-lead',
-    x: 131,
-    y: 95,
+  const operator = human3DMarkup(p, {
+    id: 'c2-operator',
+    x: 118,
+    y: 107,
     scale: 0.72,
-    heading: -Math.PI * 0.58,
-    lean: 1.15 + 0.35 * pass,
+    heading: -0.22 + 0.05 * Math.sin(phase * TAU + 1),
+    lean: 1.3,
     color: CORAL,
-    leftTarget: [lerp(116, 121, pass), lerp(102, 99, pass), 15.5 + Math.max(0, -arc) * 2.8],
-    rightTarget: [121, 96, 15.8 + Math.max(0, arc) * 2.2],
+    leftTarget: [pen[0] + .5, pen[1] - 1.0, z + 1.0],
+    rightTarget: [123.4, 111.4, PLAN_TABLE.h + 2.4],
+    held: HELD,
   });
 
-  const markup = exchangeMarkup(p, phase) + sharedNote + resLead + opLead;
+  // The operator's pen.
+  const [tx, ty] = p(pen[0], pen[1], z + .2);
+  const [bx, by] = p(pen[0] + 1.0, pen[1] - 2.4, z + 3.4);
+  const penMarkup = `<path d="M${tx},${ty} L${bx},${by}" fill="none" stroke="${BLUE}" stroke-width="1.3" stroke-linecap="round"/>`;
+
+  const [researcherBack, researcherFront] = figureLayers(researcher);
+  const [operatorBack, operatorFront] = figureLayers(operator);
+  const markup = researcherBack + operatorBack + planTableMarkup() + route + researcherFront + operatorFront + penMarkup;
   card2FrameCache.set(step, markup);
   return markup;
 }

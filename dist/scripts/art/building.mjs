@@ -1,4 +1,4 @@
-import { humanParts } from './building-people.mjs?v=92e498670471';
+import { humanParts } from './building-people.mjs?v=e135a0bffbe4';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';
@@ -76,13 +76,13 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
   drawing+=polygon([p(0,220),p(220,220),p(220,220,-5),p(0,220,-5)],SHADE);
   drawing+=polygon([p(220,0),p(220,220),p(220,220,-5),p(220,0,-5)],SHADE);
   drawing+=surface(12,12,196,196,.2,'none','stroke-opacity=".17"');
-  drawing+=planLine([[18,18,13],[18,18],[202,18],[202,18,13]],'stroke-opacity=".28"');
-  drawing+=planLine([[18,18],[18,202],[18,202,13]],'stroke-opacity=".28"');
+  drawing+=planLine([[18,202],[18,18],[202,18]],'stroke-opacity=".28"');
 
   const objects=[], contacts=[];
   const object=(name,x,y,markup)=>objects.push({name,x,y,markup});
-  const human=(name,x,y,heading,pose,kind,target)=>{
-    for (const part of humanParts({project:p,x,y,heading,pose,kind,target,id:`${figurePrefix}-floor-${index}-${name}`})) {
+  // The client's people are coral; on every floor one koralli researcher (blue) works the problem with them.
+  const human=(name,x,y,heading,pose,kind,target,colour)=>{
+    for (const part of humanParts({project:p,x,y,heading,pose,kind,target,colour,id:`${figurePrefix}-floor-${index}-${name}`})) {
       const item={...part,name:`${name}-${part.name}`};
       // Only the contact forearm/hand sits above its work surface. Upper arms
       // use viewing depth; each segment masks any nearer part of its own body.
@@ -110,7 +110,7 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
       if(selected) board+=planLine([[x+7,43,34],[x+10,43,31],[x+17,43,37]],`stroke="${CORAL}" stroke-width="1.5"`);
     }
     object('choices-board',102,43,board);
-    human('presenting-choice',153,49,-Math.PI/2,'pointing','woman',[140,43,34]);
+    human('presenting-choice',153,49,-Math.PI/2,'pointing','woman',[140,43,34],BLUE);
     let table=desk(69,103,88,36);
     table+=ruledPaper(83,113,19,15)+ruledPaper(123,112,19,15,20.35,true);
     object('meeting-table',90,121,table);
@@ -127,7 +127,7 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
     for(const x of [94,115]) for(const y of [108,113,118]) work+=line(p(x,y,20.5),p(x+12,y,20.5),'stroke-width=".75" stroke-opacity=".5"');
     work+=box(139,102,10,15,1.5,PAPER,20);
     object('shared-worktable',111.5,110,work);
-    human('contributing-to-brief',99,86,0,'collaborating','man',[99,100,20.7]);
+    human('contributing-to-brief',99,86,0,'collaborating','man',[99,100,20.7],BLUE);
     human('reviewing-shared-brief',122,134,Math.PI,'collaborating','woman',[122,120,20.7]);
     // A small return desk carries the next piece of work, without another screen.
     let returnDesk=desk(155,45,36,27)+ruledPaper(161,51,22,15);
@@ -144,7 +144,7 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
       rack+=`<circle cx="${cx}" cy="${cy}" r=".9" fill="${BLUE}" stroke="none"/>`;
     }
     object('equipment-rack',52,49.5,rack);
-    human('checking-equipment',62,76,Math.PI,'pointing','man',[60,64,33]);
+    human('checking-equipment',62,76,Math.PI,'pointing','man',[60,64,33],BLUE);
     let console=desk(117,94,70,34)+screen(123,103,24,16)+screen(154,103,24,16);
     console+=panel(126,103,33,18,4,PAPER,'stroke-opacity=".5"');
     console+=line(p(126,103,29),p(140,103,29),'stroke-opacity=".45"');
@@ -173,7 +173,7 @@ function interior(index, base, angle = 0, lift = 0, figurePrefix = 'koralli-comp
     }
     shelves+=box(34,37,86,24,1.5,PAPER,25);
     object('open-records-shelf',77,49,shelves);
-    human('selecting-source-record',93,71,Math.PI,'pointing','man',[91,60,22]);
+    human('selecting-source-record',93,71,Math.PI,'pointing','man',[91,60,22],BLUE);
     let checkDesk=desk(121,110,66,36);
     checkDesk+=ruledPaper(128,118,21,22)+ruledPaper(154,118,21,22,20.35,true);
     checkDesk+=line(p(150,121,20.6),p(150,136,20.6),'stroke-opacity=".25"');

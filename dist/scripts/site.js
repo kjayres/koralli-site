@@ -8,13 +8,13 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=92e498670471'),
-  research: () => import('./art/research.mjs?v=92e498670471'),
-  approach: () => import('./art/approach.mjs?v=92e498670471'),
-  coral: () => import('./art/coral.mjs?v=92e498670471'),
-  'work-coral': () => import('./art/coral.mjs?v=92e498670471'),
-  reef: () => import('./art/reef.mjs?v=92e498670471'),
-  'journal-water': () => import('./art/journal-water.mjs?v=92e498670471')
+  wave: () => import('./art/wave.mjs?v=e135a0bffbe4'),
+  research: () => import('./art/research.mjs?v=e135a0bffbe4'),
+  approach: () => import('./art/approach.mjs?v=e135a0bffbe4'),
+  coral: () => import('./art/coral.mjs?v=e135a0bffbe4'),
+  'work-coral': () => import('./art/coral.mjs?v=e135a0bffbe4'),
+  reef: () => import('./art/reef.mjs?v=e135a0bffbe4'),
+  'journal-water': () => import('./art/journal-water.mjs?v=e135a0bffbe4')
 };
 
 function artworkFailed(state, error) {
@@ -61,7 +61,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=92e498670471');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=e135a0bffbe4');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -240,7 +240,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=92e498670471').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=e135a0bffbe4').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -387,7 +387,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=92e498670471').then(module => {
+if (building && svg) import('./art/building.mjs?v=e135a0bffbe4').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -431,7 +431,7 @@ if (thesisStage || redesignersStage) {
       schedule();
     }).observe(redesignersStage);
   }
-  import('./art/thesis-cards.mjs?v=92e498670471').then(({ initThesisCards, initRedesignersMech }) => {
+  import('./art/thesis-cards.mjs?v=e135a0bffbe4').then(({ initThesisCards, initRedesignersMech }) => {
     if (thesisStage) {
       renderThesis = initThesisCards(thesisStage);
       updateThesisScroll();
