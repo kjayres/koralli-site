@@ -14,11 +14,8 @@ export function squidPose(width, height, seconds = 0, { compact = false, reduced
   const phase = wrap(time + 1.2, 45), cycle = Math.floor((time + 1.2) / 45), duration = 31;
   const order = hash(Math.floor(cycle / 3) + 419) > .5 ? [0, 1, 2] : [0, 2, 1];
   const lane = reducedMotion ? 0 : order[cycle % 3], variation = hash(cycle + 127);
-  // The opening pass sits below the heading and introduction, with later upper
-  // passes staying in the same water column rather than returning to the header.
-  const laneY = cycle === 0 || reducedMotion ? (compact ? 530 : 600)
-    : lane === 0 ? (compact ? 510 + variation * 40 : 580 + variation * 40)
-      : height * (lane === 1 ? .43 + variation * .13 : .72 + variation * .15);
+  // Every pass swims behind the middle of the essay list, a different depth each time.
+  const laneY = cycle === 0 || reducedMotion ? height * .5 : height * ([.39, .5, .61][lane] + (variation - .5) * .08);
   const length = compact ? Math.min(width * .86, 330) : Math.min(width * .68, 1000);
   const scale = length / 3.06, margin = 28;
   const start = -1.12 * scale - margin, finish = width + 1.94 * scale + margin;

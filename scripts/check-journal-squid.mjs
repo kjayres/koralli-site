@@ -56,11 +56,11 @@ for (const compact of [false, true]) {
     'Independent arms visibly curl and relax');
   for (let group = 0; group < 4; group++) {
     const lanes = Array.from({ length: 3 }, (_, i) => squidPose(width, height, (group * 3 + i) * 45 + 10, options).lane);
-    assert.deepEqual([...lanes].sort(), [0, 1, 2], 'Each three-pass group visits upper, middle and lower water');
+    assert.deepEqual([...lanes].sort(), [0, 1, 2], 'Each three-pass group swims at three different depths');
   }
   for (let cycle = 0; cycle < 12; cycle++) {
     const first = squidPose(width, height, cycle * 45 + 4, options), last = squidPose(width, height, cycle * 45 + 26, options);
-    assert.ok(first.y > (compact ? 490 : 550), 'Every pass stays below the heading and introduction');
+    assert.ok(first.y > height * .33 && first.y < height * .67, 'Every pass swims behind the middle of the essay list');
     assert.equal(first.laneY, last.laneY, 'Choose the height once per pass');
     assert.equal(first.laneY, squidPose(width, height, cycle * 45 + 4, options).laneY, 'Lane selection is deterministic');
     for (const time of [cycle * 45 + 8, cycle * 45 + 18, cycle * 45 + 27]) {
@@ -80,8 +80,8 @@ for (const compact of [false, true]) {
   }
   const still = capture(width, height, 0, { compact, reducedMotion: true });
   assert.ok(still.visible && still.minimum[0] > 0 && still.maximum[0] < width, 'Reduced motion has a composed complete squid');
-  assert.ok(still.minimum[1] > (compact ? 450 : 490) && still.maximum[1] < 800,
-    'Opening composition sits lower while remaining within the first viewport');
+  assert.ok(still.minimum[1] > height * .3 && still.maximum[1] < height * .7,
+    'The reduced-motion squid rests behind the middle of the essay list');
   assert.deepEqual(capture(width, height, 1000, { compact, reducedMotion: true, scrollProgress: 1 }).strokes, still.strokes,
     'Reduced motion freezes the pose and geometry, including scroll response');
   assert.ok(Number.isFinite(squidPose(width, height, Infinity, options).x), 'An invalid time has a stable initial pose');
