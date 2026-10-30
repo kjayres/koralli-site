@@ -200,7 +200,7 @@ function assertFlow(t) {
   assert.ok(t.steps.every(step => !step.inert && step.getAttribute('aria-hidden') === null), 'Every phase remains available in fallback mode');
 }
 
-test('the pinned frame contains the title, particle scene and working case link', async () => {
+test('the pinned frame contains the title and particle scene', async () => {
   const html = await fs.readFile(new URL('../src/our-work.html', import.meta.url), 'utf8');
   const ancestors = [], framed = [], neighbours = [], ids = new Set();
   const voidTags = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
@@ -223,7 +223,7 @@ test('the pinned frame contains the title, particle scene and working case link'
     }
     if (!voidTags.has(name.toLowerCase()) && !attributes.endsWith('/')) ancestors.push(attributes);
   }
-  assert.deepEqual(framed, ['h2', 'canvas', 'a']);
+  assert.deepEqual(framed, ['h2', 'canvas']);
   assert.equal(neighbours.length, 2, 'One real opening and bank section must share the page');
 });
 
@@ -318,7 +318,7 @@ test('layout notifications keep the selected scene stable and observe content ra
   assert.deepEqual(t.phases, selected, 'Repeated measurement must not restart the current phase');
   assert.equal(t.shell.style.height, spacer);
   assert.equal(t.track.style.height, undefined);
-  assert.deepEqual(t.observed, [...t.copies, t.frame, t.heading, t.continuation, t.page], 'Actual page content should trigger remeasurement, not the outer runway');
+  assert.deepEqual(t.observed, [...t.copies, t.frame, t.heading, t.page], 'Actual page content should trigger remeasurement, not the outer runway');
 });
 
 test('viewport and page-content changes preserve held progress without moving readers outside the hold', async () => {

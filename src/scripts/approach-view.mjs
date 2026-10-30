@@ -169,7 +169,6 @@ export function initApproach(selectPhase) {
   steps.forEach(step => observer.observe(step.querySelector('.approach-copy')));
   observer.observe(figure.querySelector('.approach-frame'));
   observer.observe(section.querySelector('.approach-heading'));
-  observer.observe(section.querySelector('.approach-continuation'));
   if (page) observer.observe(page);
   layout();
   jumpToHash();
