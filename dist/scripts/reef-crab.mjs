@@ -2,7 +2,7 @@
 // the stone (or focusing it) brings the crab scuttling out to say "… a look at the future";
 // moving away sends it back under, raising a little silt. The stone is a link: pressing it, or
 // the crab, opens the Poseidon page (agent-systems.html), which is reached from nowhere else.
-import { habitatStone } from './art/journal-water.mjs?v=212b30900ccf';
+import { habitatStone } from './art/journal-water.mjs?v=23f44499e6cd';
 
 const NS = 'http://www.w3.org/2000/svg';
 const LINE = '#8FA5FF';

@@ -52,7 +52,7 @@
 .case-phase-panel:hover,.case-phase-panel[open] { border-color:var(--blue); }
 .case-phase-trigger { list-style:none; cursor:pointer; padding:22px 24px; min-height:92px; box-sizing:border-box; display:grid; grid-template-columns:1fr auto; gap:6px 16px; align-items:center; }
 .case-phase-trigger::-webkit-details-marker { display:none; }
-.case-phase-sprints { grid-column:1; font-size:10px; color:#5c5b58; letter-spacing:.14em; align-self:end; }
+.case-phase-description { grid-column:1; font-size:14px; line-height:1.4; color:#5c5b58; align-self:start; }
 .case-phase-title { grid-column:1; font-size:clamp(15px,1.45vw,21px); font-weight:500; line-height:1.25; letter-spacing:-.02em; color:var(--ink); align-self:start; transition:color .2s ease; }
 .case-phase-icon { grid-column:2; grid-row:1 / span 2; align-self:center; justify-self:center; position:relative; box-sizing:border-box; width:32px; height:32px; border-radius:50%; border:1px solid rgba(36,78,255,.35); color:var(--blue); font-size:0; line-height:0; user-select:none; transition:transform .2s ease,background-color .2s ease,color .2s ease,border-color .2s ease; }
 .case-phase-icon::before,.case-phase-icon::after { content:''; position:absolute; top:50%; left:50%; background:currentColor; border-radius:1px; transform:translate(-50%,-50%); }
