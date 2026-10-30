@@ -8,14 +8,14 @@ const SHADE = 'var(--building-shade, #E5E8ED)';
 const GLASS = 'var(--building-glass, #D7DFEF)';
 const SECTION_HEIGHTS = [97, 97, 97, 97];
 const SECTION_TIERS = [3, 3, 3, 3];
+export const buildingSectionCount = SECTION_HEIGHTS.length;
 const ROOF = 378 - SECTION_HEIGHTS.reduce((sum, height) => sum + height, 0);
 const sectionBase = index => ROOF + SECTION_HEIGHTS.slice(0, index + 1).reduce((sum, height) => sum + height, 0);
 
 export const buildingPhases = [
-  { title: 'Direction and offering', detail: 'What the organisation offers, who it serves and where it chooses to focus.' },
-  { title: 'People and work', detail: 'Who does the work, how teams coordinate and who is responsible for decisions.' },
-  { title: 'Systems and tools', detail: 'The applications and infrastructure people use to do the work.' },
-  { title: 'Data foundations', detail: 'The records, definitions and checks that make information dependable.' }
+  { title: 'Direction & offering', detail: 'What the organisation offers, who it serves and where it chooses to focus.' },
+  { title: 'People & work', detail: 'Who does the work, how teams coordinate and who is responsible for decisions.' },
+  { title: 'Systems & records', detail: 'Rethink the data, tools, models, and controls that people and machines rely on.' }
 ];
 
 const number = n => Number(n.toFixed(2));
@@ -315,7 +315,7 @@ export function buildingMarkup(id='koralli-company-building') {
     const base=sectionBase(index);
     layers+=interior(index,base,0,0,safeId)+cover(index,base);
   }
-  return `<svg class="company-building" data-figure-prefix="${safeId}" xmlns="http://www.w3.org/2000/svg" viewBox="0 -160 700 860" role="img" aria-labelledby="${safeId}-title ${safeId}-desc"><title id="${safeId}-title">Inside an organisation, in a miniature inspired by Sullivan's Guaranty Building</title><desc id="${safeId}-desc">An interpretation of the Guaranty Building with twelve exterior tiers in four equal-height sections beneath a complete flat roof. The four rooms show people choosing between proposals, collaborating over a shared brief, using applications and infrastructure, and comparing source records beside low open shelves. Scrolling lifts each exterior section to reveal its interior.</desc><g data-building-world="">${layers}</g><g data-building-scale="" fill="none" stroke="${BLUE}" stroke-width=".8" stroke-opacity=".35"><path d="M104 238 V570 M99 238 h10 M99 570 h10"/>${[0,1,2,3].map(i=>`<path d="M101 ${258+i*88} h6"/>`).join('')}</g><text x="350" y="654" text-anchor="middle" fill="${BLUE}" fill-opacity=".62" font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="2.2">ONE ORGANISATION / FOUR LEVELS</text></svg>`;
+  return `<svg class="company-building" data-figure-prefix="${safeId}" xmlns="http://www.w3.org/2000/svg" viewBox="0 -160 700 860" role="img" aria-labelledby="${safeId}-title ${safeId}-desc"><title id="${safeId}-title">Inside an organisation, in a miniature inspired by Sullivan's Guaranty Building</title><desc id="${safeId}-desc">An interpretation of the Guaranty Building with twelve exterior tiers in four equal-height sections beneath a complete flat roof. The upper three rooms show direction and offering, people and work, and systems and records. Scrolling lifts these exterior sections to reveal their interiors; the ground-floor exterior stays closed.</desc><g data-building-world="">${layers}</g><g data-building-scale="" fill="none" stroke="${BLUE}" stroke-width=".8" stroke-opacity=".35"><path d="M104 238 V570 M99 238 h10 M99 570 h10"/>${[0,1,2,3].map(i=>`<path d="M101 ${258+i*88} h6"/>`).join('')}</g><text x="350" y="654" text-anchor="middle" fill="${BLUE}" fill-opacity=".62" font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="2.2">ONE ORGANISATION / THREE LAYERS</text></svg>`;
 }
 
 const clamp=x=>Math.min(1,Math.max(0,x));
@@ -490,8 +490,9 @@ function setGeometry(state, kind, index, angle, lift, worldDy = 0, scale = 0) {
 
 export function updateBuilding(svg, progress, reducedMotion = false) {
   const p = clamp(Number.isFinite(progress) ? progress : 0);
-  const phase = Math.min(3, Math.floor(p * 4));
-  const local = p === 1 ? 1 : p * 4 - phase;
+  const lastPhase = buildingPhases.length - 1;
+  const phase = Math.min(lastPhase, Math.floor(p * buildingSectionCount));
+  const local = clamp(p * buildingSectionCount - phase);
   const state = parts(svg);
   promoteLayers(svg, state);
   const worldDy = number(reducedMotion ? -54 : -108 * p);
@@ -519,15 +520,18 @@ export function updateBuilding(svg, progress, reducedMotion = false) {
       state.world?.setAttribute('transform', worldTransform);
     }
   }
-  for (let index = 0; index < 4; index++) {
-    const now = clamp(p * 4 - index);
-    const next = clamp(p * 4 - index - 1);
+  // Preserve the four-section geometry and timing. The last quarter holds the
+  // third room above an intact ground floor instead of revealing a fourth room.
+  for (let index = 0; index < buildingSectionCount; index++) {
+    const closed = index > lastPhase;
+    const now = closed ? 0 : clamp(p * buildingSectionCount - index);
+    const next = index >= lastPhase ? 0 : clamp(p * buildingSectionCount - index - 1);
     const currentPose = reducedMotion ? {angle: 0, lift: 0, opacity: index <= phase ? 0 : 1} : pose(now);
     const followingPose = reducedMotion ? {angle: 0, lift: 0, opacity: 1} : pose(next);
     const coverNode = state.covers[index];
     const floorNode = state.floors[index];
     const coverOpacity = number(currentPose.opacity);
-    const floorOpacity = number(reducedMotion ? (index === phase ? 1 : 0) : smooth(.03, .23, now) * (index === 3 ? 1 : followingPose.opacity));
+    const floorOpacity = closed ? 0 : number(reducedMotion ? (index === phase ? 1 : 0) : smooth(.03, .23, now) * followingPose.opacity);
     if (coverOpacity > 0 || !coverNode?.innerHTML) setGeometry(state, 'cover', index, currentPose.angle, currentPose.lift, worldDy, scale);
     else state.liftKeys[index] = null;
     if (floorOpacity > 0 || !floorNode?.innerHTML) setGeometry(state, 'floor', index, followingPose.angle, followingPose.lift, worldDy, scale);
@@ -556,6 +560,6 @@ export function updateBuilding(svg, progress, reducedMotion = false) {
     }
   }
   svg.dataset.activeFloor = String(phase);
-  const textOpacity = reducedMotion ? 1 : smooth(.06, .25, local) * (phase === 3 ? 1 : 1 - smooth(.84, 1, local));
+  const textOpacity = reducedMotion ? 1 : smooth(.06, .25, local) * (phase === lastPhase ? 1 : 1 - smooth(.84, 1, local));
   return {phase, localProgress: local, textOpacity};
 }

@@ -29,8 +29,8 @@ function replaceGroup(markup, attribute, index, state) {
   return markup.slice(0, opening.index) + tag.slice(0, -1) + ' ' + attributes + '>' + state.innerHTML + '</g>' + markup.slice(end);
 }
 
-export function buildingSnapshot({buildingMarkup, updateBuilding, buildingPhases}, progress, reducedMotion = false, id = 'koralli-building') {
-  const count = buildingPhases.length;
+export function buildingSnapshot({buildingMarkup, updateBuilding, buildingPhases, buildingSectionCount = buildingPhases.length}, progress, reducedMotion = false, id = 'koralli-building') {
+  const count = buildingSectionCount;
   const covers = Array.from({length: count}, (_, i) => element({cover: String(i)}));
   const floors = Array.from({length: count}, (_, i) => element({floor: String(i)}));
   const world = element();
@@ -40,7 +40,7 @@ export function buildingSnapshot({buildingMarkup, updateBuilding, buildingPhases
     querySelector() { return world; }
   };
   updateBuilding(svg, progress, reducedMotion);
-  const labels = buildingPhases.map(phase => phase.title);
+  const labels = Array.from({length: count}, (_, i) => buildingPhases[i]?.title || 'Ground floor (closed)');
   floors.forEach((floor, i) => { floor.setAttribute('id', `interior-${i+1}`); floor.setAttribute('data-name', labels[i]); });
   covers.forEach((cover, i) => { cover.setAttribute('id', `cover-${i+1}`); cover.setAttribute('data-name', `Section ${i+1} removable exterior`); });
   let markup = buildingMarkup(id);
@@ -59,7 +59,8 @@ export async function exportBuildingVariants({modulePath = 'src/scripts/art/buil
     ['building-lift', .0875, false],
     ['building-mid', .17, false],
     ['building-operating-mid', .42, false],
-    ...['organisation','people-work','systems-tools','data-foundations'].map((name,i) => [`building-0${i+1}-${name}`, (i+.6)/4, true])
+    ...['organisation','people-work','systems-records'].map((name,i) => [`building-0${i+1}-${name}`, (i+.6)/building.buildingSectionCount, true]),
+    ['building-04-ground-closed', 1, false]
   ];
   mkdirSync(outputDir, {recursive: true});
   const paths = [];

@@ -201,7 +201,7 @@
     transform:none;
     width:100%;
   }
-  .home-page .building-caption { margin-bottom:16px; font-size:13px; }
+  .home-page .building-caption { order:2; margin-bottom:16px; font-size:13px; }
   .home-footer .reef-editorial > div + div { padding-top:0; }
   .home-footer .reef-definition { grid-template-columns:1fr; gap:16px; }
   .home-footer .reef-contact { justify-self:start; }

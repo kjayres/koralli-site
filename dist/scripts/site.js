@@ -1,4 +1,4 @@
-import { journalViewportBand } from './journal-viewport.mjs?v=37022120d42d';
+import { journalViewportBand } from './journal-viewport.mjs?v=cffd677bd889';
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const clamp = n => Math.min(1, Math.max(0, n));
@@ -9,11 +9,11 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=37022120d42d'),
-  approach: () => import('./art/approach.mjs?v=37022120d42d'),
-  'work-coral': () => import('./art/coral.mjs?v=37022120d42d'),
-  reef: () => import('./art/reef.mjs?v=37022120d42d'),
-  'journal-water': () => import('./art/journal-water.mjs?v=37022120d42d')
+  wave: () => import('./art/wave.mjs?v=cffd677bd889'),
+  approach: () => import('./art/approach.mjs?v=cffd677bd889'),
+  'work-coral': () => import('./art/coral.mjs?v=cffd677bd889'),
+  reef: () => import('./art/reef.mjs?v=cffd677bd889'),
+  'journal-water': () => import('./art/journal-water.mjs?v=cffd677bd889')
 };
 
 function artworkFailed(state, error) {
@@ -82,7 +82,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=37022120d42d');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=cffd677bd889');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -257,7 +257,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=37022120d42d').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=cffd677bd889').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -281,6 +281,8 @@ let buildingProgress = 0;
 let lastBuildingKey = '';
 let lastBuildingLayer = -1;
 let updateBuilding;
+// The physical four-section timeline stays fixed even with three copy panels.
+let buildingTimelineSteps = 4;
 const buildingOriginal = svg ? { content: svg.innerHTML, viewBox: svg.getAttribute('viewBox') } : null;
 const mixColour = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
 const BUILDING_COLOURS = {
@@ -350,7 +352,7 @@ function renderBuilding(force = false, preReadRect = null) {
   try {
     const rect = preReadRect || building.getBoundingClientRect();
     if (!force && !motion.matches && (rect.top > innerHeight || rect.bottom < 0)) return;
-    const progress = motion.matches ? (staticDepth + .6) / panels.length : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
+    const progress = motion.matches ? (staticDepth + .6) / buildingTimelineSteps : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
     const compact = innerWidth < 760;
     const renderKey = `${progress}|${motion.matches}|${compact}`;
     if (!force && renderKey === lastBuildingKey) return;
@@ -389,15 +391,16 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
     return;
   }
   const rect = building.getBoundingClientRect();
-  const top = scrollY + rect.top + (rect.height - innerHeight) * (Number(button.dataset.depth) + .96) / panels.length;
+  const top = scrollY + rect.top + (rect.height - innerHeight) * (Number(button.dataset.depth) + .96) / buildingTimelineSteps;
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=37022120d42d').then(module => {
+if (building && svg) import('./art/building.mjs?v=cffd677bd889').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
     updateBuilding = module.updateBuilding;
+    buildingTimelineSteps = module.buildingSectionCount || 4;
     building.classList.add('building-enhanced');
     renderBuilding(true);
   });
@@ -426,7 +429,7 @@ if (thesisStage) {
     if (thesisVisible) updateThesisScroll();
     schedule();
   }).observe(thesisStage);
-  import('./art/thesis-cards.mjs?v=37022120d42d').then(({ initThesisCards }) => {
+  import('./art/thesis-cards.mjs?v=cffd677bd889').then(({ initThesisCards }) => {
     renderThesis = initThesisCards(thesisStage);
     updateThesisScroll();
     schedule();
@@ -442,15 +445,24 @@ function seaIsDarkAt(y) {
   return within(chamber) && chamber.dataset.depthTheme === '1';
 }
 if (seaAnchor) {
-  import('./sea-anchor.mjs?v=37022120d42d')
+  import('./sea-anchor.mjs?v=cffd677bd889')
     .then(({ initSeaAnchor }) => { updateSeaAnchor = initSeaAnchor(seaAnchor, { darkAt: seaIsDarkAt }); })
     .catch(error => console.error('Unable to initialise the anchor:', error));
+}
+
+// The homepage uses its original depth gauge; the journal retains its anchor.
+const depthGauge = document.querySelector('.depth-gauge');
+let updateDepthGauge = () => {};
+if (depthGauge) {
+  import('./depth-gauge.mjs?v=cffd677bd889')
+    .then(({ initDepthGauge }) => { updateDepthGauge = initDepthGauge(depthGauge, { building, motion, darkAt: seaIsDarkAt }); })
+    .catch(error => console.error('Unable to initialise the depth gauge:', error));
 }
 
 // A hermit crab under a stone at the foot of Views from the Reef.
 const reefCrab = document.querySelector('[data-reef-crab]');
 if (reefCrab) {
-  import('./reef-crab.mjs?v=37022120d42d')
+  import('./reef-crab.mjs?v=cffd677bd889')
     .then(({ initReefCrab }) => initReefCrab(reefCrab))
     .catch(error => console.error('Unable to initialise the hermit crab:', error));
 }
@@ -469,9 +481,10 @@ function onScroll(event) {
     renderBuilding(false, rect);
     updateApproach();
     updateSeaAnchor();
+    updateDepthGauge();
   });
 }
-const tracksScroll = Boolean(building || seaAnchor || journalState || thesisStage || document.querySelector('[data-approach]'));
+const tracksScroll = Boolean(building || seaAnchor || depthGauge || journalState || thesisStage || document.querySelector('[data-approach]'));
 if (tracksScroll) {
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll);
@@ -483,6 +496,7 @@ motion.addEventListener('change', () => {
   canvasStates.forEach(state => paint(state));
   updateThesisScroll();
   renderBuilding(true);
+  updateDepthGauge();
   schedule();
 });
 document.addEventListener('visibilitychange', () => {

@@ -1,0 +1,24 @@
+/* The original homepage depth marker, restored from component-archive/depth-gauge. */
+.depth-gauge {
+  position:fixed;
+  right:15px;
+  top:50%;
+  transform:translateY(-50%);
+  display:flex;
+  align-items:center;
+  flex-direction:column;
+  gap:10px;
+  pointer-events:none;
+  z-index:30;
+  color:var(--ink);
+  font-family:var(--mono);
+  font-size:10px;
+  letter-spacing:.15em;
+}
+.depth-gauge[hidden] { display:none; }
+.depth-gauge>span { writing-mode:vertical-rl; }
+.depth-gauge>i { height:110px; width:1px; background:currentColor; position:relative; opacity:.7; }
+.depth-gauge b { position:absolute; top:0; left:-2px; width:5px; height:5px; border-radius:50%; background:var(--coral); will-change:transform; }
+@media (max-width:759px), (prefers-reduced-motion:reduce), print {
+  .depth-gauge { display:none; }
+}

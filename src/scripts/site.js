@@ -281,6 +281,8 @@ let buildingProgress = 0;
 let lastBuildingKey = '';
 let lastBuildingLayer = -1;
 let updateBuilding;
+// The physical four-section timeline stays fixed even with three copy panels.
+let buildingTimelineSteps = 4;
 const buildingOriginal = svg ? { content: svg.innerHTML, viewBox: svg.getAttribute('viewBox') } : null;
 const mixColour = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
 const BUILDING_COLOURS = {
@@ -350,7 +352,7 @@ function renderBuilding(force = false, preReadRect = null) {
   try {
     const rect = preReadRect || building.getBoundingClientRect();
     if (!force && !motion.matches && (rect.top > innerHeight || rect.bottom < 0)) return;
-    const progress = motion.matches ? (staticDepth + .6) / panels.length : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
+    const progress = motion.matches ? (staticDepth + .6) / buildingTimelineSteps : clamp(-rect.top / Math.max(1, rect.height - innerHeight));
     const compact = innerWidth < 760;
     const renderKey = `${progress}|${motion.matches}|${compact}`;
     if (!force && renderKey === lastBuildingKey) return;
@@ -389,7 +391,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
     return;
   }
   const rect = building.getBoundingClientRect();
-  const top = scrollY + rect.top + (rect.height - innerHeight) * (Number(button.dataset.depth) + .96) / panels.length;
+  const top = scrollY + rect.top + (rect.height - innerHeight) * (Number(button.dataset.depth) + .96) / buildingTimelineSteps;
   scrollTo({ top, behavior: 'smooth' });
 }));
 
@@ -398,6 +400,7 @@ if (building && svg) import('./art/building.mjs').then(module => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
     updateBuilding = module.updateBuilding;
+    buildingTimelineSteps = module.buildingSectionCount || 4;
     building.classList.add('building-enhanced');
     renderBuilding(true);
   });
@@ -447,6 +450,15 @@ if (seaAnchor) {
     .catch(error => console.error('Unable to initialise the anchor:', error));
 }
 
+// The homepage uses its original depth gauge; the journal retains its anchor.
+const depthGauge = document.querySelector('.depth-gauge');
+let updateDepthGauge = () => {};
+if (depthGauge) {
+  import('./depth-gauge.mjs')
+    .then(({ initDepthGauge }) => { updateDepthGauge = initDepthGauge(depthGauge, { building, motion, darkAt: seaIsDarkAt }); })
+    .catch(error => console.error('Unable to initialise the depth gauge:', error));
+}
+
 // A hermit crab under a stone at the foot of Views from the Reef.
 const reefCrab = document.querySelector('[data-reef-crab]');
 if (reefCrab) {
@@ -469,9 +481,10 @@ function onScroll(event) {
     renderBuilding(false, rect);
     updateApproach();
     updateSeaAnchor();
+    updateDepthGauge();
   });
 }
-const tracksScroll = Boolean(building || seaAnchor || journalState || thesisStage || document.querySelector('[data-approach]'));
+const tracksScroll = Boolean(building || seaAnchor || depthGauge || journalState || thesisStage || document.querySelector('[data-approach]'));
 if (tracksScroll) {
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll);
@@ -483,6 +496,7 @@ motion.addEventListener('change', () => {
   canvasStates.forEach(state => paint(state));
   updateThesisScroll();
   renderBuilding(true);
+  updateDepthGauge();
   schedule();
 });
 document.addEventListener('visibilitychange', () => {
