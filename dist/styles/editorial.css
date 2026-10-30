@@ -44,7 +44,6 @@
 /* Service offerings: four ruled columns beneath the case study. */
 .service-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:clamp(24px,3vw,44px); margin-top:56px; }
 .service { padding-top:24px; border-top:1px solid var(--rule); }
-.service::before { content:''; display:block; width:7px; height:7px; margin-bottom:22px; background:var(--coral); }
 .service h3 { font-size:clamp(20px,1.6vw,23px); font-weight:500; line-height:1.25; letter-spacing:-.02em; }
 .service p { margin-top:14px; font-size:15px; line-height:1.65; color:#4e4d49; }
 .case-phase-panels { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(18px,2.8vw,30px); margin-top:44px; align-items:start; }
@@ -79,7 +78,6 @@
 }
 @media(max-width:759px) {
   .service-list { grid-template-columns:1fr; gap:32px; margin-top:40px; }
-  .service::before { margin-bottom:18px; }
   .people-opening-detail { font-size:15px; }
   .home-page .hero { min-height:940px; height:940px; }
   .home-page .hero-copy { bottom:75px; }

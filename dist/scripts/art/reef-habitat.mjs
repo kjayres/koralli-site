@@ -1,6 +1,6 @@
-import { ORGANIC_CORALS } from './reef-organic.mjs?v=23f44499e6cd';
-import { reefFloorHeight } from './reef-terrain.mjs?v=23f44499e6cd';
-export { reefFloorHeight } from './reef-terrain.mjs?v=23f44499e6cd';
+import { ORGANIC_CORALS } from './reef-organic.mjs?v=83fc0d453355';
+import { reefFloorHeight } from './reef-terrain.mjs?v=83fc0d453355';
+export { reefFloorHeight } from './reef-terrain.mjs?v=83fc0d453355';
 
 const random = seed => { const n = Math.sin(seed * 91.73 + 17.19) * 41738.31; return n - Math.floor(n); };
 
