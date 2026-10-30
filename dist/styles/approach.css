@@ -1,7 +1,7 @@
 /* One shared scene follows the three phases of the Koralli approach. */
 .work-opening { max-width:1420px; margin:auto; padding:170px var(--gutter) 36px; }
 .work-opening-copy { display:grid; grid-template-columns:1fr 1fr; column-gap:clamp(45px,7vw,100px); row-gap:24px; align-items:start; margin-top:26px; }
-.work-opening h1 { grid-column:1 / -1; max-width:23ch; font-size:clamp(40px,4.3vw,60px); white-space:normal; text-wrap:balance; }
+.work-opening h1 { grid-column:1 / -1; max-width:none; font-size:clamp(40px,4.3vw,60px); white-space:normal; text-wrap:wrap; }
 .work-opening-copy>div { grid-column:1 / -1; width:100%; max-width:58ch; justify-self:start; }
 .work-opening .intro { font-size:17px; max-width:none; }
 .work-opening-copy>div>p+p { color:#5c5b58; margin-top:18px; }
