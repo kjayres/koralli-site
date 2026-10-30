@@ -208,18 +208,23 @@
   .outcome summary { padding:18px 0; }
   .home-page .outcome p { padding-right:0; }
 }
-/* Keep all three controls, the copy and the drawing inside the existing short-phone pin. */
-@media (max-width:759px) and (max-height:680px) and (prefers-reduced-motion:no-preference) {
+/* Fit the drawing to the actual mobile heading height without changing the pin. */
+@media (max-width:759px) and (prefers-reduced-motion:no-preference) {
   .home-page .building-enhanced .building-sticky {
     display:grid;
     grid-template-rows:auto minmax(0,1fr);
     gap:10px;
-    padding-top:14px;
     padding-bottom:40px;
   }
+  .home-page .building-enhanced .building-layout { height:auto; min-height:0; width:100%; margin:0 auto; align-self:stretch; gap:8px; }
+  .home-page .building-enhanced .building-art { overflow:hidden; }
+  .home-page .building-enhanced .building-skip { bottom:12px; }
+}
+/* Compact the copy and controls only when the phone viewport is short. */
+@media (max-width:759px) and (max-height:680px) and (prefers-reduced-motion:no-preference) {
+  .home-page .building-enhanced .building-sticky { padding-top:14px; }
   .home-page .building-enhanced .building-heading h2 { font-size:22px; line-height:1.12; }
   .home-page .building-enhanced .building-intro { margin-top:6px; font-size:13px; line-height:1.4; }
-  .home-page .building-enhanced .building-layout { height:auto; min-height:0; width:100%; margin:0 auto; align-self:stretch; }
   .home-page .building-enhanced .building-copy { padding-top:0; }
   .home-page .building-enhanced .depth-choices { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-bottom:8px; }
   .home-page .building-enhanced .depth-choice { flex-direction:column; justify-content:center; align-items:flex-start; min-height:58px; padding:6px; gap:3px; }
@@ -228,7 +233,6 @@
   .home-page .building-enhanced .depth-panels { min-height:72px; }
   .home-page .building-enhanced .depth-panel h3 { margin-top:4px; font-size:18px; line-height:1.2; }
   .home-page .building-enhanced .building-caption { margin:6px 0 0; font-size:11px; line-height:1.35; max-width:none; }
-  .home-page .building-enhanced .building-skip { bottom:12px; }
 }
 @media(prefers-reduced-motion:reduce) {
   .thesis-section.thesis-enhanced { height:auto; }

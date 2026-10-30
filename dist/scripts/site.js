@@ -1,4 +1,4 @@
-import { journalViewportBand } from './journal-viewport.mjs?v=26117f44168b';
+import { journalViewportBand } from './journal-viewport.mjs?v=7c12496c10bc';
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 const clamp = n => Math.min(1, Math.max(0, n));
@@ -9,11 +9,11 @@ let updateApproach = () => {};
 let journalState;
 let journalViewportDirty = true;
 const artworkLoaders = {
-  wave: () => import('./art/wave.mjs?v=26117f44168b'),
-  approach: () => import('./art/approach.mjs?v=26117f44168b'),
-  'work-coral': () => import('./art/coral.mjs?v=26117f44168b'),
-  reef: () => import('./art/reef.mjs?v=26117f44168b'),
-  'journal-water': () => import('./art/journal-water.mjs?v=26117f44168b')
+  wave: () => import('./art/wave.mjs?v=7c12496c10bc'),
+  approach: () => import('./art/approach.mjs?v=7c12496c10bc'),
+  'work-coral': () => import('./art/coral.mjs?v=7c12496c10bc'),
+  reef: () => import('./art/reef.mjs?v=7c12496c10bc'),
+  'journal-water': () => import('./art/journal-water.mjs?v=7c12496c10bc')
 };
 
 function artworkFailed(state, error) {
@@ -82,7 +82,7 @@ async function prepareArtwork(state) {
       state.reef = new state.art.Reef();
     }
     if (state.kind === 'journal-water' && document.querySelector('[data-journal-frond], [data-journal-coral]')) {
-      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=26117f44168b');
+      const { initJournalLettering } = await import('./art/journal-lettering.mjs?v=7c12496c10bc');
       state.updateJournalLettering = initJournalLettering();
     }
     state.loaded = true;
@@ -257,7 +257,7 @@ for (const canvas of document.querySelectorAll('canvas[data-art]')) {
   }
 }
 
-if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=26117f44168b').then(({ initApproach }) => {
+if (document.querySelector('[data-approach]')) import('./approach-view.mjs?v=7c12496c10bc').then(({ initApproach }) => {
   updateApproach = initApproach(phase => {
     const state = canvasStates.find(item => item.kind === 'approach');
     if (!state) return;
@@ -395,7 +395,7 @@ depths.forEach((button, i) => button.addEventListener('click', () => {
   scrollTo({ top, behavior: 'smooth' });
 }));
 
-if (building && svg) import('./art/building.mjs?v=26117f44168b').then(module => {
+if (building && svg) import('./art/building.mjs?v=7c12496c10bc').then(module => {
   preserveReadingPosition(() => {
     // First prove the renderer works while the complete static copy is still present.
     module.updateBuilding(svg, 0, motion.matches);
@@ -429,7 +429,7 @@ if (thesisStage) {
     if (thesisVisible) updateThesisScroll();
     schedule();
   }).observe(thesisStage);
-  import('./art/thesis-cards.mjs?v=26117f44168b').then(({ initThesisCards }) => {
+  import('./art/thesis-cards.mjs?v=7c12496c10bc').then(({ initThesisCards }) => {
     renderThesis = initThesisCards(thesisStage);
     updateThesisScroll();
     schedule();
@@ -445,7 +445,7 @@ function seaIsDarkAt(y) {
   return within(chamber) && chamber.dataset.depthTheme === '1';
 }
 if (seaAnchor) {
-  import('./sea-anchor.mjs?v=26117f44168b')
+  import('./sea-anchor.mjs?v=7c12496c10bc')
     .then(({ initSeaAnchor }) => { updateSeaAnchor = initSeaAnchor(seaAnchor, { darkAt: seaIsDarkAt }); })
     .catch(error => console.error('Unable to initialise the anchor:', error));
 }
@@ -454,7 +454,7 @@ if (seaAnchor) {
 const depthGauge = document.querySelector('.depth-gauge');
 let updateDepthGauge = () => {};
 if (depthGauge) {
-  import('./depth-gauge.mjs?v=26117f44168b')
+  import('./depth-gauge.mjs?v=7c12496c10bc')
     .then(({ initDepthGauge }) => { updateDepthGauge = initDepthGauge(depthGauge, { building, motion, darkAt: seaIsDarkAt }); })
     .catch(error => console.error('Unable to initialise the depth gauge:', error));
 }
@@ -462,7 +462,7 @@ if (depthGauge) {
 // A hermit crab under a stone at the foot of Views from the Reef.
 const reefCrab = document.querySelector('[data-reef-crab]');
 if (reefCrab) {
-  import('./reef-crab.mjs?v=26117f44168b')
+  import('./reef-crab.mjs?v=7c12496c10bc')
     .then(({ initReefCrab }) => initReefCrab(reefCrab))
     .catch(error => console.error('Unable to initialise the hermit crab:', error));
 }
