@@ -139,7 +139,7 @@ export function renderSite(basePath = './', { launch = false } = {}) {
   const people = JSON.parse(readFileSync(resolve(sourceDir, 'content/people.json'), 'utf8'));
   const profiles = people.map(person => {
     const portrait = person.portrait ? `<img class="person-portrait" src="${escapeHTML(person.portrait)}" alt="Portrait of ${escapeHTML(person.name)}" width="320" height="384" loading="lazy" decoding="async">` : '';
-    return `<article class="person"><div class="person-index" aria-hidden="true"><i class="${escapeHTML(person.kind)}"></i></div><div class="person-identity${person.portrait ? ' person-identity--portrait' : ''}">${portrait}<div><p class="eyebrow">${escapeHTML(person.field)}</p><h3>${escapeHTML(person.name)}</h3></div></div><div class="person-bio">${person.bio.split(/\n\n/).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join('')}</div></article>`;
+    return `<article class="person"><div class="person-identity${person.portrait ? ' person-identity--portrait' : ''}">${portrait}<div><p class="eyebrow">${escapeHTML(person.field)}</p><h3>${escapeHTML(person.name)}</h3></div></div><div class="person-bio">${person.bio.split(/\n\n/).map(paragraph => `<p>${escapeHTML(paragraph)}</p>`).join('')}</div></article>`;
   }).join('\n');
   for (const name of pages) {
     let html = expand(name)
