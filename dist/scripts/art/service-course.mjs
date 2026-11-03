@@ -1,4 +1,4 @@
-import { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, BLUE, CORAL } from './thesis-cards.mjs?v=411798abf6e0';
+import { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, BLUE, CORAL } from './thesis-cards.mjs?v=01f600b00167';
 
 const TAU = Math.PI * 2;
 const clamp = n => Math.max(0, Math.min(1, n));

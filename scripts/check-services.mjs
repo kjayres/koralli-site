@@ -99,7 +99,8 @@ test('frames have finite geometry, unique figure clips and balanced SVG groups',
 });
 
 test('each card has a readable interval and all three settle before the release', () => {
-  assert.equal(serviceReveal(0, 0), 1, 'The first card is already visible during normal entry into the section.');
+  assert.equal(serviceReveal(0, 0), 0, 'The first card fades in with the scroll, like the following cards.');
+  assert.ok(serviceReveal(.1, 0) > 0 && serviceReveal(.1, 0) < 1);
   assert.deepEqual([0, 1, 2].map(i => serviceReveal(.22, i)), [1, 0, 0]);
   assert.deepEqual([0, 1, 2].map(i => serviceReveal(.5, i)), [1, 1, 0]);
   assert.deepEqual([0, 1, 2].map(i => serviceReveal(.75, i)), [1, 1, 1]);
