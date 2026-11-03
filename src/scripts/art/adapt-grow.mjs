@@ -172,9 +172,9 @@ export const heapPull = age => smooth(age / .5) * (1 - smooth((age - 2.7) / 1.1)
 
 /** Fine branches between the grains, then the grains the coral has joined, in colour. */
 export function drawAdaptGrow(ctx, points, state, { width, height, opacity = 1 } = {}) {
-  const radius = clamp(width * .0041, 1.1, 1.7), line = clamp(Math.min(width, height) / 600, .55, .8);
+  const radius = clamp(width * .0051, 1.35, 2.1), line = clamp(Math.min(width, height) / 480, .7, 1);
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = `rgba(36,78,255,${(.48 * opacity).toFixed(3)})`; ctx.lineWidth = line;
+  ctx.strokeStyle = `rgba(36,78,255,${(.34 * opacity).toFixed(3)})`; ctx.lineWidth = line;
   ctx.beginPath();
   for (const { from, to, progress } of state.edges) {
     const a = points(from), b = points(to);
