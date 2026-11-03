@@ -1,4 +1,5 @@
-import { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, GLASS, BLUE, CORAL } from './thesis-cards.mjs?v=e5f138a7668b';
+import { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, GLASS, BLUE, CORAL } from './thesis-cards.mjs?v=411798abf6e0';
+import { courseMarkup, coursePose } from './service-course.mjs?v=411798abf6e0';
 
 const TAU = Math.PI * 2;
 const clamp = n => Math.max(0, Math.min(1, n));
@@ -22,16 +23,13 @@ const table = (x, y, w, d, h = 23) => {
   for (const lx of [x + 2, x + w - 4]) for (const ly of [y + 2, y + d - 4]) s += box(lx, ly, 2, 2, h - 2);
   return s + box(x, y, w, d, 2, PAPER, PAPER, SHADE, h - 2);
 };
-const check = (x, y, z, opacity = 1) => planLine([[x, y, z], [x + 2, y, z - 2], [x + 6, y, z + 4]], `stroke="${CORAL}" stroke-width="1.5" opacity="${opacity.toFixed(3)}"`);
-const token = (x, y, z) => box(x - 7, y - 5, 14, 10, 5, GLASS, PAPER, SHADE, z) + surface(x - 4, y - 3, 8, 6, z + 5.1, BLUE, 'stroke="none" fill-opacity=".18"');
 const SPLIT = '<!--service-hands-->';
 const splitFigure = markup => {
   const [back, front] = markup.split(SPLIT);
   return [back + '</g>', '<g>' + front];
 };
 
-const workPath = [[0, 96], [.18, 96], [.42, 118], [.7, 118], [.9, 96], [1, 96]];
-const coursePath = [[0, 48], [.28, 91], [.42, 91], [.63, 139], [.7, 139], [.93, 48], [1, 48]];
+const wipePath = [[0, 57], [.08, 57], [.45, 140], [.53, 140], [.9, 57], [1, 57]];
 const turningStep = (t, turns) => turns.reduce((step, [start, end]) => step + (t > start && t < end ? Math.sin((t - start) / (end - start) * TAU) * .55 : 0), 0);
 function strideAt(t, frames, distance, period = 7) {
   let speed = 0;
@@ -47,46 +45,54 @@ function strideAt(t, frames, distance, period = 7) {
 }
 
 // Export the physical state as well as the renderer, so tests can check loops,
-// foot motion, the gate clearance and reachable hand targets independently.
+// foot motion and reachable hand targets independently.
 export function servicePose(index, phase) {
   const t = ((phase % 1) + 1) % 1;
   if (index === 0) {
-    const x = key(t, workPath);
-    const lift = key(t, [[0, 0], [.12, 3], [.42, 3], [.5, 0], [.58, 3], [.88, 3], [1, 0]]);
-    const heading = key(t, [[0, -Math.PI / 2], [.08, -Math.PI / 2], [.18, Math.PI / 2], [.58, Math.PI / 2], [.7, -Math.PI / 2], [1, -Math.PI / 2]]);
-    return { x, heading, stride: strideAt(t, workPath, x) + turningStep(t, [[.08, .18], [.58, .7]]), token: [x + Math.sin(heading) * 10, 84 + Math.cos(heading) * 10, 23 + lift], point: [74, 81 + Math.sin(t * TAU), 24] };
+    const change = key(t, [[0, 0], [.17, 0], [.42, 1], [.78, 1], [1, 0]]);
+    return { change, chip: [93, 73, 24 + 8 * (1 - change)] };
   }
   if (index === 1) {
-    return { wipe: [115 + 5 * Math.sin(t * TAU), 118, 34 + 4 * Math.sin(t * TAU * 2)], work: [83 + 2 * Math.sin(t * TAU), 86, 22] };
+    const x = key(t, wipePath);
+    const heading = key(t, [[0, Math.PI / 2], [.45, Math.PI / 2], [.53, -Math.PI / 2], [.9, -Math.PI / 2], [1, Math.PI / 2]]);
+    return { x, heading, stride: strideAt(t, wipePath, x) + turningStep(t, [[.45, .53], [.9, 1]]), wipe: [x + Math.sin(heading) * 3, 118, 33 + 6 * Math.sin(t * TAU * 5)], work: [83 + 2 * Math.sin(t * TAU), 86, 22], cleared: key(t, [[0, 0], [.08, 0], [.45, 1], [.88, 1], [1, 0]]) };
   }
-  const x = key(t, coursePath);
-  return {
-    x, stride: strideAt(t, coursePath, x) + turningStep(t, [[.63, .7], [.93, 1]]),
-    heading: key(t, [[0, Math.PI / 2], [.63, Math.PI / 2], [.7, -Math.PI / 2], [.93, -Math.PI / 2], [1, Math.PI / 2]]),
-    gate: key(t, [[0, 0], [.32, 0], [.42, 1], [.86, 1], [.96, 0], [1, 0]]),
-    signal: key(t, [[0, 0], [.29, 0], [.35, 1], [.43, 1], [.51, 0], [1, 0]]),
-    writing: Math.sin(t * TAU * 5) * .65,
-  };
+  return coursePose(t);
 }
 
 function workflow(t) {
   const state = servicePose(0, t);
   let s = floor();
-  s += planLine([[37, 112, .1], [37, 47, .1], [161, 47, .1], [161, 112, .1]], 'stroke-opacity=".2" stroke-dasharray="3 5"');
-  // Direction and a plan at the first station.
-  s += box(46, 48, 24, 2, 25, PAPER, PAPER, SHADE);
-  s += planLine([[50, 50.1, 6], [50, 50.1, 18], [57, 50.1, 18], [57, 50.1, 11], [65, 50.1, 11]], `stroke="${CORAL}" stroke-width="1.3"`);
-  const planner = human3DMarkup(p, { id: 'service-planner', x: 62, y: 84, scale: 1.03, heading: Math.PI / 2, lean: .6, leftTarget: [73, 88, 24], rightTarget: state.point, held: SPLIT });
-  const robot = robotMarkup(p, { x: state.x, y: 84, scale: 1, heading: state.heading, stride: state.stride, target: [state.token[0], state.token[1], state.token[2] + 2.5], held: SPLIT });
+  const hand = side => [state.chip[0] + side * 4, state.chip[1], state.chip[2] + 3];
+  const planner = human3DMarkup(p, { id: 'service-planner', x: 93, y: 59, scale: 1.03, heading: 0, lean: .8, leftTarget: hand(-1), rightTarget: hand(1), held: SPLIT });
+  const robot = robotMarkup(p, { x: 123, y: 57, scale: 1, heading: 0, target: [123, 73, state.chip[2] + 3], held: SPLIT });
   const [plannerBack, plannerFront] = splitFigure(planner);
-  // Robots have no enclosing group of their own, unlike the people.
   const [robotBack, robotFront] = robot.split(SPLIT);
-  s += plannerBack + robotBack + table(70, 73, 19, 23) + table(124, 73, 25, 23);
-  s += ruledNote(72, 80, 13, 11, 23.1, CORAL, true);
-  s += surface(130, 75, 17, 17, 23.1, GLASS, 'fill-opacity=".35" stroke-opacity=".5"');
-  s += token(...state.token) + robotFront + plannerFront;
-  s += human3DMarkup(p, { id: 'service-reviewer', x: 140, y: 109, scale: 1.03, heading: Math.PI, holdingBoard: true, leftTarget: [143, 101, 25], rightTarget: [138, 97 + Math.sin(t * TAU) * 1.5, 27], lean: .4 });
-  s += check(141, 75, 33, .45 + .55 * (1 - Math.abs(state.x - 118) / 22));
+  s += plannerBack + robotBack + table(45, 64, 112, 37, 24);
+  const oldRoute = [[57, 83], [70, 83], [70, 70], [88, 70], [88, 92], [121, 92], [121, 83], [146, 83]];
+  const newRoute = [[57, 83], [70, 83], [70, 73], [88, 73], [100, 73], [121, 73], [130, 83], [146, 83]];
+  s += planLine(oldRoute.map(v => [...v, 24.2]), `stroke="${CORAL}" stroke-width="1.65" opacity="${1 - state.change}"`);
+  s += planLine(newRoute.map(v => [...v, 24.2]), `stroke="${BLUE}" stroke-width="1.65" opacity="${state.change}"`);
+  for (const x of [57, 146]) {
+    s += iso.polygon([[x - 4, 83, 24.4], [x, 79, 24.4], [x + 4, 83, 24.4], [x, 87, 24.4]].map(v => p(...v)), PAPER, `stroke="${CORAL}" stroke-width="1.5"`);
+  }
+  // Orange judgement points stay in the workflow as blue agent stations are fitted.
+  for (const x of [93, 123]) {
+    const z = state.chip[2];
+    s += box(x - 6, 68, 12, 10, 6, GLASS, PAPER, SHADE, z, 'stroke-width="1.1"');
+    s += panelX(x - 4, 78.05, z + 1.6, 8, 3, BLUE, 'stroke="none" fill-opacity=".8"');
+    for (const ex of [x - 2.5, x + 1]) s += panelX(ex, 78.1, z + 2.4, 1.5, 1.1, PAPER, 'stroke="none"');
+    s += planLine([[x, 73, z + 6], [x, 73, z + 8.5]], 'stroke-width="1"');
+  }
+  for (let i = 0; i < 3; i++) {
+    const u = (t * 2 + i / 3) % 1, part = u * 7, j = Math.min(6, Math.floor(part)), a = part - j;
+    const route = oldRoute.map((point, k) => point.map((v, axis) => mix(v, newRoute[k][axis], state.change)));
+    const xy = route[j].map((v, axis) => mix(v, route[j + 1][axis], a));
+    const [cx, cy] = p(...xy, 24.5);
+    s += `<circle cx="${cx}" cy="${cy}" r="2.1" fill="${state.change > .5 ? BLUE : CORAL}" stroke="none" opacity="${smooth(u / .07) * smooth((1 - u) / .07)}"/>`;
+  }
+  s += robotFront + plannerFront;
+  s += human3DMarkup(p, { id: 'service-reviewer', x: 150, y: 113, scale: 1.03, heading: Math.PI, holdingBoard: true, leftTarget: [153, 105, 25], rightTarget: [147, 102, 29 + Math.sin(t * TAU) * 1.5], lean: .4 });
   return s;
 }
 
@@ -107,46 +113,26 @@ function transparency(t) {
   s += planLine([[81, 90, 21.2], [97, 90, 21.2]], 'stroke-opacity=".5"');
   s += planLine([[110, 90, 21.2], [124, 90, 21.2]], 'stroke-opacity=".5"');
   s += machineFront + workerFront;
-  s += human3DMarkup(p, { id: 'service-glass-worker', x: 111, y: 108, scale: 1, heading: 0, rightTarget: state.wipe, leftTarget: [106, 112, 23], lean: .4 });
+  const [wx, wy, wz] = state.wipe;
+  s += human3DMarkup(p, { id: 'service-glass-worker', x: state.x, y: 112, scale: 1, heading: state.heading, stride: state.stride, rightTarget: [wx + 1.4, wy, wz], leftTarget: [wx - 1.4, wy, wz], lean: .4 });
   s += panelY(155, 42, 0, 76, 58, GLASS, 'fill-opacity=".09" stroke-opacity=".6"');
   s += panelX(45, 118, 0, 110, 58, GLASS, 'fill-opacity=".07" stroke-opacity=".65"');
-  // A soft reflection clears around the cloth. Both share the same world-space
-  // contact point and the cloth stays exactly on the inside face of the pane.
-  const [wx, wy, wz] = state.wipe;
-  const corners = [[wx - 15, wy, wz - 11], [wx + 15, wy, wz - 11], [wx + 15, wy, wz + 11], [wx - 15, wy, wz + 11]].map(pt => p(...pt));
-  s += iso.polygon(corners, PAPER, 'fill-opacity=".22" stroke="none"');
+  // The cleaned strip follows the person across the glass and stays clear on
+  // the return pass. Costs, work and outputs become visible in one process.
+  s += `<defs><mask id="service-frost" maskUnits="userSpaceOnUse" x="0" y="0" width="560" height="330"><rect width="560" height="330" fill="white"/>${panelX(48, 118, 17, 104 * state.cleared, 30, '#000', 'stroke="none"')}</mask></defs>`;
+  s += panelX(45, 118.03, 0, 110, 58, PAPER, 'fill-opacity=".68" stroke="none" mask="url(#service-frost)"');
   for (const x of [56, 64, 135, 143]) s += planLine([[x, 118.1, 16], [x + 7, 118.1, 40]], 'stroke-opacity=".19" stroke-width="1.6"');
   s += panelX(wx - 2.4, wy + .05, wz - 2.1, 4.8, 4.2, PAPER, `stroke="${CORAL}" stroke-width="1.1"`);
+  for (const [x, text] of [[55, 'Cost'], [93, 'Work'], [128, 'Value']]) {
+    const origin = p(x, 118.1, 51), dx = p(x + 1, 118.1, 51), dy = p(x, 118.1, 50);
+    s += `<text transform="matrix(${dx[0] - origin[0]} ${dx[1] - origin[1]} ${dy[0] - origin[0]} ${dy[1] - origin[1]} ${origin[0]} ${origin[1]})" font-family="Instrument Sans, sans-serif" font-size="6.2" fill="${BLUE}" stroke="none">${text}</text>`;
+  }
   s += planLine([[45, 118, 58], [45, 118, 0], [155, 118, 0], [155, 118, 58]], 'stroke-opacity=".7"');
   return s;
 }
 
-function governance(t) {
-  const state = servicePose(2, t);
-  let s = floor();
-  // Other test stations give the beam a course, with clear boundaries and a gate.
-  for (let i = 0; i < 3; i++) s += box(38 + i * 22, 41, 14, 12, 3 + i * 2, PAPER, PAPER, SHADE, 0, 'stroke-opacity=".55"');
-  s += planLine([[112, 43, .2], [144, 43, .2], [144, 57, .2]], 'stroke-opacity=".3" stroke-dasharray="3 4"');
-  s += box(35, 65, 114, 14, 6, PAPER, PAPER, SHADE);
-  s += surface(37, 69, 110, 6, 6.1, GLASS, 'fill-opacity=".5" stroke="none"');
-  for (const x of [45, 76, 119, 143]) s += planLine([[x, 65, 6], [x, 65, 19]], 'stroke-opacity=".42"');
-  s += planLine([[45, 65, 19], [143, 65, 19]], 'stroke-opacity=".42"');
-  s += box(106, 59, 3, 4, 28, PAPER, PAPER, SHADE);
-  const angle = state.gate * Math.PI * .48;
-  s += planLine([[107.5, 61, 28], [107.5, 61 + 28 * Math.cos(angle), 28 + 28 * Math.sin(angle)]], `stroke="${CORAL}" stroke-width="3"`);
-  s += robotMarkup(p, { x: state.x, y: 72, z: 6, scale: .96, heading: state.heading, stride: state.stride, target: [state.x + Math.sin(state.heading) * 9, 72 + Math.cos(state.heading) * 9, 28] });
-  s += robotMarkup(p, { x: 39, y: 109, scale: .86, heading: Math.PI / 2, target: [45, 107, 19] });
-  const note = [110 + state.writing, 103, 26];
-  const raised = [109, 99, 38];
-  const hand = note.map((v, i) => mix(v, raised[i], state.signal));
-  s += human3DMarkup(p, { id: 'service-observer', x: 108, y: 111, scale: 1.04, heading: Math.PI, holdingBoard: true, leftTarget: [112, 104, 26], rightTarget: hand, lean: .5 });
-  // The pencil follows the writing hand, including when the observer signals.
-  s += line(p(...hand), p(hand[0] - 1.3, hand[1] - .5, hand[2] - 2), `stroke="${CORAL}" stroke-width="1"`);
-  s += check(151, 86, 10, state.gate * .85);
-  return s;
-}
 
-const scenes = [workflow, transparency, governance];
+const scenes = [workflow, transparency, courseMarkup];
 export function serviceSceneMarkup(index, phase = .2) {
   return group(scenes[index](((phase % 1) + 1) % 1));
 }

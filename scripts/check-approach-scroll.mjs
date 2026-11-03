@@ -35,9 +35,11 @@ function element(id = '') {
   };
 }
 
-async function setup({ reduced = false, width = 1440, height = 805, panelHeight = 608, hash = '', present = true, withShell = true, pendingFonts = false, flowStepHeight = () => 650 } = {}) {
+async function setup({ reduced = false, width = 1440, height = 805, panelHeight = 608, hash = '', present = true, withShell = true, withServicesShell = false, pendingFonts = false, flowStepHeight = () => 650 } = {}) {
   const events = new Map(), observed = [], resizers = [], phases = [], scrolls = [], history = [];
   const shell = element(), page = element('main'), section = element(), track = element(), stage = element();
+  const outerShell = element(), outerPage = element();
+  let outerShift = 0;
   const figure = element(), frame = element(), heading = element('approach-title'), continuation = element();
   const hero = element('work-title'), heroEdge = element(), bank = element('bank-case'), bankLink = element('bank-reading');
   const outside = element('outside');
@@ -82,7 +84,7 @@ async function setup({ reduced = false, width = 1440, height = 805, panelHeight 
     document: {
       activeElement: null,
       fonts,
-      querySelector: selector => !present ? null : ({ '[data-approach]': section, '[data-approach-page]': page, '[data-approach-shell]': withShell ? shell : null })[selector] ?? null,
+      querySelector: selector => !present ? null : ({ '[data-approach]': section, '[data-approach-page]': page, '[data-approach-shell]': withShell ? shell : null, '[data-services-shell]': withServicesShell ? outerShell : null, '[data-services-page]': withServicesShell ? outerPage : null })[selector] ?? null,
       querySelectorAll: selector => selector === 'a[href^="#"]' ? allAnchors : [],
       getElementById: id => targets.get(id) ?? null,
     },
@@ -101,12 +103,14 @@ async function setup({ reduced = false, width = 1440, height = 805, panelHeight 
   const rect = (top, height) => ({ top, height, bottom: top + height });
   const pageTop = () => {
     const natural = pageStart - context.scrollY;
-    if (!shell.classList.contains('approach-page-pinned')) return natural;
+    if (!shell.classList.contains('approach-page-pinned')) return natural + outerShift;
     const inset = Number.parseFloat(shell.style['--approach-page-top']);
     const bottomLimit = pageStart + Number.parseFloat(shell.style.height) - pageSize() - context.scrollY;
-    return Math.min(Math.max(natural, inset), bottomLimit);
+    return Math.min(Math.max(natural, inset), bottomLimit) + outerShift;
   };
-  shell.getBoundingClientRect = () => rect(pageStart - context.scrollY, Number.parseFloat(shell.style.height) || pageSize());
+  outerShell.getBoundingClientRect = () => rect(-context.scrollY, 10000);
+  outerPage.getBoundingClientRect = () => rect(-context.scrollY + outerShift, 8000);
+  shell.getBoundingClientRect = () => rect(pageStart - context.scrollY + outerShift, Number.parseFloat(shell.style.height) || pageSize());
   page.getBoundingClientRect = () => rect(pageTop(), pageSize());
   stage.getBoundingClientRect = () => rect(pageTop() + stageOffset, stageSize());
   track.getBoundingClientRect = () => stage.getBoundingClientRect();
@@ -156,6 +160,7 @@ async function setup({ reduced = false, width = 1440, height = 805, panelHeight 
     shell, page, section, track, stage, figure, frame, heading, continuation, hero, heroEdge, bank, bankLink,
     bankAnchor, heroAnchor, mainAnchor, outsideAnchor, missingAnchor, malformedAnchor,
     copies, headings, steps, links, nextLinks, motion, context, events, observed, phases, scrolls, history, update, travel, pinStart,
+    setServicesHold(shift) { outerShift = shift; },
     scrollToPosition(position) {
       assert.ok(travel() > 0, 'This helper requires the outer shell runway');
       context.scrollY = pinStart() + travel() * position;
@@ -543,4 +548,14 @@ test('flow anchors and pages without an approach section retain native behaviour
   assert.deepEqual(absent.phases, []);
   assert.equal(absent.events.size, 0, 'Unrelated pages install no approach listeners');
   assert.equal(absent.observed.length, 0);
+});
+
+test('a resize during the later service hold does not shift the earlier approach anchors', async () => {
+  const view = await setup({ withServicesShell: true });
+  const start = view.pinStart(), travel = view.travel();
+  view.scrollToPosition(1.5);
+  view.setServicesHold(450);
+  view.notifyContentResize();
+  view.navigateTo('#build-and-learn');
+  assert.ok(Math.abs(view.context.scrollY - (start + travel * (1 + .28 + .08) / 3)) < .001);
 });

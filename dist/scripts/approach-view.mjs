@@ -9,6 +9,8 @@ export function initApproach(selectPhase) {
   const stage = section.querySelector('[data-approach-stage]');
   const shell = document.querySelector('[data-approach-shell]');
   const page = document.querySelector('[data-approach-page]');
+  const outerShell = document.querySelector('[data-services-shell]');
+  const outerPage = document.querySelector('[data-services-page]');
   const steps = [...section.querySelectorAll('[data-approach-step]')];
   const links = [...section.querySelectorAll('[data-approach-link]')];
   const figure = section.querySelector('[data-approach-figure]');
@@ -85,7 +87,12 @@ export function initApproach(selectPhase) {
       // The main's real neighbours travel with the scene. Its outer shell,
       // rather than the approach section, supplies the original scroll runway.
       const pageRect = page.getBoundingClientRect();
-      pageStart = scrollY + shell.getBoundingClientRect().top;
+      // A later service-card hold can temporarily pin the common ancestor.
+      // Measure our natural document position through its unpinned shell so a
+      // resize there cannot shift these earlier phase anchors.
+      pageStart = outerShell && outerPage
+        ? scrollY + outerShell.getBoundingClientRect().top + shell.getBoundingClientRect().top - outerPage.getBoundingClientRect().top
+        : scrollY + shell.getBoundingClientRect().top;
       stageOffset = stage.getBoundingClientRect().top - pageRect.top;
       pinStart = pageStart + stageOffset - top;
       shell.style.height = `${pageRect.height + distance}px`;

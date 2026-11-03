@@ -1,5 +1,6 @@
 /* The same paper, fine rules and miniature scenes as the homepage cards. */
-.services-section { padding-top:70px; padding-bottom:80px; }
+.services-page-shell { overflow-anchor:none; }
+.services-section { padding-top:36px; padding-bottom:48px; }
 .services-stage { width:100%; }
 .services-heading { display:grid; grid-template-columns:1fr 1.1fr; gap:40px; align-items:start; }
 .services-heading h2 { margin:0; }
@@ -10,7 +11,7 @@
 .services-section .service p { margin:17px 0 25px; font-size:15px; line-height:1.6; }
 .service-art { margin-top:auto; border-top:1px solid rgba(14,13,11,.1); padding-top:15px; }
 .service-art svg { display:block; width:100%; height:auto; overflow:visible; }
-.services-pinned .services-stage { position:sticky; top:var(--services-top,24px); }
+.services-page-pinned>[data-services-page] { position:sticky; top:var(--services-page-top); }
 .services-pinned .service { opacity:var(--service-opacity,1); transform:translateY(var(--service-rise,0px)); }
 @media (max-width:1000px) {
   .services-section .service { padding:21px 17px 12px; }
@@ -19,7 +20,7 @@
   .services-section .service p { font-size:14px; }
 }
 @media (max-width:850px) {
-  .services-section { padding-top:50px; padding-bottom:60px; }
+  .services-section { padding-top:36px; padding-bottom:48px; }
   .services-heading { display:block; }
   .services-heading .lead { margin-top:22px; }
   .services-section .service-list { grid-template-columns:1fr; gap:24px; margin-top:32px; }

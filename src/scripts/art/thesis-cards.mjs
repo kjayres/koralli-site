@@ -421,7 +421,7 @@ function human3DMarkup(p, {
 /**
  * Isometric 3D articulated blue SVG robot/agent with rotating torso and dual gripper arms.
  */
-function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y + 14, 24], held = '', stride = 0 } = {}) {
+function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y + 14, 24], held = '', stride = 0, leftTarget = null, rightTarget = null, footTargets = null } = {}) {
   const s = scale;
   const forward = [Math.sin(heading), Math.cos(heading), 0];
   const right = [Math.cos(heading), -Math.sin(heading), 0];
@@ -430,6 +430,18 @@ function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y
     y + (right[1] * u + forward[1] * v) * s,
     z + h * s,
   ];
+  const toLocal = point => {
+    const delta = [point[0] - x, point[1] - y, point[2] - z];
+    return [dot3(delta, right) / s, dot3(delta, forward) / s, delta[2] / s];
+  };
+  // Optional independent contacts for climbing and jumping. Ordinary homepage
+  // poses retain their original drawing path, dimensions and timing.
+  const joint = (start, end, length, hint) => {
+    const delta = sub3(end, start), distance = Math.max(.001, len3(delta));
+    const direction = unit3(delta), along = Math.min(distance / 2, length);
+    const sideways = unit3(sub3(hint, mul3(direction, dot3(hint, direction))));
+    return add3(add3(start, mul3(direction, along)), mul3(sideways, Math.sqrt(Math.max(0, length * length - along * along))));
+  };
   const poly = (pts, fill = PAPER, extra = '') =>
     `<polygon points="${points(pts.map(pt => p(...pt)))}" fill="${fill}" ${extra}/>`;
   const seg = (a, b, extra = '') => {
@@ -463,6 +475,17 @@ function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y
 
   let out = '';
   for (const side of [-2.4, 2.4]) {
+    const contact = footTargets?.[side < 0 ? 0 : 1];
+    if (contact) {
+      const [fu, fv, fz] = toLocal(contact);
+      const ankle = add3(contact, [0, 0, 2.4 * s]);
+      const hip = local(side, 0, 18.2);
+      const knee = joint(hip, ankle, 8.6 * s, forward);
+      out += prism(fu - 1.3, fv - 1.8, fz, 2.6, 4, 2.4);
+      out += seg(ankle, knee, 'stroke-width="1.8"') + node(knee, 1.55);
+      out += seg(knee, hip, 'stroke-width="1.8"');
+      continue;
+    }
     // Legs swing in opposition; the forward foot lifts as it passes under the hip.
     const swing = (side < 0 ? 1 : -1) * stride, reach = swing * 3.2, lift = Math.max(0, swing) * 1.6;
     const knee = local(side, reach * .5 + .4, 10.5 + lift * .5);
@@ -494,12 +517,13 @@ function robotMarkup(p, { x, y, z = 0, scale = 0.84, heading = 0, target = [x, y
 
   for (const side of [-1, 1]) {
     const shoulder = local(side * 6.4, 0.2, 31.8);
-    const hand = [
+    const requested = side < 0 ? leftTarget : rightTarget;
+    const hand = requested || [
       target[0] + right[0] * side * 6.0 * s,
       target[1] + right[1] * side * 6.0 * s,
       target[2],
     ];
-    const mid = [
+    const mid = requested ? joint(shoulder, hand, 10.5 * s, add3(mul3(right, side), mul3(forward, -.35))) : [
       (shoulder[0] + hand[0]) * 0.5 + (right[0] * side * 2.2 - forward[0] * 1.6) * s,
       (shoulder[1] + hand[1]) * 0.5 + (right[1] * side * 2.2 - forward[1] * 1.6) * s,
       Math.max(z + 16 * s, (shoulder[2] + hand[2]) * 0.5 - 2.0 * s),
