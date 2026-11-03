@@ -1,4 +1,4 @@
-import { humanParts } from './building-people.mjs?v=7c12496c10bc';
+import { humanParts } from './building-people.mjs?v=f458866320de';
 
 // The page can interpolate these colours while descending into deeper water.
 const PAPER = 'var(--building-paper, #F3F0E8)';
@@ -282,7 +282,7 @@ function cover(index, base, angle = 0, lift = 0) {
     drawing += `<g data-facade="${side}"><path d="${glass}" fill="${GLASS}" stroke-opacity=".7" stroke-width=".7"/><path d="${mullions}" fill="none" stroke-opacity=".56" stroke-width=".62"/><path d="${piers}" fill="none" stroke-opacity=".85" stroke-width=".75"/><path d="${shadow}" fill="none" stroke-opacity=".28" stroke-width=".6"/><path d="${relief}" fill="none" stroke-opacity=".43" stroke-width=".55"/>${accent}</g>`;
     if(index===3) {
       const origin=q(110,66), direction=q(side==='left'?111:109,66);
-      drawing += `<text transform="matrix(${number(direction[0]-origin[0])} ${number(direction[1]-origin[1])} 0 1 ${origin})" text-anchor="middle" fill="${BLUE}" stroke="none" fill-opacity=".78" font-family="'IBM Plex Mono',monospace" font-size="3.2" letter-spacing=".24">MDCCCXCVI</text>`;
+      drawing += `<text transform="matrix(${number(direction[0]-origin[0])} ${number(direction[1]-origin[1])} 0 1 ${origin})" text-anchor="middle" fill="${BLUE}" stroke="none" fill-opacity=".78" font-family="'Instrument Sans',sans-serif" font-size="3.2" letter-spacing=".24">MDCCCXCVI</text>`;
     }
   }
 
@@ -315,7 +315,7 @@ export function buildingMarkup(id='koralli-company-building') {
     const base=sectionBase(index);
     layers+=interior(index,base,0,0,safeId)+cover(index,base);
   }
-  return `<svg class="company-building" data-figure-prefix="${safeId}" xmlns="http://www.w3.org/2000/svg" viewBox="0 -160 700 860" role="img" aria-labelledby="${safeId}-title ${safeId}-desc"><title id="${safeId}-title">Inside an organisation, in a miniature inspired by Sullivan's Guaranty Building</title><desc id="${safeId}-desc">An interpretation of the Guaranty Building with twelve exterior tiers in four equal-height sections beneath a complete flat roof. The upper three rooms show direction and offering, people and work, and systems and records. Scrolling lifts these exterior sections to reveal their interiors; the ground-floor exterior stays closed.</desc><g data-building-world="">${layers}</g><g data-building-scale="" fill="none" stroke="${BLUE}" stroke-width=".8" stroke-opacity=".35"><path d="M104 238 V570 M99 238 h10 M99 570 h10"/>${[0,1,2,3].map(i=>`<path d="M101 ${258+i*88} h6"/>`).join('')}</g><text x="350" y="654" text-anchor="middle" fill="${BLUE}" fill-opacity=".62" font-family="'IBM Plex Mono', monospace" font-size="9" letter-spacing="2.2">ONE ORGANISATION / THREE LAYERS</text></svg>`;
+  return `<svg class="company-building" data-figure-prefix="${safeId}" xmlns="http://www.w3.org/2000/svg" viewBox="0 -160 700 860" role="img" aria-labelledby="${safeId}-title ${safeId}-desc"><title id="${safeId}-title">Inside an organisation, in a miniature inspired by Sullivan's Guaranty Building</title><desc id="${safeId}-desc">An interpretation of the Guaranty Building with twelve exterior tiers in four equal-height sections beneath a complete flat roof. The upper three rooms show direction and offering, people and work, and systems and records. Scrolling lifts these exterior sections to reveal their interiors; the ground-floor exterior stays closed.</desc><g data-building-world="">${layers}</g><g data-building-scale="" fill="none" stroke="${BLUE}" stroke-width=".8" stroke-opacity=".35"><path d="M104 238 V570 M99 238 h10 M99 570 h10"/>${[0,1,2,3].map(i=>`<path d="M101 ${258+i*88} h6"/>`).join('')}</g><text x="350" y="654" text-anchor="middle" fill="${BLUE}" fill-opacity=".62" font-family="'Instrument Sans', sans-serif" font-size="9" letter-spacing="2.2">ONE ORGANISATION / THREE LAYERS</text></svg>`;
 }
 
 const clamp=x=>Math.min(1,Math.max(0,x));

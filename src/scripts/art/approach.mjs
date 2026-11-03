@@ -403,7 +403,7 @@ function drawLens(ctx, scene) {
   }
   if (lens.settled) {
     ctx.globalAlpha = opacity * lens.reveal;
-    ctx.font = '400 9px "IBM Plex Mono", monospace';
+    ctx.font = '400 9px "Instrument Sans", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const labelX = clamp(lens.x, 48, scene.width - 48), labelY = lens.y + radius + depth + 13;
     const labelWidth = ctx.measureText(lens.current.label).width + 12;

@@ -110,9 +110,9 @@
 /* The reef continues the building descent at its exact final water colour. */
 .reef-section { background:var(--deep); color:var(--paper); padding:65px 0 0; }
 .reef-heading { max-width:1420px; margin:auto; padding:0 var(--gutter); display:flex; justify-content:space-between; align-items:center; gap:24px; }
-.reef-heading h2 { font:11px var(--mono); letter-spacing:.16em; color:#a9b6cf; }
+.reef-heading h2 { font:11px var(--label-font); letter-spacing:.16em; color:#a9b6cf; }
 .reef-heading>i { height:1px; background:rgba(243,240,232,.18); flex:1; }
-.reef-motion-toggle { background:transparent; border:1px solid rgba(243,240,232,.2); color:#a9b6cf; padding:10px 13px; font:10px var(--mono); cursor:pointer; }
+.reef-motion-toggle { background:transparent; border:1px solid rgba(243,240,232,.2); color:#a9b6cf; padding:10px 13px; font:10px var(--label-font); cursor:pointer; }
 .reef-motion-toggle:hover { color:var(--paper); border-color:#b7c6ff; }
 .reef-section .reef-canvas { height:690px; margin-top:24px; }
 .reef-canvas canvas { position:absolute; inset:0; display:block; pointer-events:none; }

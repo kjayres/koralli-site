@@ -7,7 +7,7 @@
 .proof-section h2 { margin-top:20px; }
 .client-quote { margin:35px 0 0; padding:0 0 0 20px; border-left:2px solid var(--coral); max-width:365px; }
 .client-quote p { font-size:20px; line-height:1.45; letter-spacing:-.02em; }
-.proof-section .quote-attribution { margin:12px 0 0 22px; max-width:340px; color:#68655f; font:10px/1.6 var(--mono); }
+.proof-section .quote-attribution { margin:12px 0 0 22px; max-width:340px; color:#68655f; font:10px/1.6 var(--label-font); }
 .home-page .building-section { height:320svh; }
 .home-page .building-sticky { background:var(--paper); }
 .home-page .building-heading h2 { max-width:none; }
@@ -31,7 +31,7 @@
 .home-journal { display:flex; gap:30px; justify-content:space-between; align-items:center; padding-top:35px; padding-bottom:35px; }
 .home-journal h2 { font-size:27px; }
 .home-journal p { margin-top:8px; color:#5c5b58; font-size:15px; }
-.trace-key { display:flex; gap:25px; align-items:center; font:10px var(--mono); color:#5c5b58; }
+.trace-key { display:flex; gap:25px; align-items:center; font:10px var(--label-font); color:#5c5b58; }
 .trace-key span { display:flex; align-items:center; gap:7px; }
 .trace-key span::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--blue); }
 .trace-key span+span::before { background:var(--coral); }

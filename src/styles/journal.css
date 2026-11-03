@@ -49,7 +49,7 @@
 .reef-crab a { pointer-events:auto; cursor:pointer; }
 .reef-crab a:focus-visible { outline:none; }
 .reef-crab a:focus-visible .reef-crab-rim { stroke:#c2cdff; stroke-opacity:1; }
-.reef-crab-words { font:10px var(--mono); letter-spacing:.06em; fill:#9baecb; }
+.reef-crab-words { font:10px var(--label-font); letter-spacing:.06em; fill:#9baecb; }
 .journal-page .site-footer { position:relative; background:#0c1630; border-top:1px solid var(--rule); }
 @media(min-width:1600px) { .journal-articles { padding-left:140px; padding-right:140px; } }
 @media(max-width:699px) { .reef-crab { left:22px; } }

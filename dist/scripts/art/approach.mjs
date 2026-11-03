@@ -1,7 +1,7 @@
-import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets, RESEARCH_FORM_COUNT } from './research.mjs?v=7c12496c10bc';
-import { coralStudies } from './coral.mjs?v=7c12496c10bc';
-import { drawInspectionObject } from './inspection-objects.mjs?v=7c12496c10bc';
-import { createAdaptGrow, adaptGrowPresentation, drawAdaptGrow, heapPull } from './adapt-grow.mjs?v=7c12496c10bc';
+import { createParticleField, resizeParticleField, advanceParticleField, researchBounds, researchTargets, RESEARCH_FORM_COUNT } from './research.mjs?v=f458866320de';
+import { coralStudies } from './coral.mjs?v=f458866320de';
+import { drawInspectionObject } from './inspection-objects.mjs?v=f458866320de';
+import { createAdaptGrow, adaptGrowPresentation, drawAdaptGrow, heapPull } from './adapt-grow.mjs?v=f458866320de';
 
 const TAU = Math.PI * 2;
 const clamp = (n, low = 0, high = 1) => Math.max(low, Math.min(high, n));
@@ -403,7 +403,7 @@ function drawLens(ctx, scene) {
   }
   if (lens.settled) {
     ctx.globalAlpha = opacity * lens.reveal;
-    ctx.font = '400 9px "IBM Plex Mono", monospace';
+    ctx.font = '400 9px "Instrument Sans", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const labelX = clamp(lens.x, 48, scene.width - 48), labelY = lens.y + radius + depth + 13;
     const labelWidth = ctx.measureText(lens.current.label).width + 12;

@@ -11,7 +11,7 @@
   pointer-events:none;
   z-index:30;
   color:var(--ink);
-  font-family:var(--mono);
+  font-family:var(--label-font);
   font-size:10px;
   letter-spacing:.15em;
 }

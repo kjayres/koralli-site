@@ -6,14 +6,6 @@
   src:url('/assets/fonts/instrument-sans-latin.woff2') format('woff2')
 }
 
-@font-face {
-  font-family:'IBM Plex Mono';
-  font-style:normal;
-  font-weight:400;
-  font-display:swap;
-  src:url('/assets/fonts/ibm-plex-mono-400-latin.woff2') format('woff2')
-}
-
 :root {
   --paper:#F3F0E8;
   --ink:#111111;
@@ -22,7 +14,7 @@
   --deep:#0C1630;
   --rule:rgba(17,17,17,.16);
   --gutter:clamp(24px,5vw,72px);
-  --mono:'IBM Plex Mono',monospace
+  --label-font:'Instrument Sans',sans-serif
 }
 
 * {
@@ -110,7 +102,8 @@ h3 {
 }
 
 .mono,.eyebrow,.section-label,.text-link,.figure-caption,.reference {
-  font-family:var(--mono)
+  font-family:var(--label-font);
+  font-weight:400
 }
 
 .eyebrow {
@@ -152,8 +145,8 @@ h3 {
 
 .text-link {
   display:inline-block;
-  font-size:10px;
-  letter-spacing:.12em;
+  font-size:11px;
+  letter-spacing:.08em;
   line-height:1.8;
   text-transform:uppercase;
   border-bottom:1px solid currentColor;
@@ -280,9 +273,10 @@ h3 {
 .site-header nav {
   display:flex;
   gap:clamp(20px,3vw,40px);
-  font-family:var(--mono);
-  font-size:10px;
-  letter-spacing:.12em
+  font-family:var(--label-font);
+  font-weight:400;
+  font-size:11px;
+  letter-spacing:.08em
 }
 
 .site-header nav a:last-child {
@@ -510,7 +504,7 @@ h3 {
 }
 
 .depth-choice span {
-  font-family:var(--mono);
+  font-family:var(--label-font);
   font-size:10px;
   letter-spacing:.18em
 }

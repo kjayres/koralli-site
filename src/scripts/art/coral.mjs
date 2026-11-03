@@ -234,10 +234,10 @@ export function drawCoralTrace(ctx, w, h, timeSeconds, { reducedMotion = false, 
     const root = points[0];
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.font = '500 9px "IBM Plex Mono", monospace';
+    ctx.font = '400 9px "Instrument Sans", sans-serif';
     ctx.fillStyle = `rgba(17,17,17,${0.72 * fade})`;
     ctx.fillText(study.name, root.x, root.y + 22);
-    ctx.font = '400 7px "IBM Plex Mono", monospace';
+    ctx.font = '400 7px "Instrument Sans", sans-serif';
     ctx.textAlign = 'left';
     dot(ctx, root.x - 83, root.y + 44, 2, `rgba(36,78,255,${.86 * fade})`);
     dot(ctx, root.x + 14, root.y + 44, 2, `rgba(255,102,85,${.86 * fade})`);
