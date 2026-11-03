@@ -41,8 +41,8 @@
 .case-account .client-quote { margin-top:22px; }
 .case-account p[id] { scroll-margin-top:50px; }
 .case-account .quote-attribution { margin:18px 0 0 22px; color:#68655f; font-size:13px; line-height:1.6; }
-/* Service offerings: four ruled columns beneath the case study. */
-.service-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:clamp(24px,3vw,44px); margin-top:56px; }
+/* Service offerings: three ruled columns beneath the case study. */
+.service-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(24px,3vw,44px); margin-top:56px; }
 .service { padding-top:24px; border-top:1px solid var(--rule); }
 .service h3 { font-size:clamp(20px,1.6vw,23px); font-weight:500; line-height:1.25; letter-spacing:-.02em; }
 .service p { margin-top:14px; font-size:15px; line-height:1.65; color:#4e4d49; }
@@ -71,7 +71,7 @@
   .case-phase-body { padding:16px 18px 20px; }
 }
 @media(max-width:900px) {
-  .service-list { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:40px; }
+  .service-list { grid-template-columns:1fr; row-gap:40px; }
   .case-phase-panels { grid-template-columns:1fr; gap:14px; margin-top:32px; }
   .case-phase-trigger { padding:18px 20px; min-height:78px; }
   .case-phase-body { padding:16px 20px 20px; }
