@@ -10,12 +10,15 @@
   <link rel="stylesheet" href="/styles/revision.css">
   <link rel="stylesheet" href="/styles/editorial.css">
   <link rel="stylesheet" href="/styles/approach.css">
+  <link rel="stylesheet" href="/styles/services.css">
   <script type="module" src="/scripts/site.js"></script>
+  <script type="module" src="/scripts/services.mjs"></script>
 </head>
 <body class="work-page">
   <!-- include: sections/nav.html -->
+  <main id="main">
   <div class="approach-page-shell" data-approach-shell>
-  <main id="main" data-approach-page>
+  <div data-approach-page>
     <section class="work-opening" aria-labelledby="work-title">
       <div class="work-opening-copy"><h1 id="work-title">When the answer isn’t known in advance.</h1><div><p class="intro"><strong>Our working philosophy is to investigate carefully, build something useful and learn from what happens when people use it.<br>We discover the answer with you, not for you.</strong></p><p>Our researchers and operators work alongside your team in short cycles.<br>What we learn shapes each next step, and sometimes changes the question itself.</p></div></div>
     </section>
@@ -93,16 +96,19 @@
         </details>
       </div>
     </section>
-    <section class="section services-section" id="services" aria-labelledby="services-title">
-      <div class="editorial-grid"><h2 id="services-title">Our service offerings.</h2><div><p class="lead">Each engagement is shaped around the question in front of you. The areas we work across include, but are not limited to, the following areas.</p></div></div>
+  </div>
+  </div>
+    <section class="section services-section" id="services" data-services aria-labelledby="services-title">
+    <div class="services-stage" data-services-stage>
+      <div class="services-heading"><h2 id="services-title">Our service offerings.</h2><p class="lead">Each engagement is shaped around the question in front of you. The areas we work across include, but are not limited to, the following areas.</p></div>
       <div class="service-list">
-        <article class="service"><h3>Redesign workflows for people and agents</h3><p>Agents for execution. People for judgement. Workflows rebuilt around both.</p></article>
-        <article class="service"><h3>Make delivery performance transparent</h3><p>Connect what technology work costs, what it delivers and the value it creates. Better data for better decisions.</p></article>
-        <article class="service"><h3>Test AI governance in practice</h3><p>Put agents through realistic scenarios to find where they fail or overstep, and design controls people can trust</p></article>
+        <article class="service"><h3>Redesign workflows for people and agents</h3><p>Agents for execution. People for judgement. Workflows rebuilt around both.</p><div class="service-art"><!-- artwork: service-0 --></div></article>
+        <article class="service"><h3>Make delivery performance transparent</h3><p>Connect what technology work costs, what it delivers and the value it creates. Better data for better decisions.</p><div class="service-art"><!-- artwork: service-1 --></div></article>
+        <article class="service"><h3>Test AI governance in practice</h3><p>Put agents through realistic scenarios to find where they fail or overstep, and design controls people can trust</p><div class="service-art"><!-- artwork: service-2 --></div></article>
       </div>
+    </div>
     </section>
   </main>
-  </div>
   <!-- include: sections/footer.html -->
 </body>
 </html>

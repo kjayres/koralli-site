@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { buildingMarkup } from '../src/scripts/art/building.mjs';
+import { serviceArtwork } from '../src/scripts/art/service-scenes.mjs';
 
 const escapeHTML = text => String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -71,7 +72,8 @@ function expand(name, stack = []) {
   if (relative(sourceDir, path).startsWith('..')) throw new Error(`Include outside src: ${name}`);
   if (stack.includes(name)) throw new Error(`Circular include: ${[...stack, name].join(' -> ')}`);
   return readFileSync(path, 'utf8').replace(/<!-- include: ([\w./-]+) -->/g, (_, child) => expand(child, [...stack, name]))
-    .replace('<!-- artwork: building -->', buildingMarkup());
+    .replace('<!-- artwork: building -->', buildingMarkup())
+    .replace(/<!-- artwork: service-(\d) -->/g, (_, index) => serviceArtwork(Number(index)));
 }
 
 function articlesMarkup() {

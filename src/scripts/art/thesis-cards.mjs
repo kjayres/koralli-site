@@ -4,6 +4,10 @@ const GLASS = '#D7DFEF';
 const BLUE = '#244EFF';
 const CORAL = '#FF6655';
 
+// Shared by the service illustrations: keep the homepage's projection, solid
+// figures and articulated limbs as the single drawing system.
+export { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, GLASS, BLUE, CORAL };
+
 const DEEP_BG = '#0F1D3A';
 const DEEP_SHADE = '#162A52';
 const DEEP_GLASS = '#1D3B73';

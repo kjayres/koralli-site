@@ -1,0 +1,37 @@
+/* The same paper, fine rules and miniature scenes as the homepage cards. */
+.services-section { padding-top:70px; padding-bottom:80px; }
+.services-stage { width:100%; }
+.services-heading { display:grid; grid-template-columns:1fr 1.1fr; gap:40px; align-items:start; }
+.services-heading h2 { margin:0; }
+.services-heading .lead { margin:0; max-width:56ch; font-size:16px; line-height:1.6; color:#5c5b58; }
+.services-section .service-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:stretch; gap:22px; margin:34px 0 0; }
+.services-section .service { display:flex; flex-direction:column; padding:25px 23px 14px; border:1px solid var(--rule); background:var(--paper); min-width:0; }
+.services-section .service h3 { margin:0; font-size:clamp(21px,1.85vw,27px); line-height:1.18; font-weight:500; text-wrap:balance; }
+.services-section .service p { margin:17px 0 25px; font-size:15px; line-height:1.6; }
+.service-art { margin-top:auto; border-top:1px solid rgba(14,13,11,.1); padding-top:15px; }
+.service-art svg { display:block; width:100%; height:auto; overflow:visible; }
+.services-pinned .services-stage { position:sticky; top:var(--services-top,24px); }
+.services-pinned .service { opacity:var(--service-opacity,1); transform:translateY(var(--service-rise,0px)); }
+@media (max-width:1000px) {
+  .services-section .service { padding:21px 17px 12px; }
+  .services-section .service-list { gap:16px; }
+  .services-section .service h3 { font-size:22px; }
+  .services-section .service p { font-size:14px; }
+}
+@media (max-width:850px) {
+  .services-section { padding-top:50px; padding-bottom:60px; }
+  .services-heading { display:block; }
+  .services-heading .lead { margin-top:22px; }
+  .services-section .service-list { grid-template-columns:1fr; gap:24px; margin-top:32px; }
+  .services-section .service { padding:26px 26px 15px; }
+  .services-section .service h3 { font-size:26px; max-width:27ch; }
+  .services-section .service p { font-size:15px; max-width:49ch; }
+  .service-art svg { max-width:480px; margin:auto; }
+}
+@media (max-width:400px) {
+  .services-section .service { padding:22px 18px 12px; }
+  .services-section .service h3 { font-size:24px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .services-pinned .service { transform:none; opacity:1; }
+}
