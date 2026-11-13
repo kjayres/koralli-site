@@ -1,0 +1,1 @@
+document.querySelectorAll('.header-burger-btn').forEach(b=>b.addEventListener('click',()=>{const open=document.body.classList.toggle('header--menu-open');b.setAttribute('aria-expanded',String(open));}));
