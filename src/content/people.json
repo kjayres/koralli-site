@@ -7,6 +7,13 @@
     "portrait": "/assets/images/portraits/antony-refined.webp"
   },
   {
+    "name": "James Walker",
+    "field": "SENIOR ADVISOR & AI GOVERNANCE",
+    "kind": "operator",
+    "bio": "James has 35 years of experience, from writing software to running global networks at Bank of America, Morgan Stanley and Credit Suisse.\n\nHe is the former Chief Administrative Officer of DXC Technology and the founder of Scorpion Labs.",
+    "portrait": "/assets/images/portraits/james-walker.png"
+  },
+  {
     "name": "Kieran Ayres",
     "field": "STATISTICS",
     "kind": "researcher",
