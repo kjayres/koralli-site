@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import test from 'node:test';
 import { servicePose, serviceSceneMarkup } from '../src/scripts/art/service-scenes.mjs';
 import { serviceReveal } from '../src/scripts/services.mjs';
-import { coursePose, courseActors } from '../src/scripts/art/service-course.mjs';
+import { coursePose, courseActors, courseMarkup } from '../src/scripts/art/service-course.mjs';
 
 test('all scenes close their physical loops without a jump', () => {
   const values = object => Object.values(object).flat();
@@ -40,7 +40,7 @@ test('monkey bars keep a supporting hand on a rung and all limbs remain within r
   }
 });
 
-test('feet land on the posts, knees settle, and the next robot joins without a visible reset', () => {
+test('feet land on the posts and knees settle without the feet sliding', () => {
   for (const [t, x, z] of [[.645, 118, 12], [.745, 136, 16], [.845, 154, 12]]) {
     const pose = coursePose(t);
     assert.equal(pose.stage, 'settle');
@@ -48,11 +48,41 @@ test('feet land on the posts, knees settle, and the next robot joins without a v
     assert.ok(pose.z < z);
     pose.feet.forEach(foot => { assert.equal(foot[0], x); assert.equal(foot[2], z); });
   }
-  const end = courseActors(1 - 1e-7).filter(actor => actor.opacity > .001);
-  assert.equal(end.length, 1);
-  const start = courseActors(0)[0];
-  for (const key of ['x', 'y', 'z', 'stride', 'opacity']) assert.ok(Math.abs(end[0][key] - start[key]) < .002);
-  assert.ok(courseActors(.95).length === 2);
+});
+
+test('hopping arms swing back, lift for take-off and lower continuously into landing', () => {
+  for (const [wait, start, end] of [[.63, .66, .73], [.73, .76, .83], [.83, .86, .92]]) {
+    const crouch = coursePose(wait + (start - wait) * .55);
+    const takeoff = coursePose(start);
+    const flight = coursePose(start + (end - start) * .35);
+    const landing = coursePose(end);
+    for (const key of ['left', 'right']) {
+      assert.ok(crouch[key][0] < crouch.x, 'The backswing passes behind the torso.');
+      assert.ok(takeoff[key][0] > takeoff.x && takeoff[key][2] > crouch[key][2]);
+      assert.ok(flight[key][2] > flight.z + 31.8 * flight.scale, 'The arms rise above shoulder level in flight.');
+      assert.ok(Math.abs(flight[key][1] - flight.y) > Math.abs(landing[key][1] - landing.y), 'Arms open for balance before lowering.');
+      assert.ok(landing[key][2] < landing.z + 31.8 * landing.scale);
+    }
+    for (const boundary of [wait, start, end]) {
+      const before = coursePose(boundary - 1e-7), after = coursePose(boundary + 1e-7);
+      for (const key of ['left', 'right']) {
+        assert.ok(Math.hypot(...before[key].map((v, i) => v - after[key][i])) < .002, `No hand jump at ${boundary}.`);
+      }
+    }
+  }
+});
+
+test('only one robot is visible, with an empty interval before the next entry', () => {
+  for (let i = 0; i <= 2000; i++) {
+    const actors = courseActors(i / 2000);
+    assert.ok(actors.length <= 1);
+    actors.forEach(actor => assert.ok(actor.opacity > 0 && actor.opacity <= 1));
+  }
+  for (const phase of [.985, .995, 0, .005, 1 - 1e-7, 1]) assert.deepEqual(courseActors(phase), []);
+  assert.ok(courseActors(.95)[0].opacity > courseActors(.97)[0].opacity);
+  assert.ok(courseActors(.015)[0].opacity < courseActors(.035)[0].opacity);
+  assert.ok(courseActors(.015)[0].x < courseActors(.035)[0].x);
+  assert.equal(courseMarkup(0), courseMarkup(1), 'The entire rendered scene closes its loop.');
 });
 
 test('cloth remains on the glass and within the human arm reach', () => {

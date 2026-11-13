@@ -6,7 +6,7 @@ const CORAL = '#FF6655';
 
 // Shared by the service illustrations: keep the homepage's projection, solid
 // figures and articulated limbs as the single drawing system.
-export { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, GLASS, BLUE, CORAL };
+export { makeProjector, isoPrimitives, human3DMarkup, clipboardPose, robotMarkup, PAPER, SHADE, GLASS, BLUE, CORAL };
 
 const DEEP_BG = '#0F1D3A';
 const DEEP_SHADE = '#162A52';
@@ -158,6 +158,29 @@ function bodyFrame(x, y, heading, z = 0, scale = 1) {
   return { forward, right, local, scale };
 }
 
+// A clipboard held in front of the waist, with its upper edge raised away
+// from the body. The paper normal faces upwards and back towards its reader.
+// Both hand targets come from this rigid plane, rather than moving the board
+// independently of the arms or letting a writing hand pass through the sheet.
+function clipboardPose({ x, y, z = 0, scale = .84, heading = 0, lean = 0 }, phase = 0) {
+  const { forward, right, local } = bodyFrame(x, y, heading, z, scale);
+  const tilt = 38 * Math.PI / 180;
+  const along = add3(mul3(forward, Math.cos(tilt)), [0, 0, Math.sin(tilt)]);
+  const normal = add3(mul3(forward, -Math.sin(tilt)), [0, 0, Math.cos(tilt)]);
+  const centre = local(0, 9.2 + lean * .35, 27);
+  const point = (u, v, lift = 0) => add3(centre, mul3(add3(add3(mul3(right, u), mul3(along, v)), mul3(normal, lift)), scale));
+  const stroke = phase * TAU * 5;
+  const tip = point(.65 + 1.1 * Math.sin(stroke), .65 + .24 * Math.cos(stroke), .08);
+  return {
+    centre, right, along, normal, point,
+    corners: [[-4.4, -5.6], [4.4, -5.6], [4.4, 5.6], [-4.4, 5.6]].map(([u, v]) => point(u, v)),
+    grip: point(-4.4, -.7),
+    tip,
+    writingHand: add3(tip, mul3(normal, 2.4 * scale)),
+    penEnd: add3(tip, mul3(normal, 4.2 * scale)),
+  };
+}
+
 function solid(d, { fill, stroke, width = 1.0, extra = '' }) {
   return `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${width}" ${extra}/>`;
 }
@@ -201,6 +224,15 @@ function human3DMarkup(p, {
   held = '',
 } = {}) {
   const s = scale;
+  // Object form opts service observers into a physically coupled writing pose.
+  // Keep the existing boolean form for the homepage's inspection figures.
+  const writingBoard = holdingBoard && typeof holdingBoard === 'object'
+    ? clipboardPose({ x, y, z, scale, heading, lean }, holdingBoard.phase ?? 0)
+    : null;
+  if (writingBoard) {
+    leftTarget = writingBoard.grip;
+    rightTarget = writingBoard.writingHand;
+  }
   const forward = [Math.sin(heading), Math.cos(heading), 0];
   const right = [Math.cos(heading), -Math.sin(heading), 0];
   const local = (u, v, h) => [
@@ -355,7 +387,7 @@ function human3DMarkup(p, {
   }
 
   // Optional 3D note card held between the hands
-  let propMarkup = '';
+  let propMarkup = '', boardMarkup = '';
   if (holdingNote && solvedHands.length === 2) {
     const midH = mix3(solvedHands[0], solvedHands[1], 0.5);
     const corners = [
@@ -368,7 +400,17 @@ function human3DMarkup(p, {
   }
 
   // Optional 3D clipboard / inspection board held in left hand (for the head-scratching designer)
-  if (holdingBoard && solvedHands.length >= 1) {
+  if (writingBoard) {
+    const { corners, point, tip, penEnd } = writingBoard;
+    boardMarkup = `<g data-clipboard="writing"><polygon points="${points(corners.map(pt => p(...pt)))}" fill="${fillPaper}" stroke="${BLUE}" stroke-width=".95"/>`;
+    // A clip across the raised top edge and short rules lie in the same plane.
+    boardMarkup += `<polygon points="${points([point(-1.2, 4.9, .06), point(1.2, 4.9, .06), point(1.2, 5.8, .06), point(-1.2, 5.8, .06)].map(pt => p(...pt)))}" fill="${shadowColor}" stroke="${BLUE}" stroke-width=".65"/>`;
+    for (const v of [3.2, 1.5, -.2, -1.9]) {
+      boardMarkup += `<path d="M${pair(p(...point(-3, v, .08)))} L${pair(p(...point(2.9, v, .08)))}" fill="none" stroke="${BLUE}" stroke-opacity=".45" stroke-width=".6"/>`;
+    }
+    boardMarkup += '</g>';
+    propMarkup += `<path data-clipboard-pen="true" d="M${pair(p(...tip))} L${pair(p(...penEnd))}" fill="none" stroke="${BLUE}" stroke-width="1" stroke-linecap="round"/>`;
+  } else if (holdingBoard && solvedHands.length >= 1) {
     const lh = solvedHands[boardHand];
     const bCorners = [
       add3(lh, add3(mul3(right, -3.8 * s), add3(mul3(forward, -1.0 * s), [0, 0, -3.5 * s]))),
@@ -415,7 +457,7 @@ function human3DMarkup(p, {
   const [gx, gy] = p(x, y, z + 0.2);
   const shadow = `<ellipse cx="${number(gx)}" cy="${number(gy)}" rx="${number(6.8 * s)}" ry="${number(3.0 * s)}" fill="${shadowColor}" fill-opacity=".65" stroke="none"/>`;
 
-  return `${defs}<g data-human-3d="${id}">${shadow}${backArms.join('')}${unifiedBodyMarkup}${held}${frontArms.join('')}${propMarkup}${headMarkup}</g>`;
+  return `${defs}<g data-human-3d="${id}">${shadow}${backArms.join('')}${unifiedBodyMarkup}${held}${boardMarkup}${frontArms.join('')}${propMarkup}${headMarkup}</g>`;
 }
 
 /**

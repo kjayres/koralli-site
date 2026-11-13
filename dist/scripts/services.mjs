@@ -1,4 +1,4 @@
-import { serviceSceneMarkup } from './art/service-scenes.mjs?v=01f600b00167';
+import { serviceSceneMarkup } from './art/service-scenes.mjs?v=da0e41355b3f';
 
 const clamp = n => Math.max(0, Math.min(1, n));
 export function serviceReveal(progress, index) {

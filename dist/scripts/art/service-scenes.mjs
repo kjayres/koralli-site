@@ -1,5 +1,5 @@
-import { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, GLASS, BLUE, CORAL } from './thesis-cards.mjs?v=01f600b00167';
-import { courseMarkup, coursePose } from './service-course.mjs?v=01f600b00167';
+import { makeProjector, isoPrimitives, human3DMarkup, robotMarkup, PAPER, SHADE, GLASS, BLUE, CORAL } from './thesis-cards.mjs?v=da0e41355b3f';
+import { courseMarkup, coursePose } from './service-course.mjs?v=da0e41355b3f';
 
 const TAU = Math.PI * 2;
 const clamp = n => Math.max(0, Math.min(1, n));
